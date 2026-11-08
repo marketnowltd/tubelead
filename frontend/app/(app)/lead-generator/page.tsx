@@ -1,13 +1,14 @@
 "use client";
 import { AlertTriangle, CalendarClock, Globe, Layers, Layers3, Lightbulb, Repeat, Rocket, Save, Search, Sparkles, Telescope, Wand2 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { JobMonitor, isActiveJob } from "@/components/pages/JobMonitor";
 import { Badge, EmptyState, PageHeader, Panel, PanelHeader } from "@/components/ui/core";
+import { Modal } from "@/components/ui/overlay";
 import { Field, MultiSelect, Segmented, Switch, TagInput } from "@/components/ui/inputs";
 import { useToast } from "@/components/ui/overlay";
 import { cn } from "@/components/ui/cn";
-import { ApiError, api, useApi } from "@/lib/api";
+import { ApiError, api, downloadFile, useApi } from "@/lib/api";
 import { COUNTRIES, NICHES, REGIONS, flag, regionCodes } from "@/lib/countries";
 import type { Job, Status } from "@/lib/types";
 
@@ -50,6 +51,25 @@ function validate(f: Form): Record<string, string> {
 }
 
 const SUB_PRESETS = [1_000, 10_000, 50_000, 100_000, 500_000, 1_000_000];
+const SIZES = [
+  { label: "Small (1k–50k subscribers)", min: 1_000, max: 50_000 },
+  { label: "Medium (50k–250k subscribers)", min: 50_000, max: 250_000 },
+  { label: "Large (250k–500k subscribers)", min: 250_000, max: 500_000 },
+  { label: "Any size up to 500k", min: 1_000, max: 500_000 },
+];
+const USES: { name: string; how: string }[] = [
+  { name: "Mailchimp", how: "Audience → Add contacts → Import contacts → upload the CSV and match the Email column." },
+  { name: "HubSpot", how: "Contacts → Import → Start an import → File from computer → upload the CSV." },
+  { name: "Brevo (Sendinblue)", how: "Contacts → Import contacts → Import a file → upload the CSV." },
+  { name: "Klaviyo", how: "Lists & Segments → Add profiles → Import profiles → upload the CSV." },
+  { name: "Kit (ConvertKit)", how: "Subscribers → Import → upload the CSV to a form or sequence." },
+  { name: "Salesforce", how: "Setup → Data Import Wizard → Leads → upload the CSV." },
+  { name: "Pipedrive", how: "Leads or Contacts → Import → upload the CSV and map the email field." },
+  { name: "Google Sheets", how: "File → Import → Upload → open the CSV, then add a Status column to track outreach." },
+  { name: "Microsoft Excel", how: "Open the CSV to sort, filter and score the leads yourself." },
+  { name: "Airtable or Notion", how: "Create a base or database → Import CSV, then use a board to move leads through stages." },
+  { name: "Zapier, Make or n8n", how: "Send each new lead to any app automatically. Set up the webhook in Automation Centre." },
+];
 const fmtK = (n: number) => (n >= 1_000_000 ? `${n / 1_000_000}M` : `${n / 1000}K`);
 const Err = ({ m }: { m?: string }) => (m ? <p role="alert" className="mt-1 text-[11px] text-[#A33A2A]">{m}</p> : null);
 
@@ -63,6 +83,19 @@ export default function LeadGenerator() {
   const [estimate, setEstimate] = useState<{ search_operations: number; max_quota_units: number; capped_at: number } | null>(null);
   const { data: st } = useApi<Status>("/status", { refreshInterval: 15000 });
   const { data: recent, mutate: refreshRecent } = useApi<Job[]>("/jobs?limit=5");
+  const [level, setLevel] = useState<"basic" | "advanced">("basic");
+  const [ready, setReady] = useState<Job | null>(null);
+  const sawActive = useRef<string | null>(null);
+  const { data: live } = useApi<Job>(jobId ? `/jobs/${jobId}` : null, { refreshInterval: (j) => (isActiveJob(j) ? 1500 : 0) });
+  useEffect(() => {
+    if (!live || !jobId || live.id !== jobId) return;
+    if (isActiveJob(live)) sawActive.current = jobId;
+    // Pop up only for a run that finished while this page was open, and only if it found leads.
+    if (live.status === "completed" && sawActive.current === jobId && live.qualified > 0 && !live.is_demo) {
+      setReady(live);
+      sawActive.current = null;
+    }
+  }, [live, jobId]);
   const [nl, setNl] = useState("");
   const [proposal, setProposal] = useState<{ source: string; criteria: Record<string, any>; dropped: string[]; note: string | null } | null>(null);
   const [parsing, setParsing] = useState(false);
@@ -156,6 +189,37 @@ export default function LeadGenerator() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <div className="space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Segmented label="Search type" value={level} onChange={setLevel} options={[{ value: "basic", label: "Basic search" }, { value: "advanced", label: "Advanced search" }]} />
+            <p className="text-xs text-dim">{level === "basic" ? "The essentials: topic, country, size and how many." : "Every filter, quota cap and discovery mode."}</p>
+          </div>
+          {level === "basic" ? (
+            <Panel><PanelHeader title="Find leads" sub="Creators with a public email, so you can contact them." icon={<Search size={16} />} />
+              <div className="grid gap-4 px-5 pb-5 md:grid-cols-2">
+                <Field label="Topic or keyword" className="md:col-span-2" hint="Press Enter after each. Example: fitness, budget travel"><TagInput label="Topic" value={f.keywords} onChange={(v) => set("keywords", v)} placeholder="e.g. fitness" /><Err m={show("keywords")} /></Field>
+                <Field label="Country">
+                  <select className="field" aria-label="Country" value={f.countries[0] ?? ""} onChange={(e) => set("countries", e.target.value ? [e.target.value] : [])}>
+                    <option value="">Anywhere</option>{COUNTRIES.map((c) => <option key={c.code} value={c.code}>{flag(c.code)} {c.name}</option>)}
+                  </select>
+                </Field>
+                <Field label="Creator size" hint="Big brands are left out.">
+                  <select className="field" aria-label="Creator size" value={SIZES.findIndex((z) => z.min === f.minSubs && z.max === f.maxSubs)} onChange={(e) => { const z = SIZES[Number(e.target.value)]; setF((x) => ({ ...x, minSubs: z.min, maxSubs: z.max })); }}>
+                    {SIZES.map((z, k) => <option key={z.label} value={k}>{z.label}</option>)}
+                  </select>
+                </Field>
+                <Field label="How many leads">
+                  <select className="field" aria-label="How many leads" value={f.limit} onChange={(e) => set("limit", Number(e.target.value))}>
+                    {[10, 25, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                </Field>
+                <div className="flex flex-col justify-end gap-2">
+                  <button className="btn-primary pill-forest w-full" onClick={submit} disabled={busy}><Rocket size={16} /> {busy ? "Starting…" : "Find leads"}</button>
+                  <button type="button" onClick={() => setLevel("advanced")} className="text-xs font-semibold text-forest hover:underline">Need more control? Advanced search →</button>
+                </div>
+              </div>
+            </Panel>
+          ) : (
+            <>
           <Panel><PanelHeader title="Describe who you want" sub="Plain language in, editable criteria out. Nothing runs until you press Generate." icon={<Wand2 size={16} />} />
             <div className="space-y-3 px-5 pb-5">
               <form onSubmit={(e) => { e.preventDefault(); interpret(); }} className="flex flex-col gap-2 sm:flex-row">
@@ -243,6 +307,8 @@ export default function LeadGenerator() {
               </div>
             </div>
           </Panel>
+            </>
+          )}
         </div>
 
         <div className="space-y-6 xl:sticky xl:top-24 xl:self-start">
@@ -259,6 +325,21 @@ export default function LeadGenerator() {
           )}
         </div>
       </div>
+      <Modal open={!!ready} onOpenChange={(o) => !o && setReady(null)} title={`${ready?.qualified ?? 0} leads are ready`} description="Download them, then send them wherever you work.">
+        <div className="space-y-5">
+          <button className="btn-primary pill-forest w-full" onClick={async () => { if (!ready) return; try { await downloadFile(`/creators/export.csv?job_id=${ready.id}`, `tubelead-leads-${ready.id.slice(0, 8)}.csv`); } catch (e: any) { toast("error", e.message); } }}>
+            Download CSV
+          </button>
+          <p className="text-xs text-dim">Includes channel name and link, subscribers, country, public email, website and score. CSV download needs a paid plan.</p>
+          <div>
+            <p className="label mb-2">What you can do with them</p>
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {USES.map((u) => <li key={u.name} className="rounded-xl border border-line bg-panel p-3"><p className="text-[13px] font-semibold">{u.name}</p><p className="mt-0.5 text-[12px] leading-snug text-mute">{u.how}</p></li>)}
+            </ul>
+          </div>
+          <p className="rounded-lg bg-bg2 p-3 text-[12px] text-mute">Only email people who have agreed to hear from you or where the law allows it. You are responsible for consent, for example under UK PECR and GDPR.</p>
+        </div>
+      </Modal>
     </div>
   );
 }
