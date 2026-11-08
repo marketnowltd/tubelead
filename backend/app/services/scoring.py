@@ -3,7 +3,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-BRAND_HINTS = ("official", " inc", " ltd", " llc", "studios", "network", " tv", "media", "records", "vevo", "- topic", "news")
+BRAND_HINTS = ("official", " inc", " ltd", " llc", " plc", " corp", "studios", "network", " tv", "media", "records", "vevo", "- topic", "news",
+               "entertainment", "broadcast", "pictures", "games inc", "store", "magazine", "channel 4", "bbc", "cnn", "espn", "nba", "nfl",
+               "netflix", "disney", "sony", "universal", "warner", "buzzfeed", "vice ", "fox ")
 
 TOPIC_MAP = {
     "gaming": "Gaming", "video_game": "Gaming", "music": "Music", "sport": "Sports", "football": "Sports",

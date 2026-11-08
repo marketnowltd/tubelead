@@ -7,6 +7,7 @@ import { api, useApi } from "@/lib/api";
 import { dateLong, duration, num, titleCase } from "@/lib/format";
 import type { Job } from "@/lib/types";
 import { Badge, DemoTag, Progress, Skeleton, statusTone } from "../ui/core";
+import { GeometricProgress } from "./GeometricProgress";
 import { useToast } from "../ui/overlay";
 
 export const isActiveJob = (j?: Job | null) => !!j && ["queued", "running", "paused", "cancelling"].includes(j.status);
@@ -56,6 +57,8 @@ export function JobMonitor({ jobId, compact }: { jobId: string; compact?: boolea
         {active && <button onClick={cancel} disabled={cancelling || job.status === "cancelling"} className="btn-ghost btn-sm"><Square size={12} /> {job.status === "cancelling" ? "Cancelling…" : "Cancel job"}</button>}
         </div>
       </div>
+
+      <div className="mt-4"><GeometricProgress job={job} /></div>
 
       <div className="mt-4 overflow-hidden rounded-xl border border-line bg-bg2 p-3.5">
         <p className="label mb-1 flex items-center gap-1.5"><Radar size={12} className="text-moss" /> Current operation</p>

@@ -27,7 +27,7 @@ interface Form {
   source: "channels" | "videos" | "topics"; seedVideos: string[];
   requireEmail: boolean; requireWebsite: boolean; maxQuota: number; schedule: "hourly" | "daily" | "weekly"; saveName: string;
 }
-const DEFAULTS: Form = { source: "channels", seedVideos: [], mode: "standard", keywords: [], niches: [], countries: [], minSubs: 10_000, maxSubs: "", minEng: 0, creatorType: "any", activity: "any", limit: 25, requireEmail: false, requireWebsite: false, maxQuota: 1500, schedule: "daily", saveName: "" };
+const DEFAULTS: Form = { source: "channels", seedVideos: [], mode: "standard", keywords: [], niches: [], countries: [], minSubs: 1_000, maxSubs: 500_000, minEng: 0, creatorType: "creator", activity: "any", limit: 25, requireEmail: true, requireWebsite: false, maxQuota: 1500, schedule: "daily", saveName: "" };
 
 function toParams(f: Form) {
   return {

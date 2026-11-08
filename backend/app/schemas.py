@@ -15,12 +15,12 @@ class JobParams(BaseModel):
     source: Literal["channels", "videos", "topics"] = "channels"
     seed_videos: list[str] = Field(default_factory=list, max_length=10)  # video URLs/IDs: find creators similar to them
     min_subscribers: int = Field(1000, ge=0)
-    max_subscribers: int | None = Field(None, ge=0)
+    max_subscribers: int | None = Field(500_000, ge=0)  # big-brand channels are usually far above this
     min_engagement: float = Field(0.0, ge=0, le=100)
-    creator_type: Literal["any", "creator", "brand"] = "any"
+    creator_type: Literal["any", "creator", "brand"] = "creator"  # exclude brands by default
     activity: Literal["any", "active", "recent", "dormant"] = "any"  # recent = active or moderate
     limit: int = Field(25, ge=1, le=500)
-    require_email: bool = False
+    require_email: bool = True  # leads are creators with a publicly published email
     require_website: bool = False
     max_quota_units: int = Field(1500, ge=100, le=10_000)
 
@@ -51,7 +51,9 @@ class JobParams(BaseModel):
         if not self.keywords and not self.niches and not self.seed_videos:
             raise ValueError("Provide at least one keyword, niche or seed video")
         if self.max_subscribers is not None and self.max_subscribers < self.min_subscribers:
-            raise ValueError("max_subscribers must be >= min_subscribers")
+            if "max_subscribers" in self.model_fields_set:
+                raise ValueError("max_subscribers must be >= min_subscribers")
+            self.max_subscribers = None  # the default ceiling gives way to an explicit minimum
 
 
 class JobCreate(BaseModel):
