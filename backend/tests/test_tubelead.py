@@ -469,3 +469,9 @@ def test_asymmetric_supabase_token_verified_with_public_key(client):
     finally:
         st.auth_mode, st.supabase_url = old
         auth_mod._jwks_clients.pop("https://example.supabase.co/auth/v1/.well-known/jwks.json", None)
+
+
+def test_database_url_with_stray_newline_is_cleaned(monkeypatch):
+    from app.config import Settings
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///./x.db\n")
+    assert Settings().database_url == "sqlite:///./x.db"

@@ -2,6 +2,7 @@
 never sent to the browser."""
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -49,6 +50,12 @@ class Settings(BaseSettings):
     max_concurrent_jobs: int = 2
     fetch_websites: bool = True
     scheduler_enabled: bool = True
+
+    @field_validator("database_url", "supabase_url", "app_base_url", mode="before")
+    @classmethod
+    def _strip_whitespace(cls, v):
+        # Copy-paste into hosting dashboards often adds spaces or line breaks; those break connections.
+        return v.strip() if isinstance(v, str) else v
 
     @property
     def cors_list(self) -> list[str]:
