@@ -444,3 +444,28 @@ def test_tenant_isolation_under_supabase_auth():
     finally:
         job_svc.submit = real_submit
         st.auth_mode, st.supabase_jwt_secret, st.plan_override = old
+
+
+def test_asymmetric_supabase_token_verified_with_public_key(client):
+    """Newer Supabase projects sign with ES256; the backend must verify against the project's public key."""
+    import jwt as pyjwt
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from unittest import mock
+    from app import auth as auth_mod
+    priv = ec.generate_private_key(ec.SECP256R1())
+    now = int(time.time())
+    token = pyjwt.encode({"sub": "cccccccc-0000-0000-0000-000000000003", "aud": "authenticated", "exp": now + 300}, priv, algorithm="ES256")
+    st = get_settings()
+    old = (st.auth_mode, st.supabase_url)
+    st.auth_mode, st.supabase_url = "supabase", "https://example.supabase.co"
+    fake_client = mock.Mock()
+    fake_client.get_signing_key_from_jwt.return_value = mock.Mock(key=priv.public_key())
+    auth_mod._jwks_clients["https://example.supabase.co/auth/v1/.well-known/jwks.json"] = fake_client
+    try:
+        assert client.get("/api/status", headers={"Authorization": f"Bearer {token}"}).status_code == 200
+        bad = pyjwt.encode({"sub": "x", "aud": "authenticated"}, ec.generate_private_key(ec.SECP256R1()), algorithm="ES256")
+        fake_client.get_signing_key_from_jwt.return_value = mock.Mock(key=priv.public_key())
+        assert client.get("/api/status", headers={"Authorization": f"Bearer {bad}"}).status_code == 401
+    finally:
+        st.auth_mode, st.supabase_url = old
+        auth_mod._jwks_clients.pop("https://example.supabase.co/auth/v1/.well-known/jwks.json", None)

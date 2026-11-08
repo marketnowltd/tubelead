@@ -19,8 +19,8 @@ class Settings(BaseSettings):
     youtube_quota_reserve: int = 300  # units never spent, kept for manual use
 
     auth_mode: str = "dev"  # "dev" (single local user) | "supabase" (JWT required)
-    supabase_url: str = ""
-    supabase_jwt_secret: str = ""
+    supabase_jwt_secret: str = ""  # legacy HS256 projects only
+    supabase_url: str = ""         # e.g. https://<ref>.supabase.co — used to verify newer ECC/RSA signed tokens
 
     # Encrypts stored provider keys (Fernet key derived from this). MUST be set to a long random value in production.
     secret_key: str = "dev-only-change-me-tubelead-secret"

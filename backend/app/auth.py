@@ -18,6 +18,16 @@ def hash_key(raw: str) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
+_jwks_clients: dict[str, jwt.PyJWKClient] = {}
+
+
+def _jwks_client(supabase_url: str) -> jwt.PyJWKClient:
+    url = supabase_url.rstrip("/") + "/auth/v1/.well-known/jwks.json"
+    if url not in _jwks_clients:
+        _jwks_clients[url] = jwt.PyJWKClient(url, cache_keys=True, lifespan=3600)
+    return _jwks_clients[url]
+
+
 def get_owner(
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
@@ -35,10 +45,21 @@ def get_owner(
         return DEV_OWNER
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(401, "Missing bearer token")
-    if not s.supabase_jwt_secret:
-        raise HTTPException(500, "SUPABASE_JWT_SECRET is not configured")
+    token = authorization[7:]
     try:
-        claims = jwt.decode(authorization[7:], s.supabase_jwt_secret, algorithms=["HS256"], audience="authenticated")
+        alg = jwt.get_unverified_header(token).get("alg", "")
+        if alg in ("RS256", "ES256"):
+            # Newer Supabase projects sign tokens with asymmetric keys; verify against the project's public keys.
+            if not s.supabase_url:
+                raise HTTPException(500, "SUPABASE_URL is not configured")
+            key = _jwks_client(s.supabase_url).get_signing_key_from_jwt(token).key
+            claims = jwt.decode(token, key, algorithms=[alg], audience="authenticated")
+        else:
+            if not s.supabase_jwt_secret:
+                raise HTTPException(500, "SUPABASE_JWT_SECRET is not configured")
+            claims = jwt.decode(token, s.supabase_jwt_secret, algorithms=["HS256"], audience="authenticated")
+    except HTTPException:
+        raise
     except jwt.PyJWTError as exc:
         raise HTTPException(401, f"Invalid token: {exc}") from exc
     sub = claims.get("sub")
