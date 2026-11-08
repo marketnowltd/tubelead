@@ -9,8 +9,8 @@ services:
     env_file: ./backend/.env
     environment:
       REDIS_URL: redis://redis:6379/0
-      DATABASE_URL: ${DATABASE_URL:-sqlite:////data/creatorlead.db}
-    volumes: ["creatorlead-data:/data"]
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////data/tubelead.db}
+    volumes: ["tubelead-data:/data"]
     depends_on: [redis]
     restart: unless-stopped
   frontend:
@@ -24,4 +24,4 @@ services:
     depends_on: [backend]
     restart: unless-stopped
 volumes:
-  creatorlead-data:
+  tubelead-data:

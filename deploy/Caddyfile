@@ -1,0 +1,15 @@
+{$DOMAIN} {
+	email {$ACME_EMAIL}
+	encode zstd gzip
+	# Stripe webhooks must reach the API untouched (raw body is signature-checked there).
+	reverse_proxy web:3000
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+	request_body {
+		max_size 12MB
+	}
+}

@@ -1,72 +1,50 @@
-# Project checklist — what is done, what is verified, what is not
+# TubeLead — what is done, what is verified, what is not
 
-Legend: ✅ implemented **and** tested · 🟡 implemented, only partly tested · ❌ not implemented
+Legend: ✅ implemented **and** tested · 🟡 implemented, only partly tested · ❌ not implemented / not possible here
 
-## Reference image & brief compliance (read first)
-- ❌ **The reference image was never received** — no attachment reached the session and none exists in the repo. The UI was built from
-  the written brief only (palette, hero contents, sidebar contents, panel types). **Visual fidelity to your image is unverified**;
-  expect to send the image for a comparison/adjustment pass.
-- ❌ **Fontjoy was not used** — it is an interactive web tool that couldn't be operated here. The brief's suggested pairing
-  (Space Grotesk / Inter / IBM Plex Mono) is implemented as specified; refine on fontjoy.com if desired.
-- 🟡 "shadcn/ui": the shadcn CLI/registry was not run; components are hand-written in the shadcn style on Radix primitives
-  (Dialog, Switch) + `class-variance-authority`/`tailwind-merge`.
-- 🟡 "Custom iconography": Lucide icons set inside custom glowing icon tiles; there is no bespoke icon set.
-- ✅ Hero artwork is original (SVG/CSS/canvas) — no stock photos.
-
-## Product
-| Area | Status | Evidence |
+## Brief compliance
+| Requirement | Status | Notes |
 |---|---|---|
-| 13 screens + persistent collapsible sidebar, active glow, usage meter, plan panel, profile | ✅ | Playwright: 13 nav items, collapse 276→84 px, every page renders |
-| Cinematic hero (headline, copy, 2 CTAs, play-button art, creators, orbit, particles, light trails, feature row) | ✅ | Screenshots; reduced-motion removes animated layers (0 infinite animations) |
-| Lead Generator: keywords, niches, countries, regions, subs min/max, engagement, type, activity, lead count, email/website toggles, 6 modes | ✅ | E2E: validation blocks bad input; real job run |
-| Real background jobs with real counters (found/unique/duplicates/qualified/enrichment/quota/ETA/log) | ✅ | pytest (mocked YouTube) + E2E against fake YouTube server; job quota == quota ledger |
-| Duplicate protection (DB unique index + dedupe in engine) | ✅ | pytest + E2E: repeat search removed 6 duplicates, 0 duplicate IDs |
-| Cancel running job | ✅ | E2E |
-| Quota budget (per job + daily + reserve), YouTube quota errors handled | ✅ | pytest |
-| Lead database: search, 12 filters, sort, pagination, bulk select/assign/status/delete, CSV export, saved views, profile drawer, mobile cards | ✅ | E2E (filter == API, bulk, export 2 rows, saved view) |
-| Contact intelligence: description + website + contact-page scan, source/date/confidence/website status, trust levels, MX check | 🟡 | pytest with mocked sites; **never run against real websites** |
-| Email "verified deliverable" | ❌ | Reserved status; needs a verification provider. Nothing is ever auto-verified |
-| Campaigns (CRUD, assignment, funnel stats) | ✅ | E2E + pytest |
-| Saved searches + scheduled discovery | ✅ | pytest (scheduler fires due searches, advances `next_run_at`) |
-| n8n webhook on job completion | ✅ | pytest with a real local HTTP listener; **not tested against n8n itself** |
-| Analytics + dashboard charts (Recharts, animated) | ✅ | Playwright screenshots, no console errors |
-| Interactive world map (d3-geo, zoom/pan, hover, click-to-filter, compare, text alternative) | ✅ | Playwright screenshots |
-| API keys (hashed, shown once, revoke) + `X-API-Key` auth | ✅ | pytest + E2E |
-| Plans / limits (monthly leads, daily jobs) enforced at job start | ✅ | Code path; 🟡 only the happy path is covered by tests |
-| Billing (Stripe etc.) | ❌ | Model/limits ready; no payment integration; changing plan in Settings only changes limits |
-| Outbound email sending, CRM sync | ❌ | Out of scope |
+| Rebrand to TubeLead (name, logo/wordmark, favicon, metadata, copy, docs, folder, API title) | ✅ | The logo is an original SVG (play tile + connection nodes). SendLoom keeps its own brand and is linked as a sibling product |
+| Cream editorial design system (your palette, no large black areas, no glassmorphism) | ✅ | Tokens in `tailwind.config.ts` / `globals.css`; the only large dark-green blocks are the active nav, the plan card, the pricing "Pro" card and the final CTA — all brand forest, not black |
+| Manrope / DM Sans / IBM Plex Mono | ✅ | Self-hosted via Fontsource; verified by computed styles in the E2E |
+| **Fontjoy** | ❌ | An interactive website that can't be operated from the build sandbox. The pairing was chosen directly; swap on fontjoy.com if you prefer |
+| Secondary-text colour `#77756E` | 🟡 | Fails WCAG AA on cream (4.2:1), so body secondary text uses `#55534D`/`#6B6962`; `#77756E` is reserved for icon strokes |
+| Reference pill buttons | ✅ | Shape, uppercase label, right-hand icon, soft shadow kept; colours remapped to the palette (forest / terracotta / gold / sage) |
+| Dribbble layout reference | 🟡 | Used for composition only (large headline, pill search, product mock with floating cards, creator tiles, rounded cards). Not reproduced pixel-for-pixel, and the image could only be seen as an attachment description |
+| Public landing page before the app — 12 sections | ✅ | Playwright: headline, both CTAs, anchors, interactive demo, pricing toggle, FAQ, all internal links resolve, 390 px no horizontal scroll |
+| Landing "product preview / creator previews / data viz" | ✅ | **Fictional sample creators**, labelled "Sample data" wherever shown |
+| 16 app modules, no dead buttons | ✅ | E2E loads all 16 with no console errors; every button/link on every module has an accessible name |
+| Real YouTube discovery engine | 🟡 | **Never run against the live YouTube API** (no key / no outbound access). Verified against mocked transports and a local fake that follows the documented response shapes |
+| Keyword expansion, video-based, topic-based, "similar to videos" discovery | 🟡 | Unit/E2E with the fake server; AI keyword ideas tested with a fake provider |
+| Dedupe, subscriber filters, history, schedules, quota monitor, pause/resume/cancel, failed-request tolerance | ✅ | pytest + E2E (pause holds progress for 8+ s, resume completes, re-run removes duplicates) |
+| Queue + background workers | 🟡 | In-process thread pool with DB-backed state, **not** Redis/Celery. Single API replica |
+| Job metrics (keywords, channels, unique, duplicates, qualified, routes, failed requests, quota) | ✅ | Every counter is a DB measurement |
+| Contact statuses (published / unverified / deliverability-checked / website / form / none), separated | ✅ | pytest + UI. "Deliverability checked" = DNS/MX only; **mailbox-level verification is not integrated** (SendLoom has its own checks) |
+| No invented contacts; no unsolicited mass email | ✅ | By design; AI prompts forbid it and output is never written to contact fields |
+| AI Connect: 6 adapters, BYO key, test, models, default, rotate, disable, delete, usage, recent requests | 🟡 | OpenAI-compatible + Anthropic + Gemini adapters tested with **mock transports**, plus a fake OpenAI-compatible server in the browser E2E. **No call was ever made to a real provider** |
+| AI OAuth login | ❌ | Not offered: OpenAI/Anthropic/Google do not let third-party apps use a consumer subscription via OAuth. The UI explains subscription ≠ API |
+| AI Task Manager (8 tasks, per-task provider, fallback, disable) + orchestrator (retries, timeouts, rate limit, usage, cost estimates, error log) | ✅ | pytest (retry ×3 then fallback; disabled task never calls a provider) + E2E |
+| Keys encrypted, never in frontend, rotated/deleted, redacted from errors | ✅ | pytest (ciphertext in DB, never in any response, leak test with a key echoed in a provider error) |
+| AI search assistant → editable criteria shown before running | ✅ | Works with AI (validated against the schema; invalid fields dropped) and without (rules parser, labelled) |
+| Stripe: plans, monthly + annual, Checkout, change/cancel/resume, portal, past-due, refund status, verified idempotent webhooks, unlock only after verification | 🟡 | Webhook signature/replay/idempotency/lifecycle tested with locally signed events; Checkout request shape verified against a mock. **Never run against real Stripe** (no account/network) — do a test-mode purchase before launch |
+| Plan limits + paywalls (allowance reached, premium feature, daily runs) | ✅ | pytest + E2E: Free trial clamped to 25, exhaustion → 402, export/schedules/API/AI gated, UI modal names the limit; Settings can't self-upgrade |
+| Supabase Auth: email register/verify, Google, recovery | 🟡 | Screens and client calls written; JWT verification + tenant isolation tested with locally signed tokens. **Never exercised against a hosted Supabase project / Google OAuth** |
+| RLS | ✅ | `002_tubelead.sql` applied to local Postgres 16: other owner's rows hidden, `key_encrypted` unreadable, client cannot write `subscriptions`; full backend suite passes on it |
+| Per-customer isolation | ✅ | Two-user JWT test across providers, tasks, creators, export, jobs (get/cancel/pause/resume), billing |
+| Saved campaigns/schedules, analytics with interactive charts, downloadable reports | ✅ | CSV/JSON report download (formula-injection-safe) + AI summary from aggregate numbers only |
+| Next.js/TS/Tailwind/Lucide/Recharts/Framer Motion | ✅ | "shadcn/ui" = hand-written shadcn-style components on Radix (no registry/CLI run) |
+| FastAPI; Redis / n8n | 🟡 | Redis = rate limiting only; n8n = outgoing webhook only, tested against a local listener, not n8n |
+| Production Docker config for a VPS | ❌/🟡 | `deploy/` (compose + Caddy + env template) and `docs/DEPLOY.md` written; **images were never built** (no Docker daemon) |
+| Security: encrypted creds, rate limiting, validation, logging hygiene, webhook verification, SSRF guards, CSV formula neutralising | 🟡 | All present and tested except: **no Content-Security-Policy header** (Next inline scripts need a nonce setup), and no external pen-test |
+| Accessibility | 🟡 | axe-core (WCAG 2.1 AA) run over landing, auth and all 16 modules at 1440 px and 390 px — see result in the final report |
+| Email marketing / sending | ✅ (SendLoom) | Separate product at `/mail`, unchanged except branding of the hand-off; 34-check combined E2E passes |
 
-## Backend / infrastructure
-| Item | Status | Evidence |
-|---|---|---|
-| FastAPI REST, background jobs, scheduler, rate limiting, logging, error handling | ✅ | 28 pytest tests |
-| Supabase schema + RLS for all 10 tables | 🟡 | Applied to **local PostgreSQL 16** with a stub `auth` schema; all 28 tests pass on it. **No hosted Supabase project was used.** |
-| Supabase Auth (JWT verify, login screen) | 🟡 | JWT verification + tenant isolation tested with locally-signed tokens; **the login UI was never exercised against Supabase** |
-| Redis | 🟡 | Used for shared rate limiting only (verified with a local redis-server). **Jobs are not queued through Redis** — they run in-process |
-| Multiple API replicas | ❌ | Scheduler/job runner assume one instance (documented in README) |
-| **Real YouTube Data API calls** | ❌/🟡 | **Never executed — no key and no outbound access to Google.** Engine verified against mocked transports and a local fake that follows the documented response shapes. First real run may reveal field differences |
-| Docker images / compose | ❌ | Written but **not built** (no Docker daemon). Next.js standalone output verified directly |
-| CSP header | ❌ | Other security headers set |
-| Secrets: YouTube key never in frontend; stripped from logs | ✅ | Found & fixed: httpx INFO logging printed the key |
-
-## Quality gates (brief §14)
-| Gate | Result |
-|---|---|
-| Visual hierarchy / spacing / font consistency | Reviewed via screenshots at 1600 px and 390 px; fixed headline wrap, sidebar overflow, logo gradient ID clash, ambiguous tab labels, table width |
-| Every visible button & nav link | 40-step Playwright run: all pass (incl. destructive confirms, modals, drawer, Esc to close) |
-| Forms & validation | Generator, campaign, settings, manual contact, API key — covered |
-| Database connections | SQLite + PostgreSQL 16 |
-| API failure handling | Backend-down → error state + Retry (E2E); missing key → clear 503 + inline guidance; YouTube quota error → job fails cleanly (pytest) |
-| Console errors | 0 on all 13 pages desktop + mobile, and under reduced motion (found & fixed 2 hydration mismatches) |
-| Broken images | 0 |
-| Accessibility | axe-core (WCAG 2.0/2.1 A + AA): **0 violations on all 13 pages** (found & fixed unnamed progress bars). Not tested with a real screen reader |
-| Performance | Production build; first-load JS 190–213 kB per page (charts + map lazy-loaded). **No Lighthouse/Web-Vitals run** |
-| Browsers / devices | **Chromium only** (desktop + iPhone-sized emulation). Not tested on real iOS/Android or Safari/Firefox |
-
-## Bugs found by testing (all fixed)
-1. API key leaked into server logs via httpx request logging.
-2. Demo-data seeding crashed once real quota rows existed, and counted fictional units against the real quota ledger.
-3. `AVG()` returned `Decimal` on PostgreSQL → 500 on campaign stats/analytics (invisible on SQLite).
-4. Hydration mismatches (API Management `window.origin`; reduced-motion in hero/counters).
-5. Job with a per-job quota cap smaller than one search page failed silently → now warns in the UI and explains in the error.
-6. Demo seed marked some emails "verified" despite no verification existing → removed.
+## Known gaps (be aware before launch)
+- No real-service verification of **YouTube, Stripe, Supabase, Google OAuth or any AI provider** — only mocks/fakes/local Postgres.
+- Two sign-ins (TubeLead and SendLoom); no SSO.
+- Team accounts are a plan flag and seat count only — no invite flow was built.
+- Annual/monthly prices exist in two places (app config for display, Stripe for charging): keep them in sync.
+- Single API replica; no Redis-backed job queue.
+- The landing page's pricing falls back to static values if `/api/plans` is unreachable.
+- Starter legal pages (`/privacy`, `/terms`) are templates, not legal advice.

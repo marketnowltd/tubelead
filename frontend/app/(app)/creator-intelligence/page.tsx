@@ -48,7 +48,7 @@ export default function CreatorIntelligence() {
           <div className="grid gap-6 lg:grid-cols-2">
             <Panel><PanelHeader title="Country comparison" icon={<GitCompare size={16} />} sub={sel.length ? `${sel.length} selected` : "Select countries on the map or table"} action={sel.length > 0 && <button className="btn-ghost btn-sm" onClick={() => setSel([])}><X size={12} /> Clear</button>} />
               {compare.length < 2 ? <EmptyState title="Pick two or more countries" body="Click countries on the map or rows in the table to compare creator counts, share and average score." /> : (
-                <div className="overflow-x-auto px-5 pb-5"><table className="w-full text-sm"><thead><tr className="text-left"><th className="label py-2">Metric</th>{compare.map((c) => <th key={c.country} className="label py-2 text-right">{flag(c.country)} {c.country}</th>)}</tr></thead>
+                <div tabIndex={0} role="region" aria-label="Country comparison table" className="overflow-x-auto px-5 pb-5"><table className="w-full text-sm"><thead><tr className="text-left"><th className="label py-2">Metric</th>{compare.map((c) => <th key={c.country} className="label py-2 text-right">{flag(c.country)} {c.country}</th>)}</tr></thead>
                   <tbody className="divide-y divide-line">
                     <tr><td className="py-2 text-mute">Creators</td>{compare.map((c) => <td key={c.country} className="data py-2 text-right">{c.count}</td>)}</tr>
                     <tr><td className="py-2 text-mute">Share of total</td>{compare.map((c) => <td key={c.country} className="data py-2 text-right">{total ? ((c.count / total) * 100).toFixed(1) : 0}%</td>)}</tr>
@@ -62,15 +62,15 @@ export default function CreatorIntelligence() {
             <Panel glow><PanelHeader title={`Top creators · ${sel.map((c) => `${flag(c)} ${countryName(c)}`).join(", ")}`} sub="Highest qualification score first" />
               {!top ? <div className="space-y-2 p-5">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-12" />)}</div> : top.items.length === 0 ? <EmptyState title="No creators in these countries yet" /> : (
                 <ul className="grid gap-px bg-forest/10 sm:grid-cols-2">{top.items.map((c) => (
-                  <li key={c.id} className="bg-[#FFFDF8]"><button className="flex w-full items-center gap-3 px-5 py-3 text-left transition hover:bg-forest/10" onClick={() => setOpen(c.id)}>
+                  <li key={c.id} className="bg-[#FFFDF8]"><button className="flex w-full items-center gap-3 px-5 py-3 text-left transition hover:bg-forest-50" onClick={() => setOpen(c.id)}>
                     <Avatar src={c.thumbnail_url} name={c.title} size={40} /><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{c.title.replace(/ \(demo\)$/i, "")}</p><p className="text-[11px] text-dim">{c.niche} · {compact(c.subscriber_count)} subs · {titleCase(c.activity)}</p></div>
                     <Badge tone={statusTone[c.verification_status]}>{c.public_email ? "Email" : "No email"}</Badge><ScoreRing score={c.qualification_score} size={38} /></button></li>))}</ul>)}
             </Panel>)}
 
           <Panel><PanelHeader title="All countries" sub="Text alternative to the map" />
-            <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="border-y border-forest/15 bg-bg/40"><tr>{["Country", "Region", "Creators", "Share", "Avg score"].map((h) => <th key={h} scope="col" className="label px-5 py-2.5 text-left">{h}</th>)}</tr></thead>
+            <div tabIndex={0} role="region" aria-label="Countries table" className="overflow-x-auto"><table className="w-full text-sm"><thead className="border-y border-forest/15 bg-bg/40"><tr>{["Country", "Region", "Creators", "Share", "Avg score"].map((h) => <th key={h} scope="col" className="label px-5 py-2.5 text-left">{h}</th>)}</tr></thead>
               <tbody className="divide-y divide-line">{rows.map((r) => (
-                <tr key={r.country} onClick={() => toggle(r.country)} className={cn("cursor-pointer transition hover:bg-forest/10", sel.includes(r.country) && "bg-forest/15")}>
+                <tr key={r.country} onClick={() => toggle(r.country)} className={cn("cursor-pointer transition hover:bg-forest-50", sel.includes(r.country) && "bg-forest/15")}>
                   <td className="px-5 py-2.5">{flag(r.country)} {countryName(r.country)}</td><td className="px-5 text-mute">{countryByCode(r.country)?.region ?? "—"}</td><td className="data px-5">{r.count}</td><td className="data px-5">{total ? ((r.count / total) * 100).toFixed(1) : 0}%</td><td className="data px-5">{r.avg_score}</td></tr>))}
                 {rows.length === 0 && <tr><td colSpan={5}><EmptyState title="No geographic data yet" body="Countries appear once discovered channels declare one." /></td></tr>}</tbody></table></div>
           </Panel>

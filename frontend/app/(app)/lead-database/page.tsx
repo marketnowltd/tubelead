@@ -146,7 +146,7 @@ function Database() {
                 <tbody className="divide-y divide-line">
                   {isLoading && !data && Array.from({ length: 8 }).map((_, i) => <tr key={i}><td colSpan={13} className="px-3 py-3"><Skeleton className="h-9 w-full" /></td></tr>)}
                   {items.map((c) => (
-                    <tr key={c.id} className={cn("group cursor-pointer transition hover:bg-forest/10", sel.has(c.id) && "bg-forest/10")} onClick={() => setOpen(c.id)}>
+                    <tr key={c.id} className={cn("group cursor-pointer transition hover:bg-forest-50", sel.has(c.id) && "bg-forest/10")} onClick={() => setOpen(c.id)}>
                       <td className="px-3" onClick={(e) => e.stopPropagation()}><input type="checkbox" aria-label={`Select ${c.title}`} checked={sel.has(c.id)} onChange={() => toggle(c.id)} className="h-4 w-4 accent-forest" /></td>
                       <td className="px-3 py-2.5"><div className="flex items-center gap-3"><Avatar src={c.thumbnail_url} name={c.title} size={36} />
                         <div className="min-w-0"><button className="block max-w-[210px] truncate text-left font-semibold hover:text-forest" onClick={(e) => { e.stopPropagation(); setOpen(c.id); }}>{c.title.replace(/ \(demo\)$/i, "")}</button>

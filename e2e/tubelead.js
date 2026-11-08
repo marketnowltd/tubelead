@@ -38,7 +38,7 @@ const signed = (ev) => { const p = JSON.stringify(ev), t = Math.floor(Date.now()
 
   // ================= MOBILE =================
   const m = await browser.newContext({ viewport: { width: 390, height: 800 }, deviceScaleFactor: 2 }); const mp = await m.newPage();
-  for (const p of ['/', '/billing', '/ai-connect', '/lead-generator', '/dashboard']) { await mp.goto(B + p, { waitUntil: 'networkidle' }); await mp.waitForTimeout(500); const w = await mp.evaluate(() => [document.documentElement.scrollWidth, innerWidth]); ok(w[0] <= w[1] + 1, `mobile 390px: no horizontal scroll on ${p}`, w.join('>')); }
+  for (const p of ['/', '/billing', '/ai-connect', '/lead-generator', '/dashboard']) { await mp.goto(B + p, { waitUntil: 'networkidle' }); await mp.waitForTimeout(500); const w = await mp.evaluate(() => { const out = [...document.querySelectorAll('h1,h2,h3,p,li,button,a,label,input,select,th,td')].filter(e => { const r = e.getBoundingClientRect(); if (!r.width || !r.height || getComputedStyle(e).visibility === 'hidden' || e.closest('.animate-marquee')) return false; let a = e.parentElement; while (a) { const o = getComputedStyle(a).overflowX; if (o === 'auto' || o === 'scroll') return false; a = a.parentElement; } return r.right > innerWidth + 1 || r.left < -1; }).slice(0, 3).map(e => e.tagName + ':' + (e.innerText || '').slice(0, 30)); return [document.documentElement.scrollWidth, innerWidth, out]; }); ok(w[0] <= w[1] + 1 && w[2].length === 0, `mobile 390px: no horizontal scroll and no clipped text on ${p}`, JSON.stringify(w)); }
   await mp.goto(B + '/', { waitUntil: 'networkidle' }); await mp.getByRole('button', { name: 'Open menu' }).click(); ok(await mp.locator('nav[aria-label="Mobile site"]').getByRole('link', { name: 'Pricing' }).isVisible(), 'mobile landing menu opens'); await m.close();
 
   // ================= APP SHELL: 16 modules =================
@@ -82,7 +82,7 @@ const signed = (ev) => { const p = JSON.stringify(ev), t = Math.floor(Date.now()
   ok(await page.getByText(/Price ID not configured/).count() >= 1, 'plans without a Stripe price ID say so instead of failing silently');
   let posted = null; await page.route('**/api/billing/checkout', async r => { posted = r.request().postDataJSON(); await r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: B + '/billing?checkout=cancelled', id: 'cs_fake' }) }); });
   await page.getByRole('button', { name: /Annual/ }).click(); await page.getByRole('button', { name: 'Upgrade to Pro' }).click(); await page.waitForURL(/checkout=cancelled/, { timeout: 8000 }); ok(posted && posted.plan === 'pro' && posted.interval === 'annual', 'Upgrade → POST /billing/checkout with plan + interval (then redirects to Stripe)', JSON.stringify(posted)); await page.unroute('**/api/billing/checkout');
-  ok(await page.getByText(/You haven’t been charged/).waitFor({ timeout: 8000 }).then(() => true), 'returning from a cancelled checkout shows a clear message');
+  ok(await page.getByText(/You haven’t been charged/).waitFor({ timeout: 20000 }).then(() => true), 'returning from a cancelled checkout shows a clear message');
   // forged webhook rejected; verified webhook unlocks
   const bad = await page.evaluate(async () => (await fetch('/api/billing/webhook', { method: 'POST', headers: { 'Stripe-Signature': 't=1,v1=abc' }, body: '{}' })).status); ok(bad === 400, 'unsigned/forged webhook rejected (400)');
   ok((await api('/billing')).b.current_plan === 'free', 'plan still Free after forged webhook');

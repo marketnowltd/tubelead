@@ -12,10 +12,10 @@ export function Hero() {
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 grain opacity-60" aria-hidden />
-      <div className="relative mx-auto grid max-w-[1240px] items-center gap-14 px-5 pb-16 pt-10 sm:px-8 lg:grid-cols-[1.12fr_1fr] lg:pb-24 lg:pt-16">
+      <div className="relative mx-auto grid max-w-[1240px] grid-cols-[minmax(0,1fr)] items-center gap-14 px-5 pb-16 pt-10 sm:px-8 lg:grid-cols-[minmax(0,1.12fr)_minmax(0,1fr)] lg:pb-24 lg:pt-16">
         <div>
-          <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="label mb-6 inline-flex items-center gap-2 rounded-full border border-line bg-panel px-3.5 py-1.5 !text-[11px] text-forest">
-            <span className="h-1.5 w-1.5 rounded-full bg-moss" /> Official YouTube Data API · public business contacts only
+          <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="label mb-6 inline-flex max-w-full items-start gap-2 rounded-2xl border border-line bg-panel px-3.5 py-1.5 !text-[11px] leading-snug text-forest">
+            <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-moss" /> Official YouTube Data API · public business contacts only
           </motion.p>
           <motion.h1 initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
             className="font-display text-[clamp(2.5rem,5.2vw,4.4rem)] font-extrabold leading-[0.98] tracking-[-0.045em] text-balance">

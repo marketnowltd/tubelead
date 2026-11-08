@@ -77,6 +77,13 @@ PRICES: dict[str, tuple[float, float]] = {
 TEST_TRANSPORT: httpx.AsyncBaseTransport | None = None  # tests inject a mock transport here
 
 
+def redact(msg: str, key: str | None) -> str:
+    """Providers occasionally echo the credential in error bodies; never let it reach logs, the DB or the browser."""
+    if key and len(key) >= 6:
+        msg = msg.replace(key, "[redacted]")
+    return re.sub(r"(sk-|AIza|key-)[A-Za-z0-9_\-]{12,}", "[redacted]", msg)
+
+
 class AIError(Exception):
     def __init__(self, message: str, code: str = "ai_error", status: int = 502, retryable: bool = False):
         super().__init__(message)
@@ -282,10 +289,10 @@ async def run_task(db: Session, owner: str, task: str, user_prompt: str, *, max_
                     await asyncio.sleep(0.4 * (2 ** attempt))
                     continue
                 break
-        db.add(AIRequestLog(owner_id=owner, task=task, provider=p.provider, model=cfg.model, ok=False, error=f"[{last.code}] {last}"[:500],
+        db.add(AIRequestLog(owner_id=owner, task=task, provider=p.provider, model=cfg.model, ok=False, error=redact(f"[{last.code}] {last}", cfg.key)[:500],
                             latency_ms=0, attempts=attempts))
         if last and last.code == "invalid_key":
-            p.status, p.last_error = "error", str(last)[:300]
+            p.status, p.last_error = "error", redact(str(last), cfg.key)[:300]
         db.commit()
     assert last is not None
     raise last

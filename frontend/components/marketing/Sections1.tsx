@@ -63,7 +63,7 @@ export function GeneratorDemo() {
       <div className="mx-auto max-w-[1240px] px-5 sm:px-8">
         <SectionHead n="01" eyebrow="Lead generator" title={<>Say who you want. <span className="italic-accent">Watch</span> the list take shape.</>} sub="Try the generator below. It works on a small set of fictional sample creators so you can feel the workflow before you sign up — the real engine runs the same criteria against live YouTube data." />
         <Reveal>
-          <div className="panel grid overflow-hidden lg:grid-cols-[400px_1fr]">
+          <div className="panel grid overflow-hidden grid-cols-[minmax(0,1fr)] lg:grid-cols-[400px_minmax(0,1fr)]">
             <div className="space-y-5 border-b border-line bg-bg2/50 p-5 sm:p-6 lg:border-b-0 lg:border-r">
               <form onSubmit={(e) => { e.preventDefault(); interpret(); }} className="space-y-2">
                 <label htmlFor="nl" className="label flex items-center gap-1.5"><Wand2 size={12} /> Describe it in words</label>
@@ -130,18 +130,18 @@ export function HowItWorks() {
     <section id="how" className="scroll-mt-20 bg-bg2/60 py-24">
       <div className="mx-auto max-w-[1240px] px-5 sm:px-8">
         <SectionHead n="02" eyebrow="How it works" title={<>From a sentence to a <span className="italic-accent">qualified</span> list in four steps.</>} />
-        <ol className="relative grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+        <div role="list" className="relative grid gap-5 md:grid-cols-2 lg:grid-cols-4">
           <div aria-hidden className="absolute left-0 right-0 top-[34px] hidden h-px bg-line lg:block" />
           {STEPS.map(([t, d], i) => (
             <Reveal key={t} delay={i * 0.08}>
-              <li className="panel relative h-full p-6">
+              <div role="listitem" className="panel relative h-full p-6">
                 <span className="data relative grid h-[68px] w-[68px] place-items-center rounded-full border border-line bg-bg text-xl font-semibold text-forest">0{i + 1}</span>
                 <h3 className="mt-5 font-display text-xl font-extrabold tracking-tight">{t}</h3>
                 <p className="mt-2 text-[14.5px] leading-relaxed text-mute">{d}</p>
-              </li>
+              </div>
             </Reveal>
           ))}
-        </ol>
+        </div>
       </div>
     </section>
   );

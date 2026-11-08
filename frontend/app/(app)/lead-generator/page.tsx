@@ -148,8 +148,8 @@ export default function LeadGenerator() {
       <PageHeader eyebrow="Core product" title="Lead Generator" sub="Configure a discovery run. It executes as a real background job against the official YouTube Data API — progress on the right is read from the job record, never simulated." />
       {(notConfigured || (st && !st.youtube_configured)) && (
         <div role="alert" className="mb-5 flex items-start gap-3 rounded-xl border border-[#C6A46B]/30 bg-[#C6A46B]/[0.07] p-4 text-sm">
-          <AlertTriangle size={18} className="mt-0.5 shrink-0 text-[#7F6226]" />
-          <div><p className="font-semibold text-[#7F6226]">YouTube API key required for real discovery</p>
+          <AlertTriangle size={18} className="mt-0.5 shrink-0 text-[#6E5420]" />
+          <div><p className="font-semibold text-[#6E5420]">YouTube API key required for real discovery</p>
             <p className="mt-1 text-mute">Set <code className="data rounded bg-ink/10 px-1">YOUTUBE_API_KEY</code> in <code className="data rounded bg-ink/10 px-1">backend/.env</code> and restart the API. You can still configure and validate searches now. <Link href="/integrations" className="text-forest underline">Setup guide →</Link></p></div>
         </div>
       )}
@@ -178,7 +178,7 @@ export default function LeadGenerator() {
             <div className="grid gap-3 px-5 pb-5 sm:grid-cols-2 lg:grid-cols-3" role="radiogroup" aria-label="Discovery mode">
               {MODES.map((m) => { const I = m.icon, on = f.mode === m.id; return (
                 <button key={m.id} role="radio" aria-checked={on} onClick={() => set("mode", m.id)}
-                  className={cn("relative rounded-xl border p-3.5 text-left transition", on ? "border-forest bg-forest/15 shadow-lift" : "border-forest/15 bg-bg/40 hover:border-forest/50 hover:bg-forest/10")}>
+                  className={cn("relative rounded-xl border p-3.5 text-left transition", on ? "border-forest bg-forest/15 shadow-lift" : "border-forest/15 bg-bg/40 hover:border-forest/50 hover:bg-forest-50")}>
                   <span className={cn("mb-2 grid h-8 w-8 place-items-center rounded-lg", on ? "bg-forest text-paper" : "bg-ink/5 text-forest")}><I size={16} /></span>
                   <span className="block font-heading text-[13px] font-semibold">{m.label}</span>
                   <span className="mt-0.5 block text-[11.5px] leading-snug text-mute">{m.desc}</span>
@@ -234,7 +234,7 @@ export default function LeadGenerator() {
               <div className="text-sm">
                 {estimate ? (<><p className="font-semibold">{estimate.search_operations} search operation{estimate.search_operations === 1 ? "" : "s"} planned</p>
                   <p className="text-xs text-mute">Worst case <span className="data text-ink">{estimate.max_quota_units.toLocaleString()}</span> units · this job is capped at <span className="data text-ink">{estimate.capped_at.toLocaleString()}</span></p>
-                  {estimate.capped_at < 100 + Math.min(f.limit * 2, 150) && <p role="alert" className="mt-1 text-xs text-[#7F6226]">The cap is too low: one search page costs 100 units, and enrichment needs ~2 per creator. Raise “max API units” under Qualification filters or the job will stop before it can qualify anyone.</p>}</>)
+                  {estimate.capped_at < 100 + Math.min(f.limit * 2, 150) && <p role="alert" className="mt-1 text-xs text-[#6E5420]">The cap is too low: one search page costs 100 units, and enrichment needs ~2 per creator. Raise “max API units” under Qualification filters or the job will stop before it can qualify anyone.</p>}</>)
                   : <p className="text-mute">Add keywords or niches to preview the plan and quota cost.</p>}
               </div>
               <div className="flex flex-wrap gap-3">
@@ -253,7 +253,7 @@ export default function LeadGenerator() {
           {recent && recent.filter((j) => !j.is_demo).length > 0 && (
             <Panel><PanelHeader title="Recent runs" action={<Link href="/discovery-engine" className="text-xs font-semibold text-forest hover:underline">All jobs →</Link>} />
               <ul className="divide-y divide-line pb-2">{recent.filter((j) => !j.is_demo).slice(0, 4).map((j) => (
-                <li key={j.id}><button onClick={() => setJobId(j.id)} className="flex w-full items-center justify-between gap-3 px-5 py-2.5 text-left text-sm transition hover:bg-forest/10">
+                <li key={j.id}><button onClick={() => setJobId(j.id)} className="flex w-full items-center justify-between gap-3 px-5 py-2.5 text-left text-sm transition hover:bg-forest-50">
                   <span className="truncate">{[...(j.params.keywords ?? []), ...(j.params.niches ?? [])].slice(0, 3).join(", ") || "Discovery"}</span>
                   <span className="flex shrink-0 items-center gap-2"><span className="data text-xs text-mute">{j.qualified} leads</span><Badge tone={j.status === "completed" ? "green" : j.status === "failed" ? "red" : "cyan"}>{j.status}</Badge></span></button></li>))}</ul></Panel>
           )}

@@ -19,7 +19,7 @@ export default {
         sage: { DEFAULT: "#A5B39D", 200: "#D5DCCF", 100: "#E6EAE1" },
         moss: "#536A4B",      // success / positive text (4.7:1)
         terracotta: { DEFAULT: "#C8795B", text: "#A5502F", 100: "#F3DFD5" },
-        gold: { DEFAULT: "#C6A46B", text: "#7F6226", 100: "#F1E7D2" },
+        gold: { DEFAULT: "#C6A46B", text: "#6E5420", 100: "#F1E7D2" },
       },
       fontFamily: {
         display: ["'Manrope Variable'", "system-ui", "sans-serif"],

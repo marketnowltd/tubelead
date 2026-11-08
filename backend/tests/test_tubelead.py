@@ -386,3 +386,61 @@ def test_contact_status_summary_separates_statuses(client):
     assert s["total"] == 5 and s["primary"] == {"deliverability_checked": 1, "publicly_published": 1, "unverified": 1, "website": 1, "contact_form": 1, "none": 0}
     row = [c for c in client.get("/api/creators?page_size=50").json()["items"] if c["title"] == "c4"][0]
     assert row["contact_status"] == "deliverability_checked"
+
+
+def test_provider_error_bodies_never_leak_the_key(client):
+    p = add_provider(client, api_key="sk-leaky-secret-0123456789abcd")
+    ai.TEST_TRANSPORT = httpx.MockTransport(lambda req: httpx.Response(401, json={"error": {"message": "Incorrect API key provided: sk-leaky-secret-0123456789abcd"}}))
+    try:
+        r = client.post(f"/api/ai/providers/{p['id']}/test").json()
+        assert not r["ok"] and "sk-leaky" not in json.dumps(r)
+        assert "sk-leaky" not in client.get("/api/ai/providers").text
+        client.post("/api/ai/keywords", json={"topic": "x"})
+        assert "sk-leaky" not in client.get("/api/ai/usage").text
+    finally:
+        ai.TEST_TRANSPORT = None
+
+
+def test_tenant_isolation_under_supabase_auth():
+    """Two real users (JWTs): neither can read or change the other's providers, creators, jobs or billing."""
+    import jwt
+    from fastapi.testclient import TestClient
+    from app.main import app
+    st = get_settings()
+    old = (st.auth_mode, st.supabase_jwt_secret, st.plan_override)
+    st.auth_mode, st.supabase_jwt_secret, st.plan_override = "supabase", "x" * 40, "elite"  # override must be IGNORED outside dev mode
+    UA, UB = "aaaaaaaa-0000-0000-0000-000000000001", "bbbbbbbb-0000-0000-0000-000000000002"
+    tok = lambda sub: {"Authorization": "Bearer " + jwt.encode({"sub": sub, "aud": "authenticated"}, "x" * 40, algorithm="HS256")}
+    A, B = tok(UA), tok(UB)
+    from app.services import jobs as job_svc
+    real_submit, job_svc.submit = job_svc.submit, lambda _id: None  # don't launch a real worker
+    try:
+        with TestClient(app) as c:
+            assert c.get("/api/ai/providers").status_code == 401
+            assert c.get("/api/ai/providers", headers={"Authorization": "Bearer garbage"}).status_code == 401
+            r = c.post("/api/ai/providers", headers=A, json={"provider": "openai", "label": "a", "api_key": "sk-aaaaaaaaaaaa1111"})
+            assert r.status_code == 402 and r.json()["detail"]["current_plan"] == "free"  # dev override ignored: no free ride in production
+            with SessionLocal() as db:
+                for u in (UA, UB):
+                    db.add(Subscription(owner_id=u, plan="starter", status="active"))
+                db.add(Creator(owner_id=UA, youtube_channel_id="UCiso1", title="A's creator", channel_url="https://x"))
+                db.commit()
+            pa = c.post("/api/ai/providers", headers=A, json={"provider": "openai", "label": "a", "api_key": "sk-aaaaaaaaaaaa1111"}).json()
+            assert c.get("/api/ai/providers", headers=B).json() == []
+            for method, path in (("get", f"/api/ai/providers/{pa['id']}/models"), ("post", f"/api/ai/providers/{pa['id']}/test"), ("delete", f"/api/ai/providers/{pa['id']}")):
+                assert getattr(c, method)(path, headers=B).status_code == 404, path
+            assert c.patch(f"/api/ai/providers/{pa['id']}", headers=B, json={"label": "pwn"}).status_code == 404
+            assert c.put("/api/ai/tasks/keyword_research", headers=B, json={"provider_id": pa["id"]}).status_code == 404  # cannot route to someone else's provider
+            ca = c.get("/api/creators", headers=A).json()
+            assert ca["total"] == 1 and c.get("/api/creators", headers=B).json()["total"] == 0
+            assert c.get(f"/api/creators/{ca['items'][0]['id']}", headers=B).status_code == 404
+            assert "A's creator" not in c.get("/api/creators/export.csv", headers=B).text
+            ja = c.post("/api/jobs", headers=A, json={"params": {"keywords": ["x"]}}).json()
+            for method, path in (("get", ""), ("post", "/cancel"), ("post", "/pause"), ("post", "/resume")):
+                assert getattr(c, method)(f"/api/jobs/{ja['id']}{path}", headers=B).status_code == 404, path
+            assert ja["id"] not in c.get("/api/jobs", headers=B).text
+            assert c.get("/api/billing", headers=B).json()["usage"]["leads_used"] == 0 and c.get("/api/billing", headers=A).json()["usage"]["leads_used"] == 1
+            kb = c.get("/api/api-keys", headers=B).json(); assert kb == []
+    finally:
+        job_svc.submit = real_submit
+        st.auth_mode, st.supabase_jwt_secret, st.plan_override = old

@@ -15,7 +15,7 @@ export function AIIntegrations() {
     <section id="ai" className="scroll-mt-20 bg-bg2/60 py-24">
       <div className="mx-auto max-w-[1240px] px-5 sm:px-8">
         <SectionHead n="04" eyebrow="AI integrations" title={<>Bring your own AI. <span className="italic-accent">Route</span> it task by task.</>} sub="Connect the providers you already pay for with your own API key, then decide which model handles which job. AI suggests and summarises — it never invents contact details or facts." />
-        <div className="grid gap-6 lg:grid-cols-[1fr_1.1fr]">
+        <div className="grid gap-6 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
           <Reveal>
             <div className="panel h-full p-6">
               <p className="label mb-3 flex items-center gap-2"><KeyRound size={13} /> Providers</p>
@@ -98,7 +98,7 @@ export function Campaigns() {
   const cols = [["New", 128, "bg-ink/10", ["Northline Fitness", "Quiet Circuits", "Fold & Frame"]], ["Contacted", 64, "bg-gold/30", ["Marlow Money", "Studio Sundial"]], ["Replied", 21, "bg-sage/50", ["Kettlebell Kate"]], ["Converted", 9, "bg-forest/20", ["Tidy Tuesday Kitchen"]]] as const;
   return (
     <section className="bg-bg2/60 py-24">
-      <div className="mx-auto grid max-w-[1240px] items-center gap-12 px-5 sm:px-8 lg:grid-cols-[1fr_1.15fr]">
+      <div className="mx-auto grid max-w-[1240px] items-center gap-12 px-5 sm:px-8 grid-cols-[minmax(0,1fr)] lg:grid-cols-[1fr_1.15fr]">
         <div>
           <SectionHead n="06" eyebrow="Campaign management" title={<>Turn a list into a <span className="italic-accent">pipeline</span>.</>} sub="Group leads into campaigns, track outreach status and reply rate, and keep saved searches running on a schedule so your pipeline refills itself." />
           <ul className="space-y-3 text-[15px]">{["Campaigns with per-stage counts and reply rate", "Saved searches that re-run hourly, daily or weekly", "Bulk assign, bulk status change, CSV export", "One-click hand-off to SendLoom for sending"].map((x) => <li key={x} className="flex gap-3"><Check size={18} className="mt-0.5 shrink-0 text-moss" />{x}</li>)}</ul>
@@ -189,7 +189,7 @@ export function FAQSection() {
   const [open, setOpen] = useState<number | null>(0);
   return (
     <section id="faq" className="scroll-mt-20 bg-bg2/60 py-24">
-      <div className="mx-auto grid max-w-[1240px] gap-12 px-5 sm:px-8 lg:grid-cols-[0.8fr_1.2fr]">
+      <div className="mx-auto grid max-w-[1240px] gap-12 px-5 sm:px-8 grid-cols-[minmax(0,1fr)] lg:grid-cols-[0.8fr_1.2fr]">
         <SectionHead n="08" eyebrow="FAQ" title={<>Straight answers, <span className="italic-accent">no</span> fine print.</>} />
         <ul className="divide-y divide-line rounded-[22px] border border-line bg-panel">
           {FAQ.map(([q, a], i) => (

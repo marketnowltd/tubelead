@@ -5,7 +5,7 @@ import { countryName, flag } from "@/lib/countries";
 import { compact, dateShort } from "@/lib/format";
 import type { Overview } from "@/lib/types";
 
-export const PALETTE = ["#244A3A", "#C8795B", "#C6A46B", "#8FA088", "#37624F", "#A5502F", "#B89556", "#6F8668", "#DDA18A", "#536A4B", "#7F6226", "#B9C5B2"];
+export const PALETTE = ["#244A3A", "#C8795B", "#C6A46B", "#8FA088", "#37624F", "#A5502F", "#B89556", "#6F8668", "#DDA18A", "#536A4B", "#6E5420", "#B9C5B2"];
 const axis = { stroke: "#6B6962", fontSize: 11, tickLine: false, axisLine: false } as const;
 const grid = <CartesianGrid stroke="rgba(36,74,58,.25)" vertical={false} />;
 const tip = { contentStyle: { background: "#FFFDF8", border: "1px solid rgba(36,74,58,.25)", borderRadius: 10, fontSize: 12, color: "#22231F", boxShadow: "0 12px 30px rgba(34,35,31,.18)" }, labelStyle: { color: "#55534D", marginBottom: 4 }, itemStyle: { color: "#22231F" }, cursor: { fill: "rgba(36,74,58,.25)", stroke: "rgba(36,74,58,.25)" } };

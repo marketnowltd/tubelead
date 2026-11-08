@@ -70,7 +70,7 @@ export default function ContactFinder() {
           <>
             <div className="hidden overflow-x-auto lg:block"><table className="w-full min-w-[960px] text-sm"><thead className="border-b border-forest/15 bg-bg/40"><tr>{["Contact", "Creator", "Source", "Discovered", "Status", "Website", "Confidence", ""].map((h) => <th key={h} scope="col" className="label px-4 py-3 text-left">{h}</th>)}</tr></thead>
               <tbody className="divide-y divide-line">{data.items.map((r) => (
-                <tr key={r.id} className="transition hover:bg-forest/10">
+                <tr key={r.id} className="transition hover:bg-forest-50">
                   <td className="max-w-[260px] px-4 py-3"><div className="flex items-center gap-2">{r.kind === "email" ? <Mail size={14} className="shrink-0 text-forest" /> : r.kind === "social" ? <Link2 size={14} className="shrink-0 text-forest" /> : <Globe size={14} className="shrink-0 text-forest" />}
                     {r.kind === "email" ? <span className="data truncate text-xs">{r.value}</span> : <a href={r.value} target="_blank" rel="noopener noreferrer nofollow" className="data truncate text-xs text-moss hover:underline">{r.value}</a>}{r.is_demo && <DemoTag />}</div></td>
                   <td className="px-4"><div className="flex items-center gap-2"><Avatar src={r.creator?.thumbnail_url} name={r.creator?.title ?? "?"} size={26} /><span className="max-w-[150px] truncate text-xs">{r.creator?.title.replace(/ \(demo\)$/i, "")}</span></div></td>

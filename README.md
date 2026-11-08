@@ -1,131 +1,57 @@
-# CreatorLead AI
+# TubeLead
+**Find the creators. Build the connections. Grow your network.**
 
-Creator-intelligence platform: discover YouTube channels through the **official YouTube Data API**, qualify them,
-find *publicly published* business-contact routes, and manage the resulting leads in campaigns.
+TubeLead discovers YouTube creators at scale through the **official YouTube Data API**, removes duplicates, scores every channel against your criteria and surfaces the business contact routes creators have **published themselves** (channel description, official website, public contact page). It never guesses or invents contact details.
 
-![Dashboard hero](docs/screenshots/01-dashboard-hero.png)
+> Formerly "CreatorLead AI". It still ships beside **SendLoom** (email marketing, `../sendloom`) as one platform — see `../platform/README.md`.
 
-> **Status:** working end to end (see [CHECKLIST.md](CHECKLIST.md) for exactly what is verified and what is not).
-> Real discovery needs a YouTube API key; without one every screen still works with clearly-labelled **DEMO** data.
+| | |
+|---|---|
+| **Public site** `/` | Cream editorial landing page: hero, interactive generator demo, how it works, discovery capabilities, AI integrations, lead-database preview with live filters, campaigns, pricing (monthly/annual), FAQ, final CTA, footer. Demo creators on it are fictional and labelled *Sample data*. |
+| **Auth** `/login` `/signup` | Supabase email register/verify, Google login, password recovery. Without Supabase configured the app runs in single-user local mode and says so. |
+| **App — 16 modules** | Dashboard · Lead Generator · Discovery Engine · Creator Intelligence · Lead Database · Contact Finder · Saved Searches · Campaign Manager · Automation Centre · AI Connect · AI Task Manager · Analytics · Integrations · API Management · Billing & Subscription · Account Settings (+ link to SendLoom) |
 
 ## Architecture
-
 ```
-Browser ──► Next.js 15 (App Router, TS, Tailwind, Radix/shadcn-style UI, Recharts, Framer Motion, d3-geo map)
-              │  /api/* is proxied server-side → the backend URL and every secret stay off the client
-              ▼
-           FastAPI (REST)  ── background job runner (thread pool) + scheduler ── YouTube Data API v3
-              │                       │                                   └─ creators' public sites (SSRF-guarded, robots.txt aware)
-              ▼                       └─ n8n webhook on job completion
-     PostgreSQL / Supabase (RLS)  ·  SQLite for zero-config local dev  ·  Redis (optional, shared rate limiting)
+Browser ─► Next.js 15 (landing + app, Tailwind, Recharts, Framer Motion)   one origin
+              └─ /api/*  (rewrite) ─► FastAPI ── SQLAlchemy ─► Postgres (Supabase, RLS) | SQLite (dev)
+                                        ├─ discovery engine + job workers + scheduler (in-process, DB-backed state)
+                                        ├─ AI orchestrator ─► OpenAI · Anthropic · Gemini · OpenRouter · Ollama · custom (BYO key, Fernet-encrypted)
+                                        ├─ Stripe (Checkout, portal, signature-verified webhooks)
+                                        └─ YouTube Data API v3 (quota ledger, reserve, per-job cap) · Redis (rate limits) · n8n webhook
 ```
 
-| Path | What |
-|---|---|
-| `frontend/` | Next.js app: 13 screens, cinematic hero, charts, interactive world map |
-| `backend/app/services/discovery.py` | Discovery engine: query expansion → search → dedupe → metadata → filter → enrich → persist |
-| `backend/app/services/contacts.py` | Public contact discovery (descriptions, websites, contact pages), SSRF guard, robots.txt, MX check |
-| `backend/app/services/youtube.py` | YouTube client with per-call quota accounting and a hard budget check |
-| `supabase/migrations/001_init.sql` | Relational schema + row-level security for every table |
-| `backend/tests/` | 28 pytest tests (mocked YouTube + websites), also run against real PostgreSQL |
+## What the product does
+**Discovery** — keyword, video-based (creators of videos on the topic), topic-based (keyword → sub-topics) and "similar to these videos" discovery; multi-niche, worldwide (14 regions), deep and repeat modes; AI-assisted keyword ideas (you approve each); duplicate removal against everything you already hold; min/max subscribers, engagement, activity, creator type, "has public email/website"; per-job quota cap; **pause / resume / cancel**; failed requests are counted and skipped, quota exhaustion stops the job gracefully; scheduled runs.
+Every job counter is a database measurement: searches, keywords processed, channels found, unique, duplicates removed, qualified, rejected, contact routes found, failed requests, quota used, ETA, log.
 
-## Quick start (local, no accounts needed)
+**Contacts** — separate statuses, never merged: *deliverability checked* (public email whose domain passed a DNS/MX check) · *publicly published* · *unverified* · *website* · *contact form* · *none*. Each route shows source and confidence. There is no unsolicited mass-email feature; hand leads to SendLoom (lawful-basis declaration enforced).
 
+**AI Connect** — modular adapters (OpenAI-compatible covers OpenAI, OpenRouter, Ollama, custom; Anthropic; Gemini). Bring your own key; keys are encrypted at rest, never returned by any endpoint, redacted from errors. Test connection, list models, choose model, default provider, rotate, disable, delete. **AI Task Manager** routes 8 tasks (keyword research, creator analysis, lead qualification, lead scoring, contact analysis, campaign intelligence, report generation, search assistant) to a provider with a fallback, or switches them off. The orchestrator handles timeouts, retries with back-off, a per-user rate limit, usage/cost estimates and error logging. The **search assistant** turns plain language into criteria you review and edit before anything runs (a transparent rules parser is used when no AI is connected). AI is advisory only — contact details and metrics come from YouTube and the creator's own pages.
+*A ChatGPT/Claude/Gemini consumer subscription is not an API key.* The UI says so, and links to each provider's key page. OAuth login to AI providers is **not** offered (none of these providers lets third-party apps use a consumer subscription that way).
+
+**Billing** — Free (25 trial leads, lifetime) · Starter £19 (2,500/mo) · Pro £49 (25,000/mo) · Elite £99 (100,000/mo, API, teams, priority). Annual = 2 months free. Checkout, upgrade/downgrade (prorated), cancel/resume, customer portal, past-due and refund status, idempotent signature-verified webhooks. Allowances, prices and feature gates are configuration (`app/services/plans.py`, `PLANS_FILE`). Paywalls appear only when a real limit is hit (allowance reached, premium feature, daily runs) and name the limit.
+
+## Run locally
 ```bash
-# 1. Backend  (Python 3.11+)
-cd backend && python -m venv .venv && . .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env            # add YOUTUBE_API_KEY when you have one
-uvicorn app.main:app --reload --port 8000
-
-# 2. Frontend  (Node 20+)
-cd ../frontend && npm install
-cp .env.example .env.local
-npm run dev                      # http://localhost:3000
+# backend
+cd backend && python -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt
+cp .env.example .env            # add YOUTUBE_API_KEY (optional: PLAN_OVERRIDE=pro to try paid features without Stripe)
+uvicorn app.main:app --port 8000
+# frontend
+cd ../frontend && npm ci && npm run dev      # http://localhost:3000
 ```
+Without a YouTube key everything renders; real discovery returns a clear "key required" message. **Load demo data** (Dashboard) populates clearly flagged fictional records.
+Production/VPS: **`docs/DEPLOY.md`** (Docker + Caddy, Supabase, Stripe, env reference).
 
-Open http://localhost:3000 → **Dashboard → Load demo data** to explore everything immediately.
-Add `YOUTUBE_API_KEY` to `backend/.env` and restart to run real discovery from **Lead Generator**.
-
-### Getting a YouTube API key
-Google Cloud Console → create a project → enable **YouTube Data API v3** → Credentials → *Create API key*
-(restrict it to that API). Default quota is 10,000 units/day. A channel search page costs **100 units**, channel/video
-lookups 1 unit each; the engine tracks this per day and stops at your configured budget.
-
-### Testing without a key
-```bash
-cd backend
-uvicorn tests.fake_youtube_server:app --port 8765 &      # local stand-in for the YouTube API
-YOUTUBE_API_KEY=fake YOUTUBE_API_BASE=http://127.0.0.1:8765/youtube/v3 uvicorn app.main:app --port 8000
-```
-
-## Configuration
-
-See `backend/.env.example` and `frontend/.env.example`. Highlights:
-
-| Variable | Purpose |
-|---|---|
-| `YOUTUBE_API_KEY` | Server-side only. Never sent to the browser. |
-| `DATABASE_URL` | SQLite (default) or Supabase Postgres (`postgresql+psycopg://…`). |
-| `AUTH_MODE` | `dev` (single local user) or `supabase` (JWT required; API keys also accepted). |
-| `SUPABASE_JWT_SECRET` | Verifies Supabase access tokens. |
-| `REDIS_URL` | Shares rate-limit counters between API workers (falls back to in-process). |
-| `N8N_WEBHOOK_URL` | Default webhook; each user can set their own in **Integrations**. |
-| `BACKEND_URL` (frontend) | Proxy target. **Read at build time.** |
-
-## Deploying
-
-**Supabase + any container host**
-1. Create a Supabase project, run `supabase/migrations/001_init.sql` in the SQL editor.
-2. Backend: set `DATABASE_URL`, `YOUTUBE_API_KEY`, `AUTH_MODE=supabase`, `SUPABASE_JWT_SECRET`; run the `backend/Dockerfile` image.
-3. Frontend: build `frontend/Dockerfile` with `--build-arg BACKEND_URL=https://<backend-host>` plus the two `NEXT_PUBLIC_SUPABASE_*` args.
-4. Put both behind HTTPS. Keep the backend private to the frontend if you don't need direct API access.
-
-`docker compose up --build` wires frontend + backend + Redis locally (**the Dockerfiles and compose file have not been
-built in CI/this environment** — Docker was unavailable; the Next.js standalone output they rely on was verified directly).
-
-The backend runs the job runner and scheduler **in-process**: run a single API instance, or move `jobs.submit` onto a
-queue (RQ/Celery over Redis) before running several replicas — otherwise each replica would also fire scheduled searches.
-
-## Product notes (read before using the data)
-
-* **Only public information.** Emails come from channel descriptions, the creator's own website and its public contact page
-  (robots.txt respected, private/internal addresses blocked). Nothing is guessed, generated or bought.
-* **Trust levels are explicit:** *Publicly published* (seen on a public page) · *Unverified* (manual entry / non-email routes) ·
-  *Verified deliverable* (reserved for mailbox-level verification — **no provider is integrated, so nothing is ever auto-marked verified**).
-  The MX check only proves the domain can receive mail.
-* **Compliance:** a public business address is not consent. Follow PECR/UK GDPR, EU GDPR/ePrivacy, CAN-SPAM etc. before outreach.
-  CreatorLead organises leads; it does not send email.
-* **Creator type** is a name-based heuristic. **Engagement** = (likes + comments) ÷ views over the 10 most recent videos; it is
-  empty when YouTube hides the data.
-* **Quota:** YouTube bills a `search.list` page at 100 units. Jobs have a per-job cap, plus a daily budget with a reserve.
-
-## Design system
-
-Palette: `#030611` / `#080D1C` / `#0A1224` surfaces, `#792EFF` purple + `#A855F7` violet dominant, `#E13DFF` magenta and
-`#16CFFF` cyan for highlights, `#00E5A0` for success, `#F5F6FF` text.
-
-Typography (self-hosted via Fontsource, no runtime Google request): **Space Grotesk** — display + headings · **Inter** — body and
-interface labels · **IBM Plex Mono** — numbers and technical readouts. This is the pairing suggested in the brief; it was
-**not** produced or validated with fontjoy.com (an interactive web tool that couldn't be operated from this environment).
-Check/adjust it there if you want a different pairing — fonts are three CSS imports in `frontend/app/globals.css` and three families in `tailwind.config.ts`.
-
-Motion respects `prefers-reduced-motion` (particles, light trails and orbit dots are removed; transitions shorten to 0).
+## Design
+Cream editorial system — background `#F7F4EC`, secondary `#EFEAE0`, cards `#FFFDF8`, text `#22231F`, forest `#244A3A` (primary actions, active nav), sage `#A5B39D`, terracotta `#C8795B`, gold `#C6A46B`, borders `#E4DED2`. **Manrope** (headings), **DM Sans** (body), **IBM Plex Mono** (data), self-hosted via Fontsource. Pill buttons keep the reference set's shape (uppercase label, icon at the right, soft coloured shadow) in the TubeLead palette. Secondary text is `#55534D`/`#6B6962` rather than the brief's `#77756E`, which is only 4.2:1 on cream (fails WCAG AA); `#77756E` is used for icon strokes.
+*Fontjoy:* it is an interactive website and could not be operated from the build environment; the Manrope/DM Sans/Plex Mono pairing was chosen directly. Verify or swap it on fontjoy.com — fonts are three lines in `globals.css` + `tailwind.config.ts`.
 
 ## Tests
-
-```bash
-cd backend && pytest                                   # 28 tests (SQLite)
-TEST_DATABASE_URL=postgresql+psycopg://… pytest        # same tests against Postgres built from the migration SQL
-cd frontend && npm run typecheck && npm run build
-```
-A 40-step Playwright end-to-end script was used during development against the fake YouTube server (see CHECKLIST.md).
-
-## Security notes
-API keys are SHA-256 hashed at rest and shown once · every query is owner-scoped · RLS on every table · SSRF guard + redirect
-re-validation on website fetches · CSV export neutralises formula injection · rate limiting (Redis-backed when configured) ·
-the YouTube key is stripped from logs (httpx request logging is disabled) · security headers set in `next.config.mjs`.
-No CSP is configured yet (Next.js needs nonces for a strict one).
-
-## Part of a combined platform
-CreatorLead AI now ships together with **SendLoom** (email marketing) on one origin — see [`../platform/README.md`](../platform/README.md). The Lead Database has a **Send to SendLoom** action and the sidebar an **Email Marketing** entry; everything else is unchanged.
+| | |
+|---|---|
+| `cd backend && pytest` | **49 tests**, pass on SQLite and PostgreSQL 16 (discovery, dedupe, contacts, plans/paywalls, AI providers/routing/fallback/key-leak, Stripe signature/replay/idempotency, tenant isolation with real JWTs, pause/resume) |
+| `bash e2e/run-tubelead.sh` | **94 browser checks** on the production build with a fake YouTube + fake OpenAI-compatible server and signed Stripe webhooks: landing interactions, 16 modules, mobile overflow, paywalls, pause/resume, dedupe, AI connect/rotate/delete, billing, report download |
+| `bash ../platform/e2e/run-combined.sh` | **34 checks** for the TubeLead + SendLoom single-origin deployment and creator → email-audience hand-off |
+See **`CHECKLIST.md`** for exactly what is and isn't verified.

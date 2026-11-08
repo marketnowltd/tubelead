@@ -125,9 +125,10 @@ async def test_provider(pid: str, owner: str = Depends(get_owner), db: Session =
         db.commit()
         return {"ok": True, "latency_ms": int((time.monotonic() - t0) * 1000), "model": res.model or cfg.model, "reply": res.text.strip()[:60]}
     except ai.AIError as exc:
-        p.status, p.last_error = "error", str(exc)[:300]
+        msg = ai.redact(str(exc), cfg.key)
+        p.status, p.last_error = "error", msg[:300]
         db.commit()
-        return {"ok": False, "code": exc.code, "error": str(exc), "latency_ms": int((time.monotonic() - t0) * 1000)}
+        return {"ok": False, "code": exc.code, "error": msg, "latency_ms": int((time.monotonic() - t0) * 1000)}
 
 
 @router.get("/providers/{pid}/models")
