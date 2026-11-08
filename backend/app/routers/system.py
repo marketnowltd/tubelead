@@ -61,7 +61,8 @@ def activity(limit: int = 25, owner: str = Depends(get_owner), db: Session = Dep
 
 @router.get("/plans")
 def plans():
-    return all_plans()
+    from ..services.plans import purchasable_plans
+    return purchasable_plans()
 
 
 @router.post("/demo/seed")

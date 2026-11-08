@@ -475,3 +475,30 @@ def test_database_url_with_stray_newline_is_cleaned(monkeypatch):
     from app.config import Settings
     monkeypatch.setenv("DATABASE_URL", "sqlite:///./x.db\n")
     assert Settings().database_url == "sqlite:///./x.db"
+
+
+def test_operator_has_unlimited_access_and_customers_do_not():
+    import jwt
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.services import jobs as job_svc
+    st = get_settings()
+    old = (st.auth_mode, st.supabase_jwt_secret, st.plan_override, st.operator_user_ids)
+    OP, CU = "dddddddd-0000-0000-0000-000000000004", "eeeeeeee-0000-0000-0000-000000000005"
+    st.auth_mode, st.supabase_jwt_secret, st.plan_override, st.operator_user_ids = "supabase", "x" * 40, "", OP
+    tok = lambda sub: {"Authorization": "Bearer " + jwt.encode({"sub": sub, "aud": "authenticated"}, "x" * 40, algorithm="HS256")}
+    real_submit, job_svc.submit = job_svc.submit, lambda _id: None
+    try:
+        with TestClient(app) as c:
+            op, cu = tok(OP), tok(CU)
+            b_op = c.get("/api/billing", headers=op).json()
+            assert b_op["current_plan"] == "operator" and b_op["usage"]["at_limit"] is False
+            assert all(p["id"] != "operator" for p in b_op["plans"]), "operator plan must not be offered for sale"
+            assert c.get("/api/creators/export.csv", headers=op).status_code == 200
+            assert c.post("/api/jobs", headers=op, json={"params": {"keywords": ["x"], "limit": 500}, "schedule": "daily"}).status_code == 201
+            assert c.get("/api/billing", headers=cu).json()["current_plan"] == "free"
+            assert c.get("/api/creators/export.csv", headers=cu).status_code == 402
+            assert c.post("/api/billing/checkout", headers=cu, json={"plan": "operator", "interval": "monthly"}).status_code == 422
+    finally:
+        job_svc.submit = real_submit
+        st.auth_mode, st.supabase_jwt_secret, st.plan_override, st.operator_user_ids = old

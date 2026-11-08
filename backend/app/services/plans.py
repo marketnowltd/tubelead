@@ -8,6 +8,9 @@ from functools import lru_cache
 from ..config import get_settings
 
 ORDER = ["free", "starter", "pro", "elite"]
+OPERATOR_ALL = {k: True for k in ("csv_export", "scheduled_discovery", "ai_connect", "api_access", "automation", "team", "priority_queue")}
+OPERATOR = {"label": "Operator", "tagline": "Site owner: unlimited access", "price_monthly_gbp": 0, "price_annual_gbp": 0,
+            "leads": 1_000_000_000, "lead_period": "lifetime", "max_jobs_per_day": 1_000_000, "team_seats": 1000, "features": OPERATOR_ALL}
 
 DEFAULT_PLANS: dict[str, dict] = {
     "free": {"label": "Free", "tagline": "Try discovery with a 25-lead trial", "price_monthly_gbp": 0, "price_annual_gbp": 0,
@@ -31,6 +34,7 @@ FEATURE_LABELS = {"csv_export": "CSV export", "scheduled_discovery": "Scheduled 
 @lru_cache
 def _load() -> dict[str, dict]:
     plans = deepcopy(DEFAULT_PLANS)
+    plans["operator"] = deepcopy(OPERATOR)
     f = get_settings().plans_file
     if f:
         try:
@@ -51,9 +55,18 @@ def all_plans() -> dict[str, dict]:
     return _load()
 
 
+def purchasable_plans() -> dict[str, dict]:
+    """Plans a customer can see and buy. The operator plan is never offered."""
+    return {k: v for k, v in _load().items() if k != "operator"}
+
+
 def plan_id(name: str | None) -> str:
     name = {"enterprise": "elite"}.get(name or "free", name or "free")
     return name if name in _load() else "free"
+
+
+def operator_ids() -> set[str]:
+    return {x.strip() for x in get_settings().operator_user_ids.split(",") if x.strip()}
 
 
 def plan_for(name: str | None) -> dict:

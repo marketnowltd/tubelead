@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     stripe_price_elite_annual: str = ""
     stripe_api_base: str = "https://api.stripe.com"
     ai_allow_private_hosts: bool = True  # set false on multi-tenant deployments to block loopback/private AI base URLs
+    dev_owner_is_operator: bool = True  # local single-user mode behaves as the operator; tests switch this off
+    operator_user_ids: str = ""  # comma-separated Supabase user IDs with unlimited access (site owner)
     plan_override: str = ""  # DEV ONLY (auth_mode=dev): pretend the local user is on this plan, to evaluate paid features without Stripe
     plans_file: str = ""  # optional JSON file overriding plan prices/allowances
 

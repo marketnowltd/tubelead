@@ -7,11 +7,22 @@ from sqlalchemy.orm import Session
 
 from ..config import get_settings
 from ..models import Creator, Subscription, UserSettings
-from .plans import FEATURE_LABELS, FEATURE_MIN_PLAN, all_plans, plan_for, plan_id
+from .plans import FEATURE_LABELS, FEATURE_MIN_PLAN, all_plans, plan_for, plan_id, purchasable_plans
+
+
+def is_operator(owner: str) -> bool:
+    from ..auth import DEV_OWNER
+    s = get_settings()
+    if s.auth_mode == "dev" and owner == DEV_OWNER and s.dev_owner_is_operator:
+        return True  # local single-user mode: the one user is the operator
+    from .plans import operator_ids
+    return owner in operator_ids()
 
 
 def current_plan_id(db: Session, owner: str) -> str:
     s = get_settings()
+    if is_operator(owner):
+        return "operator"
     if s.auth_mode == "dev" and s.plan_override:
         return plan_id(s.plan_override)
     sub = db.get(Subscription, owner)
@@ -52,6 +63,6 @@ def usage(db: Session, owner: str) -> dict:
 
 
 def next_plan(pid: str) -> str | None:
-    order = list(all_plans())
+    order = list(purchasable_plans())
     i = order.index(pid)
     return order[i + 1] if i + 1 < len(order) else None

@@ -18,7 +18,7 @@ from ..config import get_settings
 from ..db import get_db
 from ..models import ActivityEvent, StripeEvent, Subscription
 from ..services import entitlements as ent
-from ..services.plans import FEATURE_LABELS, all_plans, plan_for, price_id
+from ..services.plans import FEATURE_LABELS, all_plans, plan_for, price_id, purchasable_plans
 from .system import get_user_settings
 
 log = logging.getLogger("tubelead.billing")
@@ -71,7 +71,7 @@ def overview(owner: str = Depends(get_owner), db: Session = Depends(get_db)):
     s = get_settings()
     row = db.get(Subscription, owner)
     plans = []
-    for pid, p in all_plans().items():
+    for pid, p in purchasable_plans().items():
         plans.append({"id": pid, **p, "feature_labels": {k: FEATURE_LABELS[k] for k in FEATURE_LABELS},
                       "purchasable": pid != "free" and bool(price_id(pid, "monthly")) and _configured()})
     return {"stripe_configured": _configured(), "publishable_key": s.stripe_publishable_key or None,
@@ -82,7 +82,7 @@ def overview(owner: str = Depends(get_owner), db: Session = Depends(get_db)):
 
 @router.post("/checkout")
 async def checkout(body: CheckoutIn, owner: str = Depends(get_owner), db: Session = Depends(get_db)):
-    if body.plan not in all_plans() or body.plan == "free" or body.interval not in ("monthly", "annual"):
+    if body.plan not in purchasable_plans() or body.plan == "free" or body.interval not in ("monthly", "annual"):
         raise HTTPException(422, "Choose a paid plan and a monthly or annual interval")
     pr = price_id(body.plan, body.interval)
     if not pr:
@@ -123,7 +123,7 @@ async def change_plan(body: CheckoutIn, owner: str = Depends(get_owner), db: Ses
     if body.plan == "free":
         return await cancel(owner, db)
     pr = price_id(body.plan, body.interval)
-    if body.plan not in all_plans() or not pr:
+    if body.plan not in purchasable_plans() or not pr:
         raise HTTPException(503, {"code": "price_not_configured", "message": "No Stripe price ID configured for that plan/interval."})
     sub = await _stripe("GET", f"/v1/subscriptions/{row.stripe_subscription_id}")
     item = sub["items"]["data"][0]["id"]
@@ -169,7 +169,7 @@ def verify_signature(payload: bytes, header: str | None, secret: str, tolerance:
 def _plan_from_price(pr: str | None) -> tuple[str, str] | None:
     if not pr:
         return None
-    for pid in all_plans():
+    for pid in purchasable_plans():
         for iv in ("monthly", "annual"):
             if pid != "free" and price_id(pid, iv) == pr:
                 return pid, iv
@@ -206,7 +206,7 @@ def apply_event(db: Session, ev: dict) -> str:
             row.stripe_customer_id = obj.get("customer") or row.stripe_customer_id
             row.stripe_subscription_id = obj.get("subscription") or row.stripe_subscription_id
             meta = obj.get("metadata") or {}
-            if meta.get("plan") in all_plans() and obj.get("payment_status") in ("paid", "no_payment_required"):
+            if meta.get("plan") in purchasable_plans() and obj.get("payment_status") in ("paid", "no_payment_required"):
                 row.plan, row.interval, row.status = meta["plan"], meta.get("interval", "monthly"), "active"
                 row.last_payment_status = "paid"
     elif t in ("customer.subscription.created", "customer.subscription.updated"):
@@ -218,7 +218,7 @@ def apply_event(db: Session, ev: dict) -> str:
         row.status = obj.get("status", row.status)
         if mapped:
             row.plan, row.interval = mapped
-        elif meta_plan in all_plans():
+        elif meta_plan in purchasable_plans():
             row.plan = meta_plan
         row.cancel_at_period_end = bool(obj.get("cancel_at_period_end"))
         row.current_period_end = _ts(obj.get("current_period_end") or (items[0].get("current_period_end") if items else None))

@@ -68,7 +68,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
           </div>
           <div className="rounded-2xl bg-forest p-3 text-paper">
             <div className="flex items-center gap-2"><Sparkles size={15} className="text-gold" /><span className="font-heading text-sm font-semibold">{plan ? `${plan.label} plan` : "Plan"}</span></div>
-            <p className="mt-1.5 text-[11px] text-paper/75">{plan ? `${plan.leads_used.toLocaleString()} of ${plan.leads.toLocaleString()} leads ${plan.lead_period === "lifetime" ? "in your trial" : "this month"}` : "—"}</p>
+            <p className="mt-1.5 text-[11px] text-paper/75">{plan?.id === "operator" ? "Unlimited · site owner" : plan ? `${plan.leads_used.toLocaleString()} of ${plan.leads.toLocaleString()} leads ${plan.lead_period === "lifetime" ? "in your trial" : "this month"}` : "—"}</p>
             <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-paper/20" role="progressbar" aria-label="Lead allowance used" aria-valuenow={Math.round(Math.min(planPct, 100))} aria-valuemin={0} aria-valuemax={100}><div className="h-full rounded-full bg-gold" style={{ width: `${Math.min(planPct, 100)}%` }} /></div>
             <Link href="/billing" className="mt-2.5 block rounded-full bg-paper py-1.5 text-center text-[11px] font-bold uppercase tracking-wider text-forest hover:bg-white">{plan?.id === "free" ? "Upgrade" : "Manage plan"}</Link>
           </div>

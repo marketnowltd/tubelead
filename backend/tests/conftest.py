@@ -30,6 +30,9 @@ def fresh_db():
 
 @pytest.fixture(autouse=True)
 def elite_by_default():
+    from app.config import get_settings as _gs
+    _gs().dev_owner_is_operator = False  # tests exercise the customer plan rules
+
     """Most tests exercise features regardless of plan; entitlement tests set plan_override = '' to use real plans."""
     from app.config import get_settings
     st = get_settings()
