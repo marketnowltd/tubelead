@@ -35,7 +35,7 @@ export default function Dashboard() {
           <Panel glow>
             <EmptyState icon={<Sparkles size={24} />} title="Your creator database is empty"
               body={st?.youtube_configured ? "Run your first discovery to start building a qualified creator database — or load clearly-labelled demonstration data to explore the platform."
-                : "Real discovery needs a YouTube Data API key on the backend (see README). You can explore every screen now with clearly-labelled demonstration data."}
+                : "Searches will appear here as soon as they run. In the meantime you can explore every screen with clearly-labelled demonstration data."}
               action={<div className="flex flex-wrap justify-center gap-3"><Link href="/lead-generator" className="btn-primary">Start discovering <ArrowRight size={15} /></Link><button className="btn-ghost pill-amber" onClick={demo.seed} disabled={demo.busy}>{demo.busy ? "Loading…" : "Load demo data"}</button></div>} />
           </Panel>
         ) : (

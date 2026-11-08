@@ -149,7 +149,7 @@ export default function LeadGenerator() {
       {(notConfigured || (st && !st.youtube_configured)) && (
         <div role="alert" className="mb-5 flex items-start gap-3 rounded-xl border border-[#C6A46B]/30 bg-[#C6A46B]/[0.07] p-4 text-sm">
           <AlertTriangle size={18} className="mt-0.5 shrink-0 text-[#6E5420]" />
-          <div><p className="font-semibold text-[#6E5420]">YouTube API key required for real discovery</p>
+          <div><p className="font-semibold text-[#6E5420]">Search is being prepared</p>
             <p className="mt-1 text-mute">Set <code className="data rounded bg-ink/10 px-1">YOUTUBE_API_KEY</code> in <code className="data rounded bg-ink/10 px-1">backend/.env</code> and restart the API. You can still configure and validate searches now. <Link href="/integrations" className="text-forest underline">Setup guide →</Link></p></div>
         </div>
       )}

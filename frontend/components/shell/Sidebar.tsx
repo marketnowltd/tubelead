@@ -64,7 +64,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
               {q ? <span className="data text-[11px] text-mute">{compact(q.used)} / {compact(q.daily_limit)}</span> : <Skeleton className="h-3 w-14" />}
             </div>
             <Progress label="YouTube API units used today" value={qPct} tone={qPct > 85 ? "purple" : "green"} />
-            <p className="mt-1.5 text-[11px] text-dim">{st ? (st.youtube_configured ? "Units today · resets 00:00 UTC" : "YouTube API key not configured") : "Loading…"}</p>
+            <p className="mt-1.5 text-[11px] text-dim">{st ? (st.youtube_configured ? "Resets 00:00 UTC" : "Search is being prepared") : "Loading…"}</p>
           </div>
           <div className="rounded-2xl bg-forest p-3 text-paper">
             <div className="flex items-center gap-2"><Sparkles size={15} className="text-gold" /><span className="font-heading text-sm font-semibold">{plan ? `${plan.label} plan` : "Plan"}</span></div>
@@ -78,12 +78,12 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       <div className={cn("flex items-center gap-3 border-t border-line p-2.5", collapsed && "flex-col")}>
         <div className="relative">
           <Avatar name={st?.profile.display_name ?? "Operator"} size={38} />
-          <span className={cn("absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-bg2", st?.youtube_configured ? "bg-moss" : "bg-gold")} title={st?.youtube_configured ? "Account active" : "Setup required"} />
+          <span className={cn("absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-bg2", st?.youtube_configured ? "bg-moss" : "bg-gold")} title={st?.youtube_configured ? "Search ready" : "Search being prepared"} />
         </div>
         {!collapsed && (
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13px] font-semibold">{st?.profile.display_name ?? "Operator"}</p>
-            <p className="truncate text-[11px] text-dim">{st ? (st.youtube_configured ? "Account active" : "Setup required") : "…"}</p>
+            <p className="truncate text-[11px] text-dim">{st ? "Signed in" : "…"}</p>
           </div>
         )}
         {enabled && <button onClick={signOut} aria-label="Sign out" className="rounded-lg p-2 text-mute hover:bg-ink/[0.06] hover:text-ink"><LogOut size={16} /></button>}
