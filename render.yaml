@@ -15,7 +15,7 @@ services:
         value: "false"
       - key: DATABASE_URL          # Supabase Postgres connection string (postgresql+psycopg://...)
         sync: false
-      - key: SUPABASE_JWT_SECRET
+      - key: SUPABASE_URL          # https://lnrxdnkeolksrkghfjno.supabase.co
         sync: false
       - key: SECRET_KEY            # generate: openssl rand -hex 32
         sync: false
