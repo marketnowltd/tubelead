@@ -1,6 +1,4 @@
 const BACKEND = process.env.BACKEND_URL || "http://127.0.0.1:8000";
-// SendLoom (email marketing) is part of the same site: its pages and API are served beneath /mail on this origin.
-const SENDLOOM = process.env.SENDLOOM_URL || "http://127.0.0.1:3100";
 
 /** @type {import('next').NextConfig} */
 export default {
@@ -9,13 +7,25 @@ export default {
   output: "standalone",
   // The browser only ever talks to /api/* on this origin; the backend URL and all secrets stay server-side.
   async rewrites() {
-    return [{ source: "/api/:path*", destination: `${BACKEND}/api/:path*` },
-            { source: "/mail", destination: `${SENDLOOM}/mail` }, { source: "/mail/:path*", destination: `${SENDLOOM}/mail/:path*` }];
+    return [{ source: "/api/:path*", destination: `${BACKEND}/api/:path*` }];
   },
   async headers() {
+    // CSP: Next.js injects inline bootstrap scripts, so 'unsafe-inline' stays for scripts (a nonce setup is the stricter next step).
+    // Everything else is locked down; images may come from https (YouTube thumbnails); Supabase is allowed for auth calls.
+    const supa = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+    const csp = [
+      "default-src 'self'",
+      `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "production" ? "" : " 'unsafe-eval'"}`,
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data:",
+      `connect-src 'self' ${supa}`.trim(),
+      "frame-ancestors 'none'", "object-src 'none'", "base-uri 'self'", "form-action 'self'",
+    ].join("; ");
     return [{
       source: "/:path*",
       headers: [
+        { key: "Content-Security-Policy", value: csp },
         { key: "X-Content-Type-Options", value: "nosniff" },
         { key: "X-Frame-Options", value: "DENY" },
         { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

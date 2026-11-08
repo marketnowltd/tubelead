@@ -38,11 +38,9 @@ Legend: ✅ implemented **and** tested · 🟡 implemented, only partly tested �
 | Production Docker config for a VPS | ❌/🟡 | `deploy/` (compose + Caddy + env template) and `docs/DEPLOY.md` written; **images were never built** (no Docker daemon) |
 | Security: encrypted creds, rate limiting, validation, logging hygiene, webhook verification, SSRF guards, CSV formula neutralising | 🟡 | All present and tested except: **no Content-Security-Policy header** (Next inline scripts need a nonce setup), and no external pen-test |
 | Accessibility | 🟡 | axe-core (WCAG 2.1 AA) run over landing, auth and all 16 modules at 1440 px and 390 px — see result in the final report |
-| Email marketing / sending | ✅ (SendLoom) | Separate product at `/mail`, unchanged except branding of the hand-off; 34-check combined E2E passes |
 
 ## Known gaps (be aware before launch)
 - No real-service verification of **YouTube, Stripe, Supabase, Google OAuth or any AI provider** — only mocks/fakes/local Postgres.
-- Two sign-ins (TubeLead and SendLoom); no SSO.
 - Team accounts are a plan flag and seat count only — no invite flow was built.
 - Annual/monthly prices exist in two places (app config for display, Stripe for charging): keep them in sync.
 - Single API replica; no Redis-backed job queue.

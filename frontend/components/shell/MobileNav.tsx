@@ -1,5 +1,5 @@
 "use client";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import { Menu, MoreHorizontal, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -46,7 +46,7 @@ export function MobileTabBar() {
             <div className="mb-4 flex items-center justify-between"><div className="flex items-center gap-3"><LogoMark size={30} /><Wordmark /></div>
               <button onClick={() => setOpen(false)} aria-label="Close menu" className="rounded-lg p-2 hover:bg-ink/[0.06]"><X size={22} /></button></div>
             <ul className="grid grid-cols-2 gap-3 pb-24">
-              {NAV.map((n) => { const I = n.icon; const a = isActive(path, n.href); const Tag: any = n.external ? "a" : Link; return (
+              {NAV.map((n) => { const I = n.icon; const a = isActive(path, n.href); const Tag: any = Link; return (
                 <li key={n.href}>
                   <Tag href={n.href} className={cn("panel flex h-full flex-col gap-2 p-4", a && "ring-1 ring-forest/60")}>
                     <span className="grid h-9 w-9 place-items-center rounded-lg bg-forest/10 text-forest"><I size={19} /></span>

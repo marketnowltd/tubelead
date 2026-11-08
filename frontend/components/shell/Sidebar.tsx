@@ -39,7 +39,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
               {NAV.filter((n) => n.group === g).map((n) => {
                 const active = isActive(path, n.href);
                 const Icon = n.icon;
-                const Tag: any = n.external ? "a" : Link; // external = another app on this origin (SendLoom): needs a full-page navigation
+                const Tag: any = Link;
                 return (
                   <li key={n.href}>
                     <Tag href={n.href} title={collapsed ? n.label : undefined} aria-current={active ? "page" : undefined}

@@ -1,6 +1,6 @@
-import { BarChart3, Bot, BrainCircuit, CreditCard, Database, Globe2, KeyRound, LayoutDashboard, ListChecks, Mail, Megaphone, Plug, Radar, Search, Settings, Sparkles, Target, type LucideIcon } from "lucide-react";
+import { BarChart3, Bot, BrainCircuit, CreditCard, Database, Globe2, KeyRound, LayoutDashboard, ListChecks, Megaphone, Plug, Radar, Search, Settings, Sparkles, Target, type LucideIcon } from "lucide-react";
 
-export interface NavItem { href: string; label: string; short: string; icon: LucideIcon; blurb: string; external?: boolean; group: "Discover" | "Organise" | "Intelligence" | "Workspace" }
+export interface NavItem { href: string; label: string; short: string; icon: LucideIcon; blurb: string; group: "Discover" | "Organise" | "Intelligence" | "Workspace" }
 /** The 16 TubeLead modules. */
 export const NAV: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", short: "Home", icon: LayoutDashboard, blurb: "Your day at a glance", group: "Discover" },
@@ -19,7 +19,5 @@ export const NAV: NavItem[] = [
   { href: "/api-management", label: "API Management", short: "API", icon: KeyRound, blurb: "Keys & usage", group: "Workspace" },
   { href: "/billing", label: "Billing & Subscription", short: "Billing", icon: CreditCard, blurb: "Plan, usage & invoices", group: "Workspace" },
   { href: "/settings", label: "Account Settings", short: "Settings", icon: Settings, blurb: "Profile & preferences", group: "Workspace" },
-  // Part of the same platform, served on this origin by SendLoom (full-page navigation, not a client route).
-  { href: "/mail/app", label: "Email Marketing", short: "Email", icon: Mail, blurb: "SendLoom: verify, write & send", external: true, group: "Workspace" },
 ];
 export const PRIMARY_MOBILE = ["/dashboard", "/lead-generator", "/lead-database", "/campaigns"];

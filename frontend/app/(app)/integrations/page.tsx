@@ -34,7 +34,7 @@ export default function Integrations() {
               {i.connected && i.id !== "n8n" && <p className="mt-3 flex items-center gap-1.5 text-[11px] text-moss"><CheckCircle2 size={12} /> Active</p>}
             </Panel>); })}
         </div>)}
-      <Panel className="mt-6 p-5"><p className="text-sm text-mute"><strong className="text-ink">Not integrated yet:</strong> email-verification providers (mailbox-level), CRM sync (HubSpot / Salesforce) and team workspaces. Outbound email is handled by <a className="font-semibold text-forest underline" href="/mail">SendLoom</a>, and AI providers are managed in <Link className="font-semibold text-forest underline" href="/ai-connect">AI Connect</Link>.</p></Panel>
+      <Panel className="mt-6 p-5"><p className="text-sm text-mute"><strong className="text-ink">Not integrated yet:</strong> email-verification providers (mailbox-level), CRM sync (HubSpot / Salesforce) and team workspaces. TubeLead does not send email. AI providers are managed in <Link className="font-semibold text-forest underline" href="/ai-connect">AI Connect</Link>.</p></Panel>
     </div>
   );
 }

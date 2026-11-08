@@ -1,5 +1,5 @@
 "use client";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import { AlertOctagon, CheckCircle2, CopyMinus, Layers, Link2, Loader2, Pause, Play, Radar, Sparkles, Square, Tags, XCircle, Zap } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";

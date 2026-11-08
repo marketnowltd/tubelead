@@ -1,5 +1,5 @@
 "use client";
-import { animate, motion, useReducedMotion } from "framer-motion";
+import { animate, motion, useReducedMotion } from "motion/react";
 import { AlertTriangle, Inbox, RefreshCw } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { initials } from "@/lib/format";

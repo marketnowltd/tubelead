@@ -1,5 +1,5 @@
 "use client";
-import { motion, MotionConfig } from "framer-motion";
+import { motion, MotionConfig } from "motion/react";
 import { Check, Globe, Link2, Mail, Minus } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "../ui/cn";

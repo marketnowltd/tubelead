@@ -3,7 +3,6 @@ import { ArrowDown, ArrowUp, ArrowUpDown, BookmarkPlus, Download, ExternalLink, 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { CreatorDrawer, verificationLabel } from "@/components/pages/CreatorDrawer";
-import { SendToSendLoom } from "@/components/pages/SendToSendLoom";
 import { Avatar, Badge, DemoBanner, DemoTag, EmptyState, ErrorState, PageHeader, Panel, ScoreRing, Skeleton, statusTone } from "@/components/ui/core";
 import { cn } from "@/components/ui/cn";
 import { MultiSelect } from "@/components/ui/inputs";
@@ -44,7 +43,6 @@ function Database() {
   const [confirmDel, setConfirmDel] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [viewName, setViewName] = useState("");
-  const [bridge, setBridge] = useState(false);
 
   useEffect(() => { const t = setTimeout(() => { setF((s) => (s.q === qDraft ? s : { ...s, q: qDraft })); setPage(1); }, 300); return () => clearTimeout(t); }, [qDraft]);
 
@@ -118,7 +116,6 @@ function Database() {
           <select aria-label="Assign to campaign" className="field !w-auto !py-1.5 text-xs" value="" onChange={(e) => e.target.value && bulk({ action: "assign_campaign", campaign_id: e.target.value }, "Assigned to campaign")}><option value="">Assign to campaign…</option>{camps?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
           <select aria-label="Set outreach status" className="field !w-auto !py-1.5 text-xs" value="" onChange={(e) => e.target.value && bulk({ action: "set_outreach", outreach_status: e.target.value }, "Status updated")}><option value="">Set outreach status…</option>{["new", "contacted", "replied", "converted"].map((s) => <option key={s} value={s}>{titleCase(s)}</option>)}</select>
           <button className="btn-ghost btn-sm" onClick={() => bulk({ action: "unassign_campaign" }, "Removed from campaigns")}>Unassign</button>
-          <button className="btn-primary pill-indigo btn-sm" onClick={() => setBridge(true)}><Mail size={13} /> Send to SendLoom</button>
           <button className="btn-ghost btn-sm" onClick={exportCsv}><Download size={13} /> Export</button>
           <button className="btn-ghost btn-sm !border-[#B5493A]/40 !text-[#A33A2A]" onClick={() => setConfirmDel(true)}><Trash2 size={13} /> Delete</button>
           <button className="ml-auto text-xs text-mute hover:text-ink" onClick={() => setSel(new Set())}>Clear selection</button>
@@ -207,8 +204,6 @@ function Database() {
         <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-mute"><span className="label">Saved views</span>
           {views.map((v) => <span key={v.id} className="inline-flex items-center gap-1 rounded-full border border-forest/25 bg-forest/10 pl-3 pr-1 py-0.5"><button onClick={() => applyView(v.id)} className="hover:text-ink">{v.name}</button><button aria-label={`Delete view ${v.name}`} onClick={() => delView(v.id)} className="rounded-full p-1 hover:bg-ink/[0.06]"><X size={11} /></button></span>)}</div>
       )}
-
-      <SendToSendLoom open={bridge} ids={[...sel]} onClose={() => setBridge(false)} />
       <CreatorDrawer id={open} onClose={() => setOpen(null)} onChanged={() => mutate()} />
       <Modal open={saveOpen} onOpenChange={setSaveOpen} title="Save current view" description="Stores your search text and every filter." footer={<><button className="btn-ghost btn-sm" onClick={() => setSaveOpen(false)}>Cancel</button><button className="btn-primary !px-4 !py-2 !text-xs" disabled={!viewName.trim()} onClick={saveView}>Save view</button></>}>
         <input className="field" autoFocus placeholder="e.g. UK tech with email" maxLength={120} value={viewName} onChange={(e) => setViewName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && viewName.trim() && saveView()} aria-label="View name" /></Modal>

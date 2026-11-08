@@ -55,7 +55,7 @@ Open `https://YOUR-DOMAIN`. Register, confirm the email, and you land in the app
 | `MAX_CONCURRENT_JOBS` | parallel discovery jobs per process |
 | `N8N_WEBHOOK_URL` | default job-event webhook |
 
-Frontend build args: `BACKEND_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL`, `SENDLOOM_URL` — all baked at build time, so rebuild `web` after changing them.
+Frontend build args: `BACKEND_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL` — all baked at build time, so rebuild `web` after changing them.
 
 ## 6. Operating notes
 - **One API replica.** Discovery workers and the scheduler run in-process; two replicas would double-fire scheduled searches. Scale up with `MAX_CONCURRENT_JOBS` first. A Redis-backed queue is the next step and was not built.

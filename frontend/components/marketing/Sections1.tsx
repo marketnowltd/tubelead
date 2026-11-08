@@ -123,7 +123,7 @@ const STEPS = [
   ["Describe", "Type who you want, or set filters by hand: keywords, niches, countries, audience size, activity, contact route. The AI assistant turns plain language into criteria you review first."],
   ["Discover", "The engine expands your keywords, searches YouTube through the official API, removes duplicates and respects your quota. Pause, resume or cancel any run."],
   ["Qualify", "Every channel is scored against your criteria with a visible breakdown. Public descriptions and official websites are checked for business contact routes."],
-  ["Connect", "Group the best leads into campaigns, export CSV, or hand them to SendLoom for outreach. You stay in control of every message."],
+  ["Connect", "Group the best leads into campaigns, or export CSV to use in your own tools. TubeLead never sends a message on your behalf."],
 ] as const;
 export function HowItWorks() {
   return (

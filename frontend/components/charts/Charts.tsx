@@ -1,5 +1,5 @@
 "use client";
-import { useReducedMotion } from "framer-motion";
+import { useReducedMotion } from "motion/react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, Line, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { countryName, flag } from "@/lib/countries";
 import { compact, dateShort } from "@/lib/format";

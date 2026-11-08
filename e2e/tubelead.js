@@ -42,7 +42,7 @@ const signed = (ev) => { const p = JSON.stringify(ev), t = Math.floor(Date.now()
   await mp.goto(B + '/', { waitUntil: 'networkidle' }); await mp.getByRole('button', { name: 'Open menu' }).click(); ok(await mp.locator('nav[aria-label="Mobile site"]').getByRole('link', { name: 'Pricing' }).isVisible(), 'mobile landing menu opens'); await m.close();
 
   // ================= APP SHELL: 16 modules =================
-  await go('/dashboard'); ok((await page.locator('nav[aria-label="Main navigation"] a').count()) === 17, '16 modules + SendLoom link in sidebar');
+  await go('/dashboard'); ok((await page.locator('nav[aria-label="Main navigation"] a').count()) === 16, 'exactly 16 modules in the sidebar (no SendLoom link — separate product)');
   for (const p of NAV) { const e0 = errs.length; await go(p); const h = (await page.locator('main h1').first().innerText().catch(() => '')).trim(); ok(h.length > 2 && errs.length === e0, `module ${p} loads ("${h}") with no console errors`, errs.slice(e0).join(' | ')); }
   // every button on every module has an accessible name (no dead/unnamed controls)
   let unnamed = []; for (const p of NAV) { await go(p); unnamed.push(...(await page.evaluate(() => [...document.querySelectorAll('main button, main a')].filter(e => !(e.innerText || e.getAttribute('aria-label') || e.getAttribute('title') || (e.labels && e.labels[0] && e.labels[0].innerText) || '').trim()).map(e => e.outerHTML.slice(0, 60))))); }

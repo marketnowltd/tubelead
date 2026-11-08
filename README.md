@@ -3,13 +3,13 @@
 
 TubeLead discovers YouTube creators at scale through the **official YouTube Data API**, removes duplicates, scores every channel against your criteria and surfaces the business contact routes creators have **published themselves** (channel description, official website, public contact page). It never guesses or invents contact details.
 
-> Formerly "CreatorLead AI". It still ships beside **SendLoom** (email marketing, `../sendloom`) as one platform — see `../platform/README.md`.
+> Formerly "CreatorLead AI". TubeLead is a standalone product: it has its own sign-in, database and deployment, and shares nothing with SendLoom (a separate email-marketing product in `../sendloom`).
 
 | | |
 |---|---|
 | **Public site** `/` | Cream editorial landing page: hero, interactive generator demo, how it works, discovery capabilities, AI integrations, lead-database preview with live filters, campaigns, pricing (monthly/annual), FAQ, final CTA, footer. Demo creators on it are fictional and labelled *Sample data*. |
 | **Auth** `/login` `/signup` | Supabase email register/verify, Google login, password recovery. Without Supabase configured the app runs in single-user local mode and says so. |
-| **App — 16 modules** | Dashboard · Lead Generator · Discovery Engine · Creator Intelligence · Lead Database · Contact Finder · Saved Searches · Campaign Manager · Automation Centre · AI Connect · AI Task Manager · Analytics · Integrations · API Management · Billing & Subscription · Account Settings (+ link to SendLoom) |
+| **App — 16 modules** | Dashboard · Lead Generator · Discovery Engine · Creator Intelligence · Lead Database · Contact Finder · Saved Searches · Campaign Manager · Automation Centre · AI Connect · AI Task Manager · Analytics · Integrations · API Management · Billing & Subscription · Account Settings |
 
 ## Architecture
 ```
@@ -25,7 +25,7 @@ Browser ─► Next.js 15 (landing + app, Tailwind, Recharts, Framer Motion)   o
 **Discovery** — keyword, video-based (creators of videos on the topic), topic-based (keyword → sub-topics) and "similar to these videos" discovery; multi-niche, worldwide (14 regions), deep and repeat modes; AI-assisted keyword ideas (you approve each); duplicate removal against everything you already hold; min/max subscribers, engagement, activity, creator type, "has public email/website"; per-job quota cap; **pause / resume / cancel**; failed requests are counted and skipped, quota exhaustion stops the job gracefully; scheduled runs.
 Every job counter is a database measurement: searches, keywords processed, channels found, unique, duplicates removed, qualified, rejected, contact routes found, failed requests, quota used, ETA, log.
 
-**Contacts** — separate statuses, never merged: *deliverability checked* (public email whose domain passed a DNS/MX check) · *publicly published* · *unverified* · *website* · *contact form* · *none*. Each route shows source and confidence. There is no unsolicited mass-email feature; hand leads to SendLoom (lawful-basis declaration enforced).
+**Contacts** — separate statuses, never merged: *deliverability checked* (public email whose domain passed a DNS/MX check) · *publicly published* · *unverified* · *website* · *contact form* · *none*. Each route shows source and confidence. TubeLead sends no email and has no mass-email feature; export CSV for your own tools.
 
 **AI Connect** — modular adapters (OpenAI-compatible covers OpenAI, OpenRouter, Ollama, custom; Anthropic; Gemini). Bring your own key; keys are encrypted at rest, never returned by any endpoint, redacted from errors. Test connection, list models, choose model, default provider, rotate, disable, delete. **AI Task Manager** routes 8 tasks (keyword research, creator analysis, lead qualification, lead scoring, contact analysis, campaign intelligence, report generation, search assistant) to a provider with a fallback, or switches them off. The orchestrator handles timeouts, retries with back-off, a per-user rate limit, usage/cost estimates and error logging. The **search assistant** turns plain language into criteria you review and edit before anything runs (a transparent rules parser is used when no AI is connected). AI is advisory only — contact details and metrics come from YouTube and the creator's own pages.
 *A ChatGPT/Claude/Gemini consumer subscription is not an API key.* The UI says so, and links to each provider's key page. OAuth login to AI providers is **not** offered (none of these providers lets third-party apps use a consumer subscription that way).
@@ -53,5 +53,4 @@ Cream editorial system — background `#F7F4EC`, secondary `#EFEAE0`, cards `#FF
 |---|---|
 | `cd backend && pytest` | **49 tests**, pass on SQLite and PostgreSQL 16 (discovery, dedupe, contacts, plans/paywalls, AI providers/routing/fallback/key-leak, Stripe signature/replay/idempotency, tenant isolation with real JWTs, pause/resume) |
 | `bash e2e/run-tubelead.sh` | **94 browser checks** on the production build with a fake YouTube + fake OpenAI-compatible server and signed Stripe webhooks: landing interactions, 16 modules, mobile overflow, paywalls, pause/resume, dedupe, AI connect/rotate/delete, billing, report download |
-| `bash ../platform/e2e/run-combined.sh` | **34 checks** for the TubeLead + SendLoom single-origin deployment and creator → email-audience hand-off |
 See **`CHECKLIST.md`** for exactly what is and isn't verified.

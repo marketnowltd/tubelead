@@ -16,7 +16,6 @@ services:
       context: ../frontend
       args:
         BACKEND_URL: http://api:8000
-        SENDLOOM_URL: http://sl-web:3100      # remove the sl-* services + this arg if you don't deploy SendLoom
         NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL}
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
         NEXT_PUBLIC_SITE_URL: https://${DOMAIN}
@@ -39,16 +38,4 @@ services:
     image: redis:7-alpine
     command: ["redis-server", "--save", "", "--appendonly", "no"]   # rate-limit counters only; nothing here needs persistence
     restart: unless-stopped
-  # ---- optional: SendLoom (email marketing) at /mail on the same origin ----
-  sl-api:
-    build: ../../sendloom/backend
-    env_file: ../../sendloom/backend/.env
-    environment: { DATABASE_URL: "${SL_DATABASE_URL}", APP_URL: "https://${DOMAIN}/mail", API_URL: "https://${DOMAIN}/mail", COOKIE_SECURE: "true" }
-    restart: unless-stopped
-  sl-web:
-    build:
-      context: ../../sendloom/web
-      args: { BACKEND_URL: "http://sl-api:8100", NEXT_PUBLIC_BASE_PATH: "/mail", NEXT_PUBLIC_APP_URL: "https://${DOMAIN}/mail" }
-    restart: unless-stopped
-    depends_on: [sl-api]
 volumes: { caddy-data: {}, caddy-config: {} }

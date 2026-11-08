@@ -101,7 +101,7 @@ export function Campaigns() {
       <div className="mx-auto grid max-w-[1240px] items-center gap-12 px-5 sm:px-8 grid-cols-[minmax(0,1fr)] lg:grid-cols-[1fr_1.15fr]">
         <div>
           <SectionHead n="06" eyebrow="Campaign management" title={<>Turn a list into a <span className="italic-accent">pipeline</span>.</>} sub="Group leads into campaigns, track outreach status and reply rate, and keep saved searches running on a schedule so your pipeline refills itself." />
-          <ul className="space-y-3 text-[15px]">{["Campaigns with per-stage counts and reply rate", "Saved searches that re-run hourly, daily or weekly", "Bulk assign, bulk status change, CSV export", "One-click hand-off to SendLoom for sending"].map((x) => <li key={x} className="flex gap-3"><Check size={18} className="mt-0.5 shrink-0 text-moss" />{x}</li>)}</ul>
+          <ul className="space-y-3 text-[15px]">{["Campaigns with per-stage counts and reply rate", "Saved searches that re-run hourly, daily or weekly", "Bulk assign, bulk status change, CSV export", "Export to CSV for your own outreach tools"].map((x) => <li key={x} className="flex gap-3"><Check size={18} className="mt-0.5 shrink-0 text-moss" />{x}</li>)}</ul>
         </div>
         <Reveal>
           <div className="panel p-4 sm:p-5">
@@ -181,7 +181,7 @@ const FAQ: [string, string][] = [
   ["What does “publicly published” mean versus “verified”?", "Publicly published means we found the address on a public page. It is not a guarantee the mailbox exists. A separate deliverability check (DNS/MX) can be run, and the two statuses are always shown separately."],
   ["Do I need my own YouTube API key?", "The platform uses the official YouTube Data API. Self-hosted deployments add their own key; quota is monitored with a protected reserve and runs stop gracefully when the daily budget is used."],
   ["Is my ChatGPT / Claude / Gemini subscription enough for AI Connect?", "No. Consumer chat subscriptions don’t include API access. Create an API key in the provider’s developer console (or run a local model with Ollama) and paste it into AI Connect. Keys are stored encrypted and never shown again."],
-  ["Will TubeLead send emails for me?", "TubeLead is for discovery and organisation. It has no unsolicited mass-email feature. If you want to email creators, hand leads to SendLoom, which enforces unsubscribes and suppression."],
+  ["Will TubeLead send emails for me?", "TubeLead is for discovery and organisation. It has no unsolicited mass-email feature. Export your leads and use your own tools, following the rules that apply to you and the recipient."],
   ["What happens when I hit my lead allowance?", "Runs are capped so you never exceed the plan, and you’ll see exactly which limit you reached with the option to upgrade. You can still view, filter and export (on paid plans) everything you already have."],
   ["Can I cancel or change plan?", "Yes — upgrade, downgrade or cancel from Billing & Subscription or the Stripe customer portal. Changes take effect when Stripe confirms them."],
 ];
@@ -223,13 +223,13 @@ export function Footer() {
   const cols: [string, [string, string][]][] = [
     ["Product", [["Lead generator", "#demo"], ["How it works", "#how"], ["AI integrations", "#ai"], ["Pricing", "#pricing"]]],
     ["Account", [["Sign in", "/login"], ["Create account", "/signup"], ["Billing", "/billing"]]],
-    ["Platform", [["SendLoom email marketing", "/mail"], ["FAQ", "#faq"], ["Privacy", "/privacy"], ["Terms", "/terms"]]],
+    ["Platform", [["FAQ", "#faq"], ["Privacy", "/privacy"], ["Terms", "/terms"]]],
   ];
   return (
     <footer className="border-t border-line">
       <div className="mx-auto grid max-w-[1240px] gap-10 px-5 py-14 sm:px-8 md:grid-cols-[1.4fr_repeat(3,1fr)]">
         <div><p className="font-display text-2xl font-extrabold tracking-tight">Tube<span className="text-forest">Lead</span></p><p className="mt-3 max-w-xs text-[14px] text-mute">Find the creators. Build the connections. Grow your network.</p></div>
-        {cols.map(([h, links]) => <nav key={h} aria-label={h}><p className="label mb-3">{h}</p><ul className="space-y-2.5 text-[14px]">{links.map(([l, href]) => <li key={l}>{href.startsWith("#") ? <a href={href} className="text-mute hover:text-ink">{l}</a> : href === "/mail" ? <a href={href} className="text-mute hover:text-ink">{l}</a> : <Link href={href} className="text-mute hover:text-ink">{l}</Link>}</li>)}</ul></nav>)}
+        {cols.map(([h, links]) => <nav key={h} aria-label={h}><p className="label mb-3">{h}</p><ul className="space-y-2.5 text-[14px]">{links.map(([l, href]) => <li key={l}>{href.startsWith("#") ? <a href={href} className="text-mute hover:text-ink">{l}</a> : <Link href={href} className="text-mute hover:text-ink">{l}</Link>}</li>)}</ul></nav>)}
       </div>
       <div className="border-t border-line"><p className="mx-auto max-w-[1240px] px-5 py-5 text-[12px] text-dim sm:px-8">© {new Date().getFullYear()} TubeLead. Not affiliated with or endorsed by YouTube or Google. YouTube is a trademark of Google LLC.</p></div>
     </footer>
