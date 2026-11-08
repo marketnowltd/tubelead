@@ -1,0 +1,45 @@
+# TubeLead on Render (https://render.com). Create a Blueprint from this repo; Render asks for the secret values below.
+# Two services: the API (FastAPI) and the website (Next.js). Keys are entered in the Render dashboard, never committed.
+services:
+  - type: web
+    name: tubelead-api
+    runtime: docker
+    rootDir: backend
+    healthCheckPath: /api/health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: AUTH_MODE
+        value: supabase
+      - key: AI_ALLOW_PRIVATE_HOSTS
+        value: "false"
+      - key: DATABASE_URL          # Supabase Postgres connection string (postgresql+psycopg://...)
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: SECRET_KEY            # generate: openssl rand -hex 32
+        sync: false
+      - key: YOUTUBE_API_KEY
+        sync: false
+      - key: APP_BASE_URL
+        sync: false                # e.g. https://tubelead-web.onrender.com
+      - key: CORS_ORIGINS
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+  - type: web
+    name: tubelead-web
+    runtime: docker
+    rootDir: frontend
+    healthCheckPath: /login
+    envVars:
+      - key: BACKEND_URL           # the API's public URL, e.g. https://tubelead-api.onrender.com
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false
