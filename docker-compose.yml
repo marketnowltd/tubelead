@@ -1,0 +1,27 @@
+# docker compose up --build        (then open http://localhost:3000)
+# Put real values in backend/.env first (cp backend/.env.example backend/.env).
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+  backend:
+    build: ./backend
+    env_file: ./backend/.env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////data/creatorlead.db}
+    volumes: ["creatorlead-data:/data"]
+    depends_on: [redis]
+    restart: unless-stopped
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        BACKEND_URL: http://backend:8000
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
+    ports: ["3000:3000"]
+    depends_on: [backend]
+    restart: unless-stopped
+volumes:
+  creatorlead-data:
