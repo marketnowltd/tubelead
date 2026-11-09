@@ -1,6 +1,8 @@
 "use client";
 import { motion } from "motion/react";
 import { ArrowRight, Gauge, Layers, Search, Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import Link from "next/link";
 import { SAMPLE, k } from "@/lib/sample";
 import { AvatarTile, ContactBadge, ScoreDial, SampleTag } from "./bits";
@@ -9,6 +11,8 @@ const ROWS = [SAMPLE[0], SAMPLE[3], SAMPLE[10], SAMPLE[7]];
 const QUERY = "UK fitness creators, 10K–100K subscribers, public email";
 
 export function Hero() {
+  const router = useRouter();
+  const [query, setQuery] = useState("");
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 grain opacity-60" aria-hidden />
@@ -19,17 +23,23 @@ export function Hero() {
           </motion.p>
           <motion.h1 initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
             className="font-display text-[clamp(2.5rem,5.2vw,4.4rem)] font-extrabold leading-[0.98] tracking-[-0.045em] text-balance">
-            Discover the <span className="italic-accent">right</span> creators. Without the endless searching.
+            Find Your Next <span className="italic-accent">100</span> Customers.
           </motion.h1>
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2, duration: 0.7 }} className="mt-6 max-w-xl text-[18px] leading-relaxed text-mute">
-            Describe who you&rsquo;re looking for. TubeLead searches YouTube at scale, removes duplicates, scores every channel against your criteria and surfaces the contact routes creators have published themselves.
+            Discover businesses, identify sales opportunities and uncover qualified prospects across the internet — all from one powerful platform.
           </motion.p>
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="mt-9 flex flex-wrap items-center gap-3.5">
-            <Link href="/signup" className="btn-primary">Start discovering <ArrowRight size={15} /></Link>
-            <a href="#demo" className="btn-ghost">Explore the platform <ArrowRight size={15} /></a>
+          <motion.form initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }} onSubmit={(e) => { e.preventDefault(); const q = query.trim(); router.push(`/signup?next=${encodeURIComponent("/lead-generator" + (q ? `?q=${encodeURIComponent(q)}` : ""))}`); }}
+            className="mt-9 flex max-w-xl flex-col gap-2.5 rounded-2xl border border-line bg-panel p-2 shadow-card sm:flex-row sm:items-center" role="search">
+            <label className="flex min-w-0 flex-1 items-center gap-2.5 px-3"><Search size={18} className="shrink-0 text-forest" aria-hidden />
+              <span className="sr-only">Search creators or niche</span>
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. UK fitness creators with email" className="w-full min-w-0 bg-transparent py-2.5 text-[15px] outline-none placeholder:text-dim" /></label>
+            <button className="btn-primary !px-6 !py-3 !text-[12px]">Start Finding Leads <ArrowRight size={14} /></button>
+          </motion.form>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.34 }} className="mt-5 flex flex-wrap items-center gap-3.5">
+            <a href="#how" className="btn-ghost">Explore How It Works <ArrowRight size={15} /></a>
           </motion.div>
-          <ul className="mt-9 flex flex-wrap gap-x-8 gap-y-2 text-[13px] text-mute">
-            {["25 free leads, no card", "Duplicates removed automatically", "Bring your own AI key"].map((t) => <li key={t} className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-terracotta" />{t}</li>)}
+          <ul className="mt-8 flex flex-wrap gap-x-8 gap-y-2 text-[13px] text-mute">
+            {["25 free leads, no card", "Duplicates removed automatically", "Public contacts only"].map((t) => <li key={t} className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-terracotta" />{t}</li>)}
           </ul>
         </div>
 
@@ -67,17 +77,17 @@ export function Hero() {
             </div>
           </div>
           <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 3.4 }} className="panel absolute -bottom-9 -left-8 hidden w-48 p-3 shadow-pop sm:block animate-floaty">
-            <p className="label flex items-center gap-1.5 !text-[10px]"><Layers size={12} className="text-terracotta-text" /> Duplicates removed</p>
-            <p className="data mt-1 text-2xl font-semibold">142</p><p className="text-[11px] text-mute">before they reach your list</p>
+            <p className="label flex items-center gap-1.5 !text-[10px]"><Layers size={12} className="text-terracotta-text" /> Duplicates</p>
+            <p className="mt-1 font-display text-[15px] font-bold leading-snug">Removed automatically</p><p className="text-[11px] text-mute">every creator is saved once</p>
           </motion.div>
           <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 3.6 }} className="panel absolute -right-3 -top-5 hidden w-44 p-3 shadow-pop sm:block">
-            <p className="label flex items-center gap-1.5 !text-[10px]"><Gauge size={12} className="text-gold-text" /> Quota today</p>
+            <p className="label flex items-center gap-1.5 !text-[10px]"><Gauge size={12} className="text-gold-text" /> Quota</p>
             <div className="mt-2 h-2 overflow-hidden rounded-full bg-ink/10"><div className="h-full w-[42%] rounded-full bg-forest" /></div>
-            <p className="data mt-1.5 text-[11px] text-mute">4,210 / 10,000 units</p>
+            <p className="mt-1.5 text-[11px] text-mute">Each search has a limit</p>
           </motion.div>
           <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 3.8 }} className="panel absolute -bottom-7 right-4 hidden p-3 shadow-pop sm:flex sm:items-center sm:gap-2.5">
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-forest text-paper"><Sparkles size={15} /></span>
-            <p className="text-[12px] font-semibold leading-tight">4 of 25 qualified<br /><span className="font-normal text-mute">job running…</span></p>
+            <p className="text-[12px] font-semibold leading-tight">Pause or resume<br /><span className="font-normal text-mute">any search, any time</span></p>
           </motion.div>
         </motion.div>
       </div>

@@ -12,6 +12,39 @@ import type { Status } from "@/lib/types";
 
 interface Settings { display_name: string; email: string; plan: string }
 
+type ModReview = { id: string; name: string; company: string | null; role: string | null; rating: number; body: string; email: string | null; created_at: string; verified: boolean };
+
+/** Operator only: approve or reject homepage reviews. Customers never see this panel (the API refuses them). */
+function ReviewModeration() {
+  const toast = useToast();
+  const { data, error, mutate } = useApi<ModReview[]>("/admin/reviews?status=pending");
+  if (error) return null; // not the operator, so nothing to show
+  const act = async (r: ModReview, status: "approved" | "rejected", verified = false) => {
+    try { await api(`/admin/reviews/${r.id}`, { method: "PATCH", json: { status, verified } }); toast("success", status === "approved" ? "Review published" : "Review rejected"); mutate(); }
+    catch (e: any) { toast("error", e.message); }
+  };
+  return (
+    <Panel><PanelHeader title="Reviews to check" sub="Nothing is published until you approve it. Mark a review as verified only after you have confirmed the customer." />
+      {!data ? <Skeleton className="m-5 h-20" /> : data.length === 0 ? <p className="px-5 pb-5 text-sm text-mute">No reviews waiting.</p> : (
+        <ul className="divide-y divide-line px-1 pb-2">
+          {data.map((r) => (
+            <li key={r.id} className="space-y-2 px-4 py-4">
+              <p className="text-sm font-semibold">{r.name}{r.company ? ` · ${r.company}` : ""}{r.role ? ` · ${r.role}` : ""} <span className="font-normal text-mute">· {r.rating}/5</span></p>
+              <p className="text-sm text-ink">&ldquo;{r.body}&rdquo;</p>
+              <p className="data text-[11px] text-dim">Private email: {r.email || "not given"}</p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <button className="btn-primary btn-sm" onClick={() => act(r, "approved", false)}>Publish</button>
+                <button className="btn-ghost btn-sm" onClick={() => act(r, "approved", true)}>Publish as verified</button>
+                <button className="btn-ghost btn-sm" onClick={() => act(r, "rejected")}>Reject</button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
+  );
+}
+
 export default function SettingsPage() {
   const toast = useToast();
   const demo = useDemo();
@@ -28,6 +61,8 @@ export default function SettingsPage() {
       <PageHeader eyebrow="Account" title="Account Settings" sub="Profile, plan summary and system information." />
       {error ? <Panel><ErrorState error={error} onRetry={() => mutate()} /></Panel> : (
         <div className="space-y-6">
+          <ReviewModeration />
+
           <Panel><PanelHeader title="Profile" />
             {!data ? <Skeleton className="m-5 h-24" /> : (
               <form className="grid gap-4 px-5 pb-5 md:grid-cols-2" onSubmit={(e) => { e.preventDefault(); if (!emailBad && name.trim()) save({ display_name: name.trim(), email }, "Profile saved"); }}>

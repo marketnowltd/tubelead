@@ -152,9 +152,9 @@ export function Capabilities() {
     ["Multi-niche & worldwide", "Run several niches across many regions at once.", ["GB", "US", "DE", "BR", "JP", "IN"]],
   ];
   return (
-    <section className="py-24">
+    <section id="capabilities" className="scroll-mt-20 py-24">
       <div className="mx-auto max-w-[1240px] px-5 sm:px-8">
-        <SectionHead n="03" eyebrow="Discovery capabilities" title={<>An engine built to <span className="italic-accent">finish</span> the job.</>} sub="Searching is the cheap part. Doing it at scale without waste is the hard part — so the engine is quota-aware, de-duplicated and observable." />
+        <SectionHead n="04" eyebrow="Lead discovery capabilities" title={<>An engine built to <span className="italic-accent">finish</span> the job.</>} sub="Searching is the cheap part. Doing it at scale without waste is the hard part — so the engine is quota-aware, de-duplicated and observable." />
         <div className="grid gap-5 lg:grid-cols-12">
           {caps.map(([t, d, chips], i) => (
             <Reveal key={t as string} delay={i * 0.06} className={cn("lg:col-span-6")}>
@@ -163,11 +163,10 @@ export function Capabilities() {
             </Reveal>
           ))}
           <Reveal className="lg:col-span-7">
-            <div className="panel h-full p-6"><h3 className="font-display text-xl font-extrabold tracking-tight">Dedupe & quota, visible</h3><p className="mt-2 text-[14.5px] text-mute">Every run reports exactly what happened — measured, never estimated after the fact.</p>
-              <div className="mt-6 space-y-3">
-                {[["Channels found", 1284, "bg-forest"], ["Unique", 971, "bg-forest-400"], ["Qualified", 214, "bg-terracotta"], ["Duplicates removed", 313, "bg-gold"]].map(([l, v, c]) => (
-                  <div key={l as string}><div className="mb-1 flex justify-between text-[12.5px]"><span className="text-mute">{l as string}</span><span className="data font-semibold">{(v as number).toLocaleString()}</span></div><div className="h-2.5 rounded-full bg-ink/[0.07]"><div className={cn("h-full rounded-full", c as string)} style={{ width: `${((v as number) / 1284) * 100}%` }} /></div></div>))}
-              </div><p className="mt-4 text-[11px] text-dim">Illustrative run.</p></div>
+            <div className="panel h-full p-6"><h3 className="font-display text-xl font-extrabold tracking-tight">Duplicates and quota, handled for you</h3><p className="mt-2 text-[14.5px] text-mute">Every creator is saved once, however many searches find them. Each search has a quota limit, so the YouTube allowance is not used up by surprise.</p>
+              <ul className="mt-6 grid gap-3 sm:grid-cols-2">
+                {["Creators saved once, never twice", "Per-search quota limit", "Quota reserve kept for you", "Clear reason when a search stops"].map((x) => <li key={x} className="flex gap-2.5 rounded-xl border border-line bg-bg px-4 py-3 text-[13.5px]"><Check size={15} className="mt-0.5 shrink-0 text-moss" />{x}</li>)}
+              </ul></div>
           </Reveal>
           <Reveal className="lg:col-span-5">
             <div className="h-full rounded-[18px] bg-forest p-6 text-paper"><h3 className="font-display text-xl font-extrabold tracking-tight">Controls you&rsquo;d expect from a real tool</h3>

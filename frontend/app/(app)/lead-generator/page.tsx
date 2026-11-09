@@ -100,6 +100,11 @@ export default function LeadGenerator() {
     }
   }, [live, jobId]);
   const [nl, setNl] = useState("");
+  useEffect(() => {
+    // The homepage search passes its text as ?q=… so the search starts with it.
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (q && q.trim()) setF((x) => ({ ...x, keywords: [q.trim()] }));
+  }, []);
   const [proposal, setProposal] = useState<{ source: string; criteria: Record<string, any>; dropped: string[]; note: string | null } | null>(null);
   const [parsing, setParsing] = useState(false);
   const [ideas, setIdeas] = useState<{ source: string; keywords: string[]; note?: string } | null>(null);

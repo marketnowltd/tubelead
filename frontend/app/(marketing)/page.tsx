@@ -1,21 +1,24 @@
+import { FAQSection, Footer, Pricing, DatabasePreview } from "@/components/marketing/Sections2";
+import { Capabilities, HowItWorks } from "@/components/marketing/Sections1";
 import { Hero } from "@/components/marketing/Hero";
-import { AIIntegrations, Campaigns, DatabasePreview, FAQSection, FinalCTA, Footer, Pricing } from "@/components/marketing/Sections2";
-import { Capabilities, CreatorStrip, GeneratorDemo, HowItWorks } from "@/components/marketing/Sections1";
+import { Recognition, Reviews, SearchSources, Statistics, TrustedBusinesses } from "@/components/marketing/Trust";
 
+/* Homepage in the order of the brief: hero, search sources, trusted businesses, how it works, dashboard preview,
+ * capabilities, reviews, verified statistics, recognition, pricing, FAQ, footer. */
 export default function Landing() {
   return (
     <>
       <Hero />
-      <CreatorStrip />
-      <GeneratorDemo />
+      <SearchSources />
+      <TrustedBusinesses />
       <HowItWorks />
-      <Capabilities />
-      <AIIntegrations />
       <DatabasePreview />
-      <Campaigns />
+      <Capabilities />
+      <Reviews />
+      <Statistics />
+      <Recognition />
       <Pricing />
       <FAQSection />
-      <FinalCTA />
       <Footer />
     </>
   );

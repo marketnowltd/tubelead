@@ -46,3 +46,14 @@ Legend: ✅ implemented **and** tested · 🟡 implemented, only partly tested �
 - Single API replica; no Redis-backed job queue.
 - The landing page's pricing falls back to static values if `/api/plans` is unreachable.
 - Starter legal pages (`/privacy`, `/terms`) are templates, not legal advice.
+
+## Homepage content (what to edit, and the honesty rules)
+| What | Where | When it appears |
+|---|---|---|
+| Customer logos | `frontend/content/site.ts` → `CUSTOMERS` (logo file in `frontend/public/customers/`) | Only after the company agrees in writing to be named. Until then the page shows industries. |
+| Awards and recognition | `frontend/content/site.ts` → `AWARDS` | Only for real awards, with issuer and year. Until then the page shows product strengths. |
+| Reviews | Customers submit them on the homepage. An operator publishes them in **Settings → Reviews to check**. | Only after approval. "Verified" is set by the operator after checking the customer. |
+| Statistics | Calculated from stored records (`/api/public/stats`) | A figure appears only when there is enough real data (20 or more records). Countries appear from one. |
+| Search sources | `frontend/content/site.ts` → `SEARCH_SOURCES` | Only sources that work are marked "Live". |
+
+No customers, reviews, awards, certifications or user counts are invented. Review data lives in the `reviews` table (Supabase migration `003_reviews.sql`).

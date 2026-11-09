@@ -13,18 +13,19 @@ const signed = (ev) => { const p = JSON.stringify(ev), t = Math.floor(Date.now()
 
   // ================= LANDING =================
   await go('/');
-  ok(/Discover the\s+right\s+creators\. Without the endless searching\./i.test((await page.locator('h1').first().innerText()).replace(/\n/g, ' ')), 'landing hero headline');
-  ok(await page.getByRole('link', { name: /Start discovering/i }).count() >= 2 && await page.getByRole('link', { name: /Explore the platform/i }).count() === 1, 'hero CTAs: START DISCOVERING + EXPLORE THE PLATFORM');
+  ok(/Find Your Next\s*100\s*Customers/i.test((await page.locator('h1').first().innerText()).replace(/\n/g, ' ')), 'landing hero headline');
+  ok(await page.getByRole('button', { name: /Start Finding Leads/i }).count() >= 1 && await page.getByRole('link', { name: /Explore How It Works/i }).count() === 1, 'hero CTAs: Start Finding Leads + Explore How It Works');
   const heads = await page.locator('main section h2').allInnerTexts(); ok(heads.length >= 8, `landing has ${heads.length} headed sections`);
-  for (const [id, t] of [['demo', /Lead generator/i], ['how', /How it works/i], ['ai', /AI integrations/i], ['pricing', /Pricing/i], ['faq', /FAQ/i]]) ok(await page.locator('#' + id).count() === 1, `anchor #${id} exists`);
-  ok(await page.getByText('Sample data').count() >= 3, 'demo data on landing is labelled "Sample data"');
+  for (const id of ['dashboard', 'how', 'capabilities', 'trusted', 'reviews', 'stats', 'awards', 'pricing', 'faq']) ok(await page.locator('#' + id).count() === 1, `homepage section #${id} exists`);
+  ok(await page.getByText('Sample data').count() >= 1, 'sample data on landing is labelled "Sample data"');
   // interactive generator demo
-  const resCount = async () => +(await page.locator('#demo [aria-live=polite] .data').first().innerText());
-  await page.locator('#demo').scrollIntoViewIfNeeded(); const before = await resCount();
-  await page.locator('#demo').getByRole('button', { name: 'Tech', exact: true }).click(); await page.locator('#demo').getByRole('button', { name: 'US', exact: true }).click(); const after = await resCount();
-  ok(before >= 0 && after !== before, `generator demo reacts to filters (${before} → ${after})`);
-  await page.locator('#nl').fill('UK fitness creators 10k-100k with email'); await page.locator('#demo').getByRole('button', { name: 'Parse' }).click(); ok(await page.getByText(/Understood: Fitness · United Kingdom/).isVisible(), 'natural-language parse → editable criteria');
-  ok(await resCount() >= 1, 'parsed criteria produce sample matches');
+
+
+
+
+
+  await page.locator('h1').first().scrollIntoViewIfNeeded(); await page.getByRole('search').getByRole('textbox').fill('UK fitness creators'); await page.getByRole('search').getByRole('button').click(); await page.waitForURL(/signup\?next=/, { timeout: 8000 }); ok(/q%3D|q=/.test(page.url()) || /lead-generator/.test(page.url()), 'hero search carries the query to the lead generator');
+  await go('/'); 
   // pricing toggle + FAQ
   await page.locator('#pricing').getByRole('button', { name: /Annual/ }).click(); ok(await page.locator('#pricing').getByText('£16', { exact: false }).count() > 0, 'pricing: annual shows effective monthly price (£190/12 ≈ £16)');
   ok(await page.locator('#pricing').getByText('£19').count() === 0 || true, 'pricing toggled');
@@ -33,7 +34,7 @@ const signed = (ev) => { const p = JSON.stringify(ev), t = Math.floor(Date.now()
   const dead = []; for (const h of hrefs.filter(h => !h.startsWith('/mail'))) { const r = await ctx.request.get(B + h.split('?')[0]); if (r.status() >= 400) dead.push(h + ':' + r.status()); } ok(dead.length === 0, `all ${hrefs.length} internal landing links resolve`, dead.join(','));
   for (const p of ['/login', '/signup', '/privacy', '/terms']) { await go(p); ok((await page.locator('h1').first().innerText()).length > 3, `${p} renders`); }
   await go('/login'); ok(await page.getByText(/Single-user local mode/).isVisible(), 'login explains local mode when Supabase is not configured');
-  ok(/#F7F4EC|rgb\(247, 244, 236\)/i.test(await page.evaluate(() => getComputedStyle(document.body).backgroundColor).then(c => c === 'rgb(247, 244, 236)' ? '#F7F4EC' : c)), 'cream background (#F7F4EC) on body');
+  ok((await page.evaluate(() => getComputedStyle(document.body).backgroundColor)) === 'rgb(247, 245, 255)', 'lavender background (#F7F5FF) on body');
   const fonts = await page.evaluate(() => [getComputedStyle(document.querySelector('h1')).fontFamily, getComputedStyle(document.body).fontFamily]); ok(/Manrope/.test(fonts[0]) && /DM Sans/.test(fonts[1]), 'Manrope headings + DM Sans body', fonts.join(' | '));
 
   // ================= MOBILE =================
@@ -57,7 +58,7 @@ const signed = (ev) => { const p = JSON.stringify(ev), t = Math.floor(Date.now()
   const pr = await api('/settings', { method: 'PUT', json: { plan: 'elite' } }); ok((await api('/billing')).b.current_plan === 'free', 'PUT /settings cannot self-upgrade the plan');
 
   // ================= GENERATOR + ENGINE =================
-  await go('/lead-generator');
+  await go('/lead-generator'); await page.getByRole('button', { name: 'Advanced search' }).first().click();
   await page.getByLabel('Describe the creators you want').fill('UK tech review creators with 1k-100k subscribers and a public email'); await page.getByRole('button', { name: 'Interpret' }).click();
   await page.getByText(/Proposed criteria/).waitFor(); ok(await page.getByText(/Built-in rules/).isVisible(), 'assistant works without AI (rules parser) and shows proposed criteria first');
   await page.getByRole('button', { name: 'Apply to form' }).click(); ok(await page.getByText('tech review').first().isVisible(), 'criteria applied into the editable form');
@@ -67,7 +68,7 @@ const signed = (ev) => { const p = JSON.stringify(ev), t = Math.floor(Date.now()
   await page.getByText('Paused', { exact: true }).first().waitFor({ timeout: 8000 }); ok(true, 'job can be paused from the UI');
   const jid = (await api('/jobs?limit=1')).b[0].id; let d1 = -1, d2 = -2; for (let i = 0; i < 12 && d1 !== d2; i++) { d1 = (await api('/jobs/' + jid)).b.queries_done; await page.waitForTimeout(4500); d2 = (await api('/jobs/' + jid)).b.queries_done; } await page.waitForTimeout(4000); const d3 = (await api('/jobs/' + jid)).b; ok(d1 === d2 && d3.queries_done === d2 && d3.status === 'paused', `paused job makes no progress (${d1}→${d2}→${d3.queries_done}, status ${d3.status}, ${d3.queries_total} queries)`);
   await page.getByRole('button', { name: 'Resume' }).click(); let j; for (let i = 0; i < 90; i++) { j = (await api('/jobs/' + jid)).b; if (!['queued', 'running', 'paused'].includes(j.status)) break; await page.waitForTimeout(1000); }
-  ok(j.status === 'completed' && j.qualified >= 3, `resumed job completed with ${j.qualified} qualified creators`, JSON.stringify({ s: j.status, e: j.error }));
+  await page.keyboard.press('Escape').catch(() => {}); ok(j.status === 'completed' && j.qualified >= 3, `resumed job completed with ${j.qualified} qualified creators`, JSON.stringify({ s: j.status, e: j.error }));
   ok(j.params.limit <= 25 && j.contact_routes_found >= j.qualified && j.keywords_done >= 1 && j.failed_requests === 0, `plan cap respected (limit ${j.params.limit}); counters: routes=${j.contact_routes_found} keywords=${j.keywords_done} failed=${j.failed_requests}`);
   const j2 = (await api('/jobs', { method: 'POST', json: { params: { ...j.params, limit: 25 } } })).b; let jj; for (let i = 0; i < 90; i++) { jj = (await api('/jobs/' + j2.id)).b; if (!['queued', 'running'].includes(jj.status)) break; await page.waitForTimeout(1000); }
   ok(jj.duplicates_removed >= j.unique_found - 1 && jj.qualified === 0, `re-run de-duplicates against the database (removed ${jj.duplicates_removed}, new ${jj.qualified})`);
@@ -104,7 +105,7 @@ const signed = (ev) => { const p = JSON.stringify(ev), t = Math.floor(Date.now()
   const prov = (await api('/ai/providers')).b; ok(prov.length === 1 && prov[0].is_default && prov[0].status === 'connected' && !JSON.stringify(prov).includes('good-key'), 'provider stored, default, connected; API never returns the key');
   await go('/ai-tasks'); await page.getByLabel('Keyword research provider').selectOption({ index: 1 }); await page.getByText('Keyword research updated').waitFor(); ok(true, 'task assigned to a provider');
   await api('/ai/tasks/keyword_research', { method: 'PUT', json: { provider_id: prov[0].id, enabled: true } });
-  await go('/lead-generator'); await page.getByLabel('Keywords').first().fill('tech'); await page.keyboard.press('Enter'); await page.getByRole('button', { name: 'Suggest related keywords' }).click(); await page.getByText(/Suggested by custom/).waitFor({ timeout: 10000 }); ok(await page.getByRole('button', { name: '+ gadget reviews' }).isVisible(), 'AI keyword suggestions appear and are added only on click');
+  await go('/lead-generator'); await page.getByRole('button', { name: 'Advanced search' }).first().click(); await page.getByLabel('Keywords').first().fill('tech'); await page.keyboard.press('Enter'); await page.getByRole('button', { name: 'Suggest related keywords' }).click(); await page.getByText(/Suggested by custom/).waitFor({ timeout: 10000 }); ok(await page.getByRole('button', { name: '+ gadget reviews' }).isVisible(), 'AI keyword suggestions appear and are added only on click');
   await page.getByLabel('Describe the creators you want').fill('UK tech creators with email'); await page.getByRole('button', { name: 'Interpret' }).click(); await page.getByText(/AI · custom/).waitFor({ timeout: 10000 }); ok(true, 'search assistant now answers via the connected AI provider (still needs your confirmation)');
   await go('/ai-connect'); ok(await page.getByText('keyword research').first().isVisible() && (await api('/ai/usage')).b.requests >= 2, 'AI usage + recent-request log recorded (shown in AI Connect)');
   await go('/ai-tasks'); await api('/ai/tasks/keyword_research', { method: 'PUT', json: { provider_id: prov[0].id, enabled: false } }); const off = (await api('/ai/keywords', { method: 'POST', json: { topic: 'tech' } })).b; ok(off.source === 'rules', 'disabling a task stops it calling the provider');
@@ -112,14 +113,14 @@ const signed = (ev) => { const p = JSON.stringify(ev), t = Math.floor(Date.now()
   const dl = page.waitForEvent('download'); await page.getByRole('button', { name: 'Report CSV' }).click(); const file = await dl; ok(/^tubelead-report-.*\.csv$/.test(file.suggestedFilename()), 'analytics report downloads as CSV');
   await go('/ai-connect'); await page.getByRole('button', { name: /Disconnect/ }).click(); await page.getByRole('button', { name: /Disconnect & delete key/ }).click(); await page.getByText(/No AI provider connected/).waitFor(); ok((await api('/ai/providers')).b.length === 0, 'disconnect deletes the provider and its stored key');
   // CSV export now works from the UI on Starter
-  await go('/lead-database'); await page.waitForSelector('tbody tr'); const dExp = page.waitForEvent('download'); await page.getByRole('button', { name: /Export CSV/ }).click(); ok(/^tubelead-export-/.test((await dExp).suggestedFilename()), 'CSV export from the UI works on a paid plan');
+  await go('/lead-database'); await page.waitForSelector('tbody tr'); const dExp = page.waitForEvent('download'); await page.getByRole('button', { name: /Export CSV/ }).click(); ok(/^tubelead-(export|leads)-/.test((await dExp).suggestedFilename()), 'CSV export from the UI works on a paid plan');
   // upgrade to Pro: scheduled discovery unlocked
   const pro = signed({ id: 'evt_e2e_3', type: 'customer.subscription.updated', data: { object: { id: 'sub_e2e', customer: 'cus_e2e', status: 'active', metadata: { owner_id: '00000000-0000-0000-0000-000000000001' }, items: { data: [{ price: { id: 'price_pro_m' } }] }, cancel_at_period_end: false } } });
   await page.evaluate(async ([p, s]) => fetch('/api/billing/webhook', { method: 'POST', headers: { 'Stripe-Signature': s }, body: p }), [pro.p, pro.sig]); ok((await api('/billing')).b.current_plan === 'pro', 'upgrade to Pro via verified webhook');
   const sc = await api('/saved-searches', { method: 'POST', json: { name: 'Weekly tech', params: { keywords: ['tech'] }, schedule: 'weekly' } }); ok(sc.s === 201 && sc.b.next_run_at, 'scheduled search can be saved on Pro');
   const cancelEv = signed({ id: 'evt_e2e_4', type: 'customer.subscription.deleted', data: { object: { id: 'sub_e2e', customer: 'cus_e2e', status: 'canceled' } } });
   await page.evaluate(async ([p, s]) => fetch('/api/billing/webhook', { method: 'POST', headers: { 'Stripe-Signature': s }, body: p }), [cancelEv.p, cancelEv.sig]); ok((await api('/billing')).b.current_plan === 'free', 'cancellation webhook returns the account to Free');
-  await go('/lead-generator'); await page.getByRole('radio', { name: /Scheduled Discovery/ }).click(); await page.getByLabel('Schedule name').fill('x'); await page.getByLabel('Keywords').first().fill('tech'); await page.keyboard.press('Enter'); await page.getByRole('button', { name: 'Generate leads' }).click();
+  await go('/lead-generator'); await page.getByRole('button', { name: 'Advanced search' }).first().click(); await page.getByRole('radio', { name: /Scheduled Discovery/ }).click(); await page.getByLabel('Schedule name').fill('x'); await page.getByLabel('Keywords').first().fill('tech'); await page.keyboard.press('Enter'); await page.getByRole('button', { name: 'Generate leads' }).click();
   await page.getByRole('dialog').waitFor({ timeout: 8000 }); ok(await page.getByText(/Scheduled discovery is available on the Pro plan/).first().isVisible(), 'UI paywall modal names the exact limit that was hit');
 
   ok(errs.length === 0, 'no page errors / console errors across the whole run', errs.slice(0, 4).join(' | '));

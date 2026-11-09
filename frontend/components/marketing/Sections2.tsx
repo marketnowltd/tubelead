@@ -55,9 +55,9 @@ export function DatabasePreview() {
     .sort((a, b) => (sort === "score" ? b.score - a.score : b.subs - a.subs)), [niche, country, onlyEmail, active, sort]);
   const niches = ["All", "Fitness", "Tech", "Food", "Travel", "Design"];
   return (
-    <section className="py-24">
+    <section id="dashboard" className="scroll-mt-20 py-24">
       <div className="mx-auto max-w-[1240px] px-5 sm:px-8">
-        <SectionHead n="05" eyebrow="Lead database & filtering" title={<>Every creator, <span className="italic-accent">sortable</span> down to the detail.</>} sub="Filter by niche, country, audience, activity and contact route. Sort, save views, bulk-assign to campaigns and export — with every record kept private to your account." />
+        <SectionHead n="03" eyebrow="Live dashboard preview"  title={<>Every creator, <span className="italic-accent">sortable</span> down to the detail.</>} sub="Filter by niche, country, audience, activity and contact route. Sort, save views, bulk-assign to campaigns and export — with every record kept private to your account." />
         <Reveal>
           <div className="panel overflow-hidden">
             <div className="flex flex-wrap items-center gap-2 border-b border-line bg-bg2/50 px-4 py-3">
