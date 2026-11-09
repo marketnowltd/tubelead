@@ -258,3 +258,20 @@ class StripeEvent(Base):
     id: Mapped[str] = mapped_column(String(80), primary_key=True)
     type: Mapped[str] = mapped_column(String(80))
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class Review(Base):
+    """A customer review. Nothing is shown publicly until an operator approves it (status = approved)."""
+    __tablename__ = "reviews"
+    id: Mapped[str] = mapped_column(UUID, primary_key=True, default=uid)
+    name: Mapped[str] = mapped_column(String(120))
+    company: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    role: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    rating: Mapped[int] = mapped_column(Integer)  # 1-5
+    body: Mapped[str] = mapped_column(Text)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)  # kept private, never shown
+    status: Mapped[str] = mapped_column(String(16), default="pending", index=True)  # pending|approved|rejected
+    verified: Mapped[bool] = mapped_column(Boolean, default=False)  # set by an operator only, after checking the customer
+    photo_url: Mapped[str | None] = mapped_column(Text, nullable=True)  # only with the customer's permission
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
