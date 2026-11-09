@@ -6,20 +6,21 @@ export default {
   theme: {
     extend: {
       colors: {
-        bg: "#F7F4EC",        // main background
-        bg2: "#EFEAE0",       // secondary background
-        panel: "#FFFDF8",     // cards
-        paper: "#FFFDF8",
-        ink: "#22231F",       // primary text (14:1)
-        mute: "#55534D",      // secondary text (7:1) — brand grey #77756E is used for icons/borders only, it fails 4.5:1 on cream
-        dim: "#6B6962",       // tertiary text (5:1)
-        quiet: "#77756E",     // decorative / icon strokes
-        line: "#E4DED2",      // borders
-        forest: { DEFAULT: "#244A3A", 600: "#1C3B2E", 400: "#37624F", 100: "#DDE6DC", 50: "#EBF0E8" },  // primary actions, active nav
-        sage: { DEFAULT: "#A5B39D", 200: "#D5DCCF", 100: "#E6EAE1" },
-        moss: "#536A4B",      // success / positive text (4.7:1)
-        terracotta: { DEFAULT: "#C8795B", text: "#A5502F", 100: "#F3DFD5" },
-        gold: { DEFAULT: "#C6A46B", text: "#6E5420", 100: "#F1E7D2" },
+        bg: "#F7F5FF",        // page: soft lavender white
+        bg2: "#EFEAFB",       // secondary band
+        panel: "#FFFFFF",     // cards
+        paper: "#FFFFFF",
+        ink: "#1B1433",       // primary text
+        mute: "#5B5570",      // secondary text
+        dim: "#7A7390",       // tertiary text
+        quiet: "#8A84A0",
+        line: "#E6E0F5",      // borders
+        forest: { DEFAULT: "#7B3FF2", 600: "#6A2FE0", 400: "#9A6BFF", 100: "#EFE8FF", 50: "#F6F2FF" }, // primary: purple
+        sage: { DEFAULT: "#A99BD6", 200: "#DCD3F2", 100: "#EEEAFA" },
+        moss: "#14866B",      // success
+        terracotta: { DEFAULT: "#FF7A3D", text: "#D9531E", 100: "#FFE9DD" }, // orange accent
+        gold: { DEFAULT: "#FFB020", text: "#9A5B00", 100: "#FFF3D6" },
+        pink: "#E8284F",
       },
       fontFamily: {
         display: ["'Manrope Variable'", "system-ui", "sans-serif"],

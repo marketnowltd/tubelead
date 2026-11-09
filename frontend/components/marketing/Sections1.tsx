@@ -6,22 +6,18 @@ import { cn } from "../ui/cn";
 import { COUNTRY_NAME, NICHES, SAMPLE, k } from "@/lib/sample";
 import { AvatarTile, ContactBadge, Reveal, SampleTag, ScoreDial, SectionHead } from "./bits";
 
-/* ---------- Creator tile strip (marquee) ---------- */
+/* ---------- Category strip ----------
+ * No brand logos here: showing other companies' logos would imply they endorse TubeLead. */
 export function CreatorStrip() {
-  const row = [...SAMPLE, ...SAMPLE];
+  const cats = [["All categories", "bars"], ["Fitness", "fitness"], ["Tech", "tech"], ["Lifestyle", "lifestyle"], ["Gaming", "gaming"], ["Business", "business"], ["Music", "music"], ["Education", "education"]];
   return (
-    <section aria-label="Sample creator types" className="border-y border-line bg-bg2/60 py-5">
-      <div className="relative overflow-hidden" style={{ maskImage: "linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)", WebkitMaskImage: "linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)" }}>
-        <ul className="flex w-max animate-marquee gap-3 motion-reduce:animate-none">
-          {row.map((c, i) => (
-            <li key={i} aria-hidden={i >= SAMPLE.length} className="flex items-center gap-3 rounded-2xl border border-line bg-panel py-2 pl-2 pr-5">
-              <AvatarTile c={c} size={42} />
-              <div><p className="text-[13px] font-bold leading-tight">{c.name}</p><p className="text-[11px] text-mute">{c.niche} · <span className="data">{k(c.subs)}</span></p></div>
-            </li>
-          ))}
-        </ul>
-      </div>
-      <p className="mt-3 text-center text-[11px] text-dim">Fictional sample creators, shown for illustration.</p>
+    <section aria-label="Categories" className="border-y border-line bg-panel/60 py-5">
+      <p className="mb-3 text-center text-[13px] text-mute">Built for creators, agencies and growing brands</p>
+      <ul className="flex flex-wrap justify-center gap-2.5">
+        {cats.map(([c], i) => (
+          <li key={c}><span className={cn("inline-flex items-center rounded-full px-4 py-2 text-[13px] font-semibold", i === 0 ? "bg-gradient-to-r from-[#7B3FF2] to-[#FF7A3D] text-white" : "border border-line bg-panel text-ink")}>{c}</span></li>
+        ))}
+      </ul>
     </section>
   );
 }

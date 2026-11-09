@@ -102,8 +102,43 @@ def _safe(v):
     return "'" + s if s[:1] in ("=", "+", "-", "@", "\t", "\r") else s
 
 
+NICHE_HELP = {
+    "Fitness": "sponsored workout or supplement content, product reviews, programme collaborations",
+    "Health & Fitness": "health product sponsorships, coaching or programme partnerships, reviews",
+    "Gaming": "game and hardware sponsorships, launch previews, streaming collaborations",
+    "Tech": "product reviews and launch coverage, app or gadget sponsorships, affiliate deals",
+    "Food": "recipe or restaurant sponsorships, kitchen products, cookbook or event partnerships",
+    "Beauty": "beauty product sponsorships, tutorials, brand ambassador roles",
+    "Fashion": "fashion sponsorships, collection launches, styling collaborations",
+    "Lifestyle": "lifestyle product partnerships, home and wellbeing brands, guest features",
+    "Travel": "destination and hotel partnerships, travel gear, tour or booking affiliates",
+    "Music": "album or merch promotion, sync and licensing, live event partnerships",
+    "Education": "course or software partnerships, learning tool reviews, study resources",
+    "Business": "software and service partnerships, webinars, professional tools and courses",
+    "Finance": "fintech and investment tool partnerships, budgeting apps, education sponsorships",
+    "Comedy": "sponsored sketches, brand integrations, live show or merch promotion",
+    "Sports": "equipment and apparel sponsorships, event partnerships, coaching products",
+    "Entertainment": "show or film promotion, integrations, event and merch partnerships",
+    "Design": "creative software and tool partnerships, course launches, portfolio features",
+}
+CONTACT_NOTE = {
+    "publicly_published": "Email published on their channel",
+    "website": "No email found - contact via their website",
+    "contact_form": "Contact form on their website",
+    "none": "No public contact found",
+    "unverified": "Contact added manually - check before using",
+    "deliverability_checked": "Email published and domain checked",
+}
+
+
+def _how_they_help(niche: str | None) -> str:
+    return NICHE_HELP.get(niche or "", "sponsorships, product reviews and collaborations in their field")
+
+
 @router.get("/export.csv")
 def export_csv(f: dict = Depends(filters), ids: list[str] = Query(default=[]), owner: str = Depends(get_owner), db: Session = Depends(get_db)):
+    """Leads export, built for outreach: how to contact each creator first, then who they are and how they can help."""
+    from ..serializers import contact_state
     ent.require_feature(db, owner, "csv_export")
     where = build_query(owner, **f)
     stmt = select(Creator).where(where).order_by(Creator.qualification_score.desc())
@@ -112,16 +147,22 @@ def export_csv(f: dict = Depends(filters), ids: list[str] = Query(default=[]), o
     rows = db.scalars(stmt.limit(50_000)).unique().all()
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(["channel", "channel_url", "subscribers", "videos", "country", "niche", "engagement_pct", "activity", "public_email",
-                "email_status", "website", "contact_page", "score", "verification", "campaign", "outreach", "discovered_at", "is_demo"])
+    w.writerow(["creator_name", "best_contact", "contact_note", "public_email", "website", "contact_page", "field",
+                "how_they_can_help", "what_they_make", "subscribers", "country", "engagement_pct", "activity",
+                "fit_score", "channel_url", "outreach_status", "campaign", "found_on"])
     for c in rows:
         em = next((r for r in c.contacts if r.kind == "email"), None)
-        w.writerow([_safe(x) for x in [c.title, c.channel_url, c.subscriber_count if c.subscriber_count is not None else "hidden", c.video_count,
-                                        c.country, c.niche, c.engagement_rate, c.activity, em.value if em else "", em.status if em else "",
-                                        c.website, c.contact_page, c.qualification_score, c.verification_status,
-                                        c.campaign.name if c.campaign else "", c.outreach_status, c.discovered_at.isoformat(), c.is_demo]])
+        status, _flags = contact_state(c)
+        best = em.value if em else (c.website or c.contact_page or "")
+        desc = " ".join((c.description or "").split())[:240]
+        w.writerow([_safe(x) for x in [
+            c.title, best, CONTACT_NOTE.get(status, ""), em.value if em else "", c.website or "", c.contact_page or "",
+            c.niche, _how_they_help(c.niche), desc,
+            c.subscriber_count if c.subscriber_count is not None else "hidden", c.country or "", c.engagement_rate if c.engagement_rate is not None else "",
+            c.activity, c.qualification_score, c.channel_url, c.outreach_status,
+            c.campaign.name if c.campaign else "", c.discovered_at.date().isoformat()]])
     buf.seek(0)
-    name = f"tubelead-export-{datetime.now(timezone.utc):%Y%m%d-%H%M}.csv"
+    name = f"tubelead-leads-{datetime.now(timezone.utc):%Y%m%d-%H%M}.csv"
     return StreamingResponse(iter([buf.getvalue()]), media_type="text/csv", headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
 

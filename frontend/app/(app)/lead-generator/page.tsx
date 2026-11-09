@@ -3,6 +3,7 @@ import { AlertTriangle, CalendarClock, Globe, Layers, Layers3, Lightbulb, Repeat
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { JobMonitor, isActiveJob } from "@/components/pages/JobMonitor";
+import { ResultsCard } from "@/components/pages/GeometricProgress";
 import { Badge, EmptyState, PageHeader, Panel, PanelHeader } from "@/components/ui/core";
 import { Modal } from "@/components/ui/overlay";
 import { Field, MultiSelect, Segmented, Switch, TagInput } from "@/components/ui/inputs";
@@ -28,7 +29,7 @@ interface Form {
   source: "channels" | "videos" | "topics"; seedVideos: string[];
   requireEmail: boolean; requireWebsite: boolean; maxQuota: number; schedule: "hourly" | "daily" | "weekly"; saveName: string;
 }
-const DEFAULTS: Form = { source: "channels", seedVideos: [], mode: "standard", keywords: [], niches: [], countries: [], minSubs: 1_000, maxSubs: 500_000, minEng: 0, creatorType: "creator", activity: "any", limit: 25, requireEmail: true, requireWebsite: false, maxQuota: 1500, schedule: "daily", saveName: "" };
+const DEFAULTS: Form = { source: "channels", seedVideos: [], mode: "standard", keywords: [], niches: [], countries: [], minSubs: 1_000, maxSubs: 500_000, minEng: 0, creatorType: "creator", activity: "any", limit: 25, requireEmail: true, requireWebsite: false, maxQuota: 3000, schedule: "daily", saveName: "" };
 
 function toParams(f: Form) {
   return {
@@ -84,6 +85,8 @@ export default function LeadGenerator() {
   const { data: st } = useApi<Status>("/status", { refreshInterval: 15000 });
   const { data: recent, mutate: refreshRecent } = useApi<Job[]>("/jobs?limit=5");
   const [level, setLevel] = useState<"basic" | "advanced">("basic");
+  const bigOut = f.creatorType === "creator";
+  const setBigOut = (on: boolean) => setF((x) => ({ ...x, creatorType: on ? "creator" : "any", maxSubs: on ? 500_000 : "" }));
   const [ready, setReady] = useState<Job | null>(null);
   const sawActive = useRef<string | null>(null);
   const { data: live } = useApi<Job>(jobId ? `/jobs/${jobId}` : null, { refreshInterval: (j) => (isActiveJob(j) ? 1500 : 0) });
@@ -194,28 +197,26 @@ export default function LeadGenerator() {
             <p className="text-xs text-dim">{level === "basic" ? "The essentials: topic, country, size and how many." : "Every filter, quota cap and discovery mode."}</p>
           </div>
           {level === "basic" ? (
-            <Panel><PanelHeader title="Find leads" sub="Creators with a public email, so you can contact them." icon={<Search size={16} />} />
-              <div className="grid gap-4 px-5 pb-5 md:grid-cols-2">
-                <Field label="Topic or keyword" className="md:col-span-2" hint="Press Enter after each. Example: fitness, budget travel"><TagInput label="Topic" value={f.keywords} onChange={(v) => set("keywords", v)} placeholder="e.g. fitness" /><Err m={show("keywords")} /></Field>
-                <Field label="Country">
-                  <select className="field" aria-label="Country" value={f.countries[0] ?? ""} onChange={(e) => set("countries", e.target.value ? [e.target.value] : [])}>
-                    <option value="">Anywhere</option>{COUNTRIES.map((c) => <option key={c.code} value={c.code}>{flag(c.code)} {c.name}</option>)}
-                  </select>
-                </Field>
-                <Field label="Creator size" hint="Big brands are left out.">
-                  <select className="field" aria-label="Creator size" value={SIZES.findIndex((z) => z.min === f.minSubs && z.max === f.maxSubs)} onChange={(e) => { const z = SIZES[Number(e.target.value)]; setF((x) => ({ ...x, minSubs: z.min, maxSubs: z.max })); }}>
-                    {SIZES.map((z, k) => <option key={z.label} value={k}>{z.label}</option>)}
-                  </select>
-                </Field>
+            <Panel className="p-5 sm:p-6">
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_200px_auto_auto] lg:items-end">
+                <Field label="Search creators or niche" hint="Press Enter after each. Example: fitness, budget travel"><TagInput label="Search creators or niche" value={f.keywords} onChange={(v) => set("keywords", v)} placeholder="e.g. UK fitness creators" /><Err m={show("keywords")} /></Field>
                 <Field label="How many leads">
                   <select className="field" aria-label="How many leads" value={f.limit} onChange={(e) => set("limit", Number(e.target.value))}>
                     {[10, 25, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
                   </select>
                 </Field>
-                <div className="flex flex-col justify-end gap-2">
-                  <button className="btn-primary pill-forest w-full" onClick={submit} disabled={busy}><Rocket size={16} /> {busy ? "Starting…" : "Find leads"}</button>
-                  <button type="button" onClick={() => setLevel("advanced")} className="text-xs font-semibold text-forest hover:underline">Need more control? Advanced search →</button>
-                </div>
+                <label className="flex items-center gap-3 pb-2.5 text-[13px] font-semibold">
+                  <button type="button" role="switch" aria-checked={bigOut} aria-label="Big brands are left out" onClick={() => setBigOut(!bigOut)}
+                    className={cn("relative h-6 w-11 rounded-full transition", bigOut ? "bg-gradient-to-r from-[#7B3FF2] to-[#FF7A3D]" : "bg-ink/20")}>
+                    <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition", bigOut ? "left-[22px]" : "left-0.5")} />
+                  </button>
+                  Big brands are left out
+                </label>
+                <button className="btn-primary w-full lg:w-auto" onClick={submit} disabled={busy}><Rocket size={16} /> {busy ? "Starting…" : "Find Leads"}</button>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[12px]">
+                <span className="text-mute">Only creators with a public email are included.</span>
+                <button type="button" onClick={() => setLevel("advanced")} className="font-semibold text-forest hover:underline">Need more control? Advanced search →</button>
               </div>
             </Panel>
           ) : (
@@ -312,6 +313,7 @@ export default function LeadGenerator() {
         </div>
 
         <div className="space-y-6 xl:sticky xl:top-24 xl:self-start">
+          {live && live.id === jobId && <ResultsCard job={live} />}
           <Panel glow={!!jobId}>
             <PanelHeader title="Discovery progress" sub="Real job state, refreshed every 1.5 s" icon={<Layers size={16} />} />
             {jobId ? <JobMonitor jobId={jobId} compact /> : <EmptyState title="No job running" body="Press Generate Leads to start a background discovery. Counters here come straight from the job record." />}
@@ -327,6 +329,9 @@ export default function LeadGenerator() {
       </div>
       <Modal open={!!ready} onOpenChange={(o) => !o && setReady(null)} title={`${ready?.qualified ?? 0} leads are ready`} description="Download them, then send them wherever you work.">
         <div className="space-y-5">
+          {ready && ready.params?.limit && ready.qualified < ready.params.limit && (
+            <div className="rounded-xl bg-gold/15 p-3 text-[12.5px] text-gold-text"><strong>Found {ready.qualified} of {ready.params.limit} requested.</strong> {ready.error ? ready.error : "Fewer creators matched every rule (public email, not a big brand). Try a wider creator size, or run the search again later for more."}</div>
+          )}
           <button className="btn-primary pill-forest w-full" onClick={async () => { if (!ready) return; try { await downloadFile(`/creators/export.csv?job_id=${ready.id}`, `tubelead-leads-${ready.id.slice(0, 8)}.csv`); } catch (e: any) { toast("error", e.message); } }}>
             Download CSV
           </button>

@@ -22,7 +22,7 @@ class JobParams(BaseModel):
     limit: int = Field(25, ge=1, le=500)
     require_email: bool = True  # leads are creators with a publicly published email
     require_website: bool = False
-    max_quota_units: int = Field(1500, ge=100, le=10_000)
+    max_quota_units: int = Field(3000, ge=100, le=10_000)  # about 30 searches; raise it for larger lists
 
     @field_validator("keywords", "niches", mode="before")
     @classmethod
