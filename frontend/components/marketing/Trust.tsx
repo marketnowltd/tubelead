@@ -1,5 +1,5 @@
 "use client";
-import { CheckCircle2, Mail, Send, Star } from "lucide-react";
+import { CheckCircle2, Mail, Send, Star, User } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { api, useApi } from "@/lib/api";
@@ -77,53 +77,81 @@ function Stars({ n }: { n: number }) {
   );
 }
 
+/** One review. With no genuine data, every field is an empty placeholder and the text says where feedback will appear. */
+function ReviewCard({ review }: { review?: Review }) {
+  return (
+    <li className="group relative flex h-full flex-col overflow-hidden rounded-[22px] border border-line bg-panel p-6 shadow-[0_1px_0_rgba(27,20,51,.03),0_18px_40px_-28px_rgba(91,43,217,.35)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_50px_-26px_rgba(91,43,217,.45)]">
+      <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#7B3FF2] via-[#E0237F] to-[#FF7A3D] opacity-70" />
+      {review ? (
+        <>
+          <div className="flex items-center justify-between gap-3">
+            {review.rating ? <Stars n={review.rating} /> : <span />}
+            {review.verified && <span className="inline-flex items-center gap-1 rounded-full bg-moss/10 px-2.5 py-1 text-[10.5px] font-bold text-moss"><CheckCircle2 size={11} /> Verified customer</span>}
+          </div>
+          <p className="mt-5 flex-1 text-[15px] leading-relaxed text-ink">&ldquo;{review.body}&rdquo;</p>
+        </>
+      ) : (
+        <>
+          <div className="flex items-center justify-between gap-3"><span className="h-4 w-24 rounded-full bg-bg2" aria-hidden /></div>
+          <p className="mt-5 flex-1 text-[15px] italic leading-relaxed text-dim">Customer feedback will appear here.</p>
+        </>
+      )}
+      <div className="mt-6 flex items-center gap-3 border-t border-line pt-5">
+        {review?.photo_url ? (
+          <img src={review.photo_url} alt="" className="h-11 w-11 rounded-full object-cover ring-2 ring-white" loading="lazy" />
+        ) : (
+          <span aria-hidden className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#EFEAFB] to-[#F6F5FF] text-dim ring-2 ring-white"><User size={18} /></span>
+        )}
+        <div className="min-w-0 flex-1">
+          {review ? (
+            <>
+              <p className="truncate text-[14px] font-bold">{review.name}</p>
+              <p className="truncate text-[12.5px] text-mute">{[review.role, review.company].filter(Boolean).join(", ") || ""}</p>
+              <p className="mt-0.5 text-[11.5px] text-dim">{new Date(review.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</p>
+            </>
+          ) : (
+            <>
+              <span className="block h-3.5 w-32 rounded-full bg-bg2" aria-hidden />
+              <span className="mt-2 block h-3 w-24 rounded-full bg-bg2" aria-hidden />
+            </>
+          )}
+        </div>
+      </div>
+    </li>
+  );
+}
+
+/** Average rating: hidden until there are genuine reviews, and shown only once there are at least three. */
+function RatingSummary({ average, count }: { average: number | null; count: number }) {
+  if (count === 0 || average === null) return null;
+  return (
+    <div className="mb-10 flex flex-col items-start gap-4 rounded-[22px] border border-line bg-panel p-6 shadow-[0_18px_40px_-28px_rgba(91,43,217,.35)] sm:flex-row sm:items-center sm:gap-8 sm:p-8">
+      <div className="flex items-baseline gap-2">
+        <span className="data text-[56px] font-semibold leading-none text-ink">{average.toFixed(1)}</span>
+        <span className="text-lg text-dim">/ 5</span>
+      </div>
+      <div className="space-y-1.5">
+        <Stars n={Math.round(average)} />
+        <p className="text-[13.5px] text-mute">Average rating from {count} genuine customer {count === 1 ? "review" : "reviews"}</p>
+      </div>
+    </div>
+  );
+}
+
 export function Reviews() {
   const { data } = useApi<{ reviews: Review[]; count: number; average_rating: number | null }>("/public/reviews");
-  const list = data?.reviews ?? [];
+  const real = data?.reviews ?? [];
+  const slots = Math.max(0, 6 - real.length);
   return (
     <section id="reviews" className="scroll-mt-20 bg-panel/60 py-24">
       <div className="mx-auto max-w-[1240px] px-5 sm:px-8">
         <SectionHead n="05" eyebrow="Reviews" title={<>What businesses are saying about TubeLead</>}
-          sub="Reviews appear here after they have been checked. Verified reviews are marked once we have confirmed the customer." />
-        {list.length === 0 ? (
-          <>
-          <ul className="grid gap-5 md:grid-cols-3" aria-label="Review placeholders">
-            {[0, 1, 2].map((k) => (
-              <li key={k} className="panel flex h-full flex-col gap-4 p-6">
-                <div className="flex gap-1" aria-hidden>{[0, 1, 2, 3, 4].map((s) => <Star key={s} size={15} className="text-line" />)}</div>
-                <div className="flex-1 space-y-2" aria-hidden><div className="h-3 w-full rounded bg-bg2" /><div className="h-3 w-11/12 rounded bg-bg2" /><div className="h-3 w-8/12 rounded bg-bg2" /></div>
-                <p className="border-t border-line pt-4 text-[12.5px] text-dim">A published customer review appears here, once it has been checked.</p>
-              </li>
-            ))}
-          </ul>
-          <div className="panel mt-5 flex flex-col items-start gap-4 p-7 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="font-display text-xl font-extrabold tracking-tight">No published reviews yet.</p>
-              <p className="mt-1.5 max-w-xl text-[14.5px] leading-relaxed text-mute">We only publish reviews from real customers, after they have been checked. If you use TubeLead, tell us how it went below.</p>
-            </div>
-            <a href="#review-form" className="btn-ghost btn-sm shrink-0">Share your experience</a>
-          </div>
-          </>
-        ) : (
-          <>
-            {data?.average_rating && <p className="mb-6 flex items-center gap-2 text-sm text-mute"><Stars n={Math.round(data.average_rating)} /> <span className="data font-semibold text-ink">{data.average_rating}</span> average from {data.count} reviews</p>}
-            <ul className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-              {list.map((r) => (
-                <li key={r.id} className="panel flex h-full flex-col p-6">
-                  <Stars n={r.rating} />
-                  <p className="mt-4 flex-1 text-[15px] leading-relaxed text-ink">&ldquo;{r.body}&rdquo;</p>
-                  <div className="mt-5 flex items-center gap-3 border-t border-line pt-4">
-                    {r.photo_url ? <img src={r.photo_url} alt="" className="h-10 w-10 rounded-full object-cover" loading="lazy" /> : <span aria-hidden className="grid h-10 w-10 place-items-center rounded-full bg-forest/10 font-heading text-sm font-bold text-forest">{r.name.slice(0, 1)}</span>}
-                    <div className="min-w-0 flex-1">
-                      <p className="flex flex-wrap items-center gap-1.5 text-[14px] font-bold">{r.name}{r.verified && <span className="inline-flex items-center gap-1 rounded-full bg-moss/10 px-2 py-0.5 text-[10.5px] font-bold text-moss"><CheckCircle2 size={11} /> Verified customer</span>}</p>
-                      <p className="text-[12.5px] text-mute">{[r.role, r.company].filter(Boolean).join(", ") || "Customer"} · {new Date(r.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</p>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
+          sub="Customer feedback appears here once it has been checked. Verified customers are marked once we have confirmed them." />
+        <RatingSummary average={data?.average_rating ?? null} count={data?.count ?? 0} />
+        <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-label="Customer reviews">
+          {real.map((r) => <ReviewCard key={r.id} review={r} />)}
+          {Array.from({ length: slots }).map((_, k) => <ReviewCard key={`empty-${k}`} />)}
+        </ul>
         <ReviewForm />
       </div>
     </section>
