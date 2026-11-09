@@ -86,13 +86,24 @@ export function Reviews() {
         <SectionHead n="05" eyebrow="Reviews" title={<>What businesses are saying about TubeLead</>}
           sub="Reviews appear here after they have been checked. Verified reviews are marked once we have confirmed the customer." />
         {list.length === 0 ? (
-          <div className="panel flex flex-col items-start gap-4 p-7 md:flex-row md:items-center md:justify-between">
+          <>
+          <ul className="grid gap-5 md:grid-cols-3" aria-label="Review placeholders">
+            {[0, 1, 2].map((k) => (
+              <li key={k} className="panel flex h-full flex-col gap-4 p-6">
+                <div className="flex gap-1" aria-hidden>{[0, 1, 2, 3, 4].map((s) => <Star key={s} size={15} className="text-line" />)}</div>
+                <div className="flex-1 space-y-2" aria-hidden><div className="h-3 w-full rounded bg-bg2" /><div className="h-3 w-11/12 rounded bg-bg2" /><div className="h-3 w-8/12 rounded bg-bg2" /></div>
+                <p className="border-t border-line pt-4 text-[12.5px] text-dim">A published customer review appears here, once it has been checked.</p>
+              </li>
+            ))}
+          </ul>
+          <div className="panel mt-5 flex flex-col items-start gap-4 p-7 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="font-display text-xl font-extrabold tracking-tight">No published reviews yet.</p>
               <p className="mt-1.5 max-w-xl text-[14.5px] leading-relaxed text-mute">We only publish reviews from real customers, after they have been checked. If you use TubeLead, tell us how it went below.</p>
             </div>
             <a href="#review-form" className="btn-ghost btn-sm shrink-0">Share your experience</a>
           </div>
+          </>
         ) : (
           <>
             {data?.average_rating && <p className="mb-6 flex items-center gap-2 text-sm text-mute"><Stars n={Math.round(data.average_rating)} /> <span className="data font-semibold text-ink">{data.average_rating}</span> average from {data.count} reviews</p>}
