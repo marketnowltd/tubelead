@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { ToastProvider } from "@/components/ui/overlay";
-import { ChatWidget } from "@/components/support/ChatWidget";
+import { Helper } from "@/components/helper/Helper";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,7 +17,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <ToastProvider>{children}<ChatWidget /></ToastProvider>
+        <ToastProvider>{children}<Helper /></ToastProvider>
       </body>
     </html>
   );

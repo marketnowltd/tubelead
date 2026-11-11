@@ -6,7 +6,8 @@ const ok = (c, n, x = '') => { c ? pass++ : (fail++, failed.push(n)); console.lo
 const NAV = ['/dashboard', '/lead-generator', '/discovery-engine', '/creator-intelligence', '/lead-database', '/contact-finder', '/saved-searches', '/campaigns', '/automation', '/ai-connect', '/ai-tasks', '/analytics', '/integrations', '/api-management', '/billing', '/settings'];
 const signed = (ev) => { const p = JSON.stringify(ev), t = Math.floor(Date.now() / 1000); return { p, sig: `t=${t},v1=${crypto.createHmac('sha256', 'whsec_e2e').update(`${t}.${p}`).digest('hex')}` }; };
 (async () => {
-  const browser = await chromium.launch(); const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true }); const page = await ctx.newPage();
+  const browser = await chromium.launch(); const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true }); await ctx.addInitScript(() => { try { localStorage.setItem('tl.helper', JSON.stringify({ intro_done: true, tips_off: true })); } catch {} });
+  const page = await ctx.newPage();
   const errs = []; page.on('pageerror', e => errs.push('PAGEERR ' + e.message.slice(0, 140))); page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource.*(402|409|422|503)|status of 4/.test(m.text())) errs.push('CONSOLE ' + m.text().slice(0, 140)); });
   const go = async (p) => { await page.goto(B + p, { waitUntil: 'networkidle' }); };
   const api = (path, init) => page.evaluate(async ([p, i]) => { const r = await fetch('/api' + p, i ? { method: i.method, headers: { 'Content-Type': 'application/json' }, body: i.json ? JSON.stringify(i.json) : undefined } : undefined); let b = null; try { b = await r.json(); } catch {} return { s: r.status, b }; }, [path, init]);
@@ -50,7 +51,7 @@ const signed = (ev) => { const p = JSON.stringify(ev), t = Math.floor(Date.now()
   ok(unnamed.length === 0, 'all buttons/links on all modules have accessible names', unnamed.slice(0, 3).join(' '));
 
   // ================= FREE PLAN: paywalls =================
-  const b0 = (await api('/billing')).b; ok(b0.current_plan === 'free' && b0.usage.leads_allowance === 25 && b0.usage.period === 'lifetime', 'fresh account is on Free with a 25-lead trial');
+  const b0 = (await api('/billing')).b; ok(b0.current_plan === 'free' && b0.usage.leads_allowance === 25 && b0.usage.period === 'lifetime', 'fresh account is on Free with a 25-lead trial', JSON.stringify(b0).slice(0, 300));
   await go('/ai-connect'); await page.getByRole('button', { name: /OpenAI/ }).first().click(); await page.getByLabel('API key').fill('sk-whatever'); await page.getByRole('button', { name: 'Save connection' }).click();
   await page.getByRole('dialog', { name: /paid feature/ }).waitFor({ timeout: 8000 }); ok(await page.getByText(/AI Connect is available on the Starter plan/).first().isVisible(), 'AI Connect on Free → clear paywall naming the Starter plan'); await page.getByRole('button', { name: 'Not now' }).click();
   ok((await api('/creators/export.csv')).s === 402, 'CSV export on Free is paywalled server-side'); ok((await api('/api-keys', { method: 'POST', json: { name: 'k' } })).s === 402, 'API keys on Free are paywalled server-side');
@@ -125,15 +126,15 @@ const signed = (ev) => { const p = JSON.stringify(ev), t = Math.floor(Date.now()
 
   // Help & support: assistant (help-article mode), refund request goes to a person, customer request thread, admin is staff-only
   await go('/');
-  await page.getByRole('button', { name: 'Open help chat' }).click();
+  await page.getByRole('button', { name: 'Open TubeLead Helper' }).click();
   await page.getByRole('button', { name: 'What do the plans cost?' }).click();
-  await page.getByText(/Plans and prices/).first().waitFor({ timeout: 8000 }); ok(await page.getByRole('dialog', { name: 'TubeLead help' }).getByText(/Pro: £49\/month/).isVisible(), 'assistant answers pricing from the help articles');
+  await page.getByText(/Plans and prices/).first().waitFor({ timeout: 8000 }); ok(await page.getByRole('dialog', { name: 'TubeLead Helper' }).getByText(/Pro: £49\/month/).isVisible(), 'assistant answers pricing from the help articles');
   await page.getByLabel('Your message').fill('I want a refund for last month'); await page.getByRole('button', { name: 'Send message' }).click();
   await page.getByText(/can't issue, approve or promise refunds/).waitFor({ timeout: 8000 }); ok(true, 'assistant refuses to refund and offers the team');
   await page.getByLabel('What would you like, and why?').fill('I was charged twice for the same month.'); await page.getByRole('button', { name: 'Send to the team' }).click();
   await page.getByText(/Your reference is TL-[A-Z0-9]{6}/).first().waitFor({ timeout: 8000 });
   ok(await page.getByText(/Nothing has been approved or changed yet/).first().isVisible(), 'refund request filed with a reference; nothing approved');
-  await page.getByRole('button', { name: 'Close help chat' }).click();
+  await page.getByRole('button', { name: 'Close TubeLead Helper' }).first().click();
   await go('/support'); await page.getByText('Refund request').first().waitFor({ timeout: 8000 }); ok(true, 'the request appears on Help & Support');
   await page.getByText('Refund request').first().click(); await page.getByLabel('Reply').fill('Happy to send a bank statement.'); await page.getByRole('button', { name: 'Send reply' }).click();
   await page.getByText('Happy to send a bank statement.').waitFor({ timeout: 8000 }); ok(true, 'customer can reply on their request');
@@ -238,6 +239,66 @@ const signed = (ev) => { const p = JSON.stringify(ev), t = Math.floor(Date.now()
   await rm.goto(B + '/demo', { waitUntil: 'networkidle' });
   ok(await rm.getByText('See what TubeLead can do.').isVisible() && await rm.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'demo with reduced motion on a phone: renders, no horizontal scroll');
   await rm.close();
+
+  // ---------------- TubeLead Helper (the astronaut assistant) ----------------
+  {
+    const hctx = await browser.newContext({ viewport: { width: 1440, height: 900 } }); const h = await hctx.newPage();
+    h.on('pageerror', (e) => errs.push('helper: ' + e.message));
+    const hapi = (path, init) => h.evaluate(async ([p, i]) => { const r = await fetch('/api' + p, i ? { method: i.method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(i.json) } : undefined); return { s: r.status, b: await r.json().catch(() => null) }; }, [path, init]);
+    ok((await hctx.request.put(B + '/api/helper/progress', { data: {} })).status() === 200, 'helper progress resets for a fresh start');
+    await h.goto(B + '/terms', { waitUntil: 'networkidle' });
+    ok((await h.evaluate(async () => (await fetch('/helper/front.webp')).headers.get('content-type'))) === 'image/webp', 'character frames are served');
+    await h.goto(B + '/dashboard', { waitUntil: 'networkidle' });
+    ok(await h.getByRole('button', { name: 'Open help chat' }).count() === 0 && await h.getByRole('button', { name: 'Open TubeLead Helper' }).count() === 1, 'the astronaut replaces the old chat button (one launcher)');
+    await h.getByText("Hey! I'm your TubeLead helper.").waitFor({ timeout: 8000 }); ok(true, 'first visit: he greets and offers a tour');
+    await h.getByRole('button', { name: 'Show me around' }).click();
+    const card = h.getByRole('dialog', { name: /Tour of TubeLead: step 1 of 7/ }); await card.waitFor({ timeout: 8000 }); ok(true, 'walkthrough starts with a progress indicator');
+    await h.getByRole('button', { name: /Next step/ }).click();
+    await h.getByRole('dialog', { name: /step 2 of 7/ }).waitFor({ timeout: 6000 }); await h.waitForTimeout(1500);
+    const ring = await h.locator('.helper-ring').boundingBox(); const link = await h.locator('nav[aria-label="Main navigation"] a[href="/growth"]').boundingBox();
+    ok(ring && link && Math.abs(ring.x + 8 - link.x) < 4 && Math.abs(ring.y + 8 - link.y) < 4, 'spotlight is on the real Growth Assistant link', JSON.stringify([ring, link]));
+    const me = await h.locator('[data-helper] > button[aria-label="Open TubeLead Helper"]').boundingBox();
+    ok(me && link && me.x > link.x + link.width - 4 && Math.abs((me.y + me.height / 2) - (link.y + link.height / 2)) < 70, 'he flies next to the highlighted element', JSON.stringify(me));
+    await h.getByRole('button', { name: /Previous/ }).click(); await h.getByRole('dialog', { name: /step 1 of 7/ }).waitFor(); ok(true, 'previous step works');
+    await h.getByRole('button', { name: 'Skip tutorial' }).click(); await h.waitForTimeout(600);
+    ok(await h.locator('.helper-ring').count() === 0 && (await hapi('/helper/progress')).b.tours_skipped.includes('welcome'), 'skip ends the tour and is remembered');
+    await h.reload({ waitUntil: 'networkidle' }); await h.waitForTimeout(3000);
+    ok(await h.getByText("Hey! I'm your TubeLead helper.").count() === 0, 'the introduction is not repeated');
+    await h.getByRole('button', { name: 'Open TubeLead Helper' }).click();
+    const panel = h.getByRole('dialog', { name: 'TubeLead Helper' }); await panel.waitFor();
+    ok(await panel.getByText('Helping you with Dashboard').isVisible(), 'the panel knows which page you are on');
+    await panel.getByRole('button', { name: 'Explain this page' }).click();
+    await panel.getByText(/^Dashboard: Your day at a glance/).waitFor({ timeout: 8000 }); ok(true, 'explains the current page from the page guide');
+    await panel.getByLabel('Your message').fill('How do I find YouTubers?'); await panel.getByRole('button', { name: 'Send message' }).click();
+    await panel.getByText(/How do I find leads\?/).waitFor({ timeout: 8000 });
+    await panel.getByRole('button', { name: 'Show me how' }).last().click();
+    await h.waitForURL(/\/lead-generator/, { timeout: 8000 }); await h.getByRole('dialog', { name: /Run your first search: step 1 of 6/ }).waitFor({ timeout: 8000 });
+    ok(true, 'an answer offers "Show me how", which opens the right page and starts its walkthrough');
+    for (let i = 0; i < 4; i++) { await h.getByRole('button', { name: /Next step/ }).click(); await h.waitForTimeout(700); }
+    await h.getByText('Waiting for you…').waitFor({ timeout: 6000 }); ok(true, 'walkthrough waits for the customer to press Find Leads');
+    await h.getByLabel('Search creators or niche').fill('gaming'); await h.keyboard.press('Enter');
+    await h.getByRole('button', { name: /^Find Leads$/ }).click();
+    await h.getByRole('dialog', { name: /step 6 of 6/ }).waitFor({ timeout: 6000 }); ok(true, 'pressing the real button moves the walkthrough on');
+    await h.getByRole('button', { name: 'Finish' }).click(); await h.waitForTimeout(1200);
+    ok((await hapi('/helper/progress')).b.tours_done.includes('lead-generator'), 'finished walkthroughs are saved to the account');
+    await h.getByText(/Great work! Your search found \d+ creator/).waitFor({ timeout: 90000 }); ok(true, 'he celebrates when the search finishes, with the real count');
+    const dlg = await h.getByRole('dialog').filter({ hasNotText: 'Great work' }).count();
+    if (dlg) { await h.keyboard.press('Escape'); }
+    await hctx.close();
+    const mctx = await browser.newContext({ ...require('playwright').devices['iPhone 13'] }); const m = await mctx.newPage();
+    await m.goto(B + '/lead-database', { waitUntil: 'networkidle' }); await m.waitForTimeout(800);
+    const mb = await m.getByRole('button', { name: 'Open TubeLead Helper' }).boundingBox(); const tab = await m.locator('nav[aria-label="Primary mobile"]').boundingBox();
+    ok(mb && tab && mb.y + mb.height <= tab.y + 2, 'on a phone he sits above the tab bar', JSON.stringify([mb, tab]));
+    await m.getByRole('button', { name: 'Open TubeLead Helper' }).click(); await m.getByRole('dialog', { name: 'TubeLead Helper' }).waitFor();
+    ok(await m.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'phone: panel opens with no horizontal scroll');
+    await mctx.close();
+    const rctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' }); const r = await rctx.newPage();
+    r.on('pageerror', (e) => errs.push('helper reduced: ' + e.message));
+    await r.goto(B + '/settings', { waitUntil: 'networkidle' });
+    await r.getByRole('button', { name: 'Open TubeLead Helper' }).click(); await r.getByRole('button', { name: 'Show me how' }).first().click();
+    await r.getByRole('dialog', { name: /Find your settings: step 1 of 4/ }).waitFor({ timeout: 5000 }); ok(true, 'reduced motion: walkthrough works without flying');
+    await rctx.close();
+  }
 
   // The payment provider is never named to customers: check every public and customer page's visible text and HTML.
   const named = [];

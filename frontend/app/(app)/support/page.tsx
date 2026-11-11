@@ -19,7 +19,7 @@ export default function SupportPage() {
   const [creating, setCreating] = useState(false);
   return (
     <div>
-      <PageHeader eyebrow="Help" title="Help & Support" sub="Your requests to the TubeLead team. For quick answers, use the chat button in the corner."
+      <PageHeader eyebrow="Help" title="Help & Support" sub="Your requests to the TubeLead team. For quick answers, ask the TubeLead Helper (the astronaut in the corner)."
         actions={<button className="btn-primary" onClick={() => setCreating(true)}><Plus size={15} /> New request</button>} />
       {error ? <Panel><ErrorState error={error} onRetry={() => mutate()} /></Panel> : !data ? <Skeleton className="h-40" /> : data.length === 0 ? (
         <Panel><EmptyState icon={<LifeBuoy size={24} />} title="No requests yet" body="When you send a request to the team, it appears here with its reference and every reply."

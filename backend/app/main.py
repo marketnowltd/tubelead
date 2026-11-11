@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from .config import get_settings
 from .db import Base, engine, ensure_sqlite_columns
 from .ratelimit import RateLimitMiddleware
-from .routers import (account, admin, ai, analytics, billing, contacts, creators, everywhere, growth, jobs, me, outreach, public, sending, studio, support, system,
+from .routers import (account, admin, ai, analytics, billing, contacts, creators, everywhere, growth, helper, jobs, me, outreach, public, sending, studio, support, system,
                       workspace)
 from .services import jobs as job_svc
 from .services.audit import log_error
@@ -67,7 +67,7 @@ async def unhandled(request: Request, exc: Exception):
     return JSONResponse({"detail": {"code": "internal_error", "message": "Something went wrong on the server."}}, status_code=500)
 
 
-for r in (system, jobs, creators, contacts, workspace, analytics, account, ai, billing, public, everywhere, support, me, admin, growth, studio, outreach):
+for r in (system, jobs, creators, contacts, workspace, analytics, account, ai, billing, public, everywhere, support, me, admin, growth, studio, outreach, helper):
     app.include_router(r.router)
 app.include_router(studio.public)
 app.include_router(outreach.hooks)

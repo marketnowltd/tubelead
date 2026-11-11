@@ -25,10 +25,17 @@ def _h(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+class HelperContext(BaseModel):
+    """Where the customer is, sent by the TubeLead Helper so answers fit the page."""
+    path: str = Field(default="/", max_length=200)
+    journey: list[str] = Field(default_factory=list, max_length=12)
+
+
 class ChatIn(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
     conversation_id: str | None = None
     token: str | None = Field(default=None, max_length=100)
+    context: HelperContext | None = None
 
 
 class TicketIn(BaseModel):
@@ -55,7 +62,8 @@ def _conversation(db: Session, cid: str, owner: str | None, token: str | None) -
 
 def _msg_out(m: ChatMessage) -> dict:
     return {"id": m.id, "role": m.role, "content": m.content, "created_at": m.created_at.isoformat(),
-            "action": (m.meta or {}).get("action"), "category": (m.meta or {}).get("category"), "mode": (m.meta or {}).get("mode")}
+            "action": (m.meta or {}).get("action"), "category": (m.meta or {}).get("category"), "mode": (m.meta or {}).get("mode"),
+            "tour": (m.meta or {}).get("tour")}
 
 
 @router.post("/chat")
@@ -77,8 +85,10 @@ async def chat(body: ChatIn, background: BackgroundTasks, request: Request, owne
     text = body.message.strip()
     db.add(ChatMessage(conversation_id=conv.id, role="user", content=text))
     db.commit()
-    out = await support_bot.answer(db, conversation_id=conv.id, owner=owner, text=text, transport=BOT_TRANSPORT)
-    meta = {**out.get("meta", {}), "action": out.get("action"), "category": out.get("category"), "mode": out.get("mode")}
+    ctx = body.context
+    out = await support_bot.answer(db, conversation_id=conv.id, owner=owner, text=text, transport=BOT_TRANSPORT,
+                                   path=ctx.path if ctx else None, journey=[j[:200] for j in ctx.journey] if ctx else [])
+    meta = {**out.get("meta", {}), "action": out.get("action"), "category": out.get("category"), "mode": out.get("mode"), "tour": out.get("tour")}
     reply = ChatMessage(conversation_id=conv.id, role="assistant", content=out["reply"], meta=meta)
     db.add(reply)
     conv.updated_at = now()  # new messages keep the conversation active (admin ordering and the retention purge use this)

@@ -2,7 +2,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { AlertOctagon, CheckCircle2, CopyMinus, Layers, Link2, Loader2, Pause, Play, Radar, Sparkles, Square, Tags, XCircle, Zap } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, useApi } from "@/lib/api";
 import { dateLong, duration, num, titleCase } from "@/lib/format";
 import type { Job } from "@/lib/types";
@@ -27,6 +27,16 @@ export function JobMonitor({ jobId, compact }: { jobId: string; compact?: boolea
   const toast = useToast();
   const [cancelling, setCancelling] = useState(false);
   const { data: job, error, mutate } = useApi<Job>(`/jobs/${jobId}`, { refreshInterval: (j) => (isActiveJob(j) ? 1500 : 0) });
+  // tell the TubeLead Helper when a search it watched finishes (not for jobs that were already finished when opened)
+  const wasActive = useRef(false);
+  useEffect(() => {
+    if (!job) return;
+    if (isActiveJob(job)) wasActive.current = true;
+    else if (wasActive.current && job.status === "completed") {
+      wasActive.current = false;
+      window.dispatchEvent(new CustomEvent("tubelead:helper", { detail: { type: "search_completed", found: job.qualified, jobId: job.id } }));
+    }
+  }, [job]);
   if (error) return <p className="p-5 text-sm text-[#A33A2A]">{error.message}</p>;
   if (!job) return <div className="space-y-3 p-5"><Skeleton className="h-6 w-2/3" /><Skeleton className="h-2 w-full" /><div className="grid grid-cols-2 gap-3">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-16" />)}</div></div>;
   const active = isActiveJob(job);

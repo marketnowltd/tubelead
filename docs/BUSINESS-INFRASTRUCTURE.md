@@ -2,7 +2,7 @@
 
 This document covers the support assistant, tickets, refunds, admin panel, accounts, email, monitoring and
 security added on top of the existing TubeLead platform. The public website design is unchanged: the only
-visible addition on public pages is the chat button in the bottom-right corner.
+visible addition on public pages is the chat button in the bottom-right corner (since replaced by the TubeLead Helper astronaut, which opens the same support assistant; see docs/TUBELEAD-HELPER.md).
 
 Rollback point: commit `1109b08` (the last commit before this work).
 

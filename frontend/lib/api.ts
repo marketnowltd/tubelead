@@ -30,6 +30,10 @@ export async function api<T = any>(path: string, init: RequestInit & { json?: un
     if (res.status === 402 && d?.code === "paywall" && typeof window !== "undefined") window.dispatchEvent(new CustomEvent("tubelead:paywall", { detail: d }));
     throw new ApiError(msg, res.status, d?.code, d);
   }
+  // lets the TubeLead Helper react to finished actions (for example "campaign created"); carries no data
+  if (typeof window !== "undefined" && init.method && init.method !== "GET") {
+    window.dispatchEvent(new CustomEvent("tubelead:api", { detail: { method: init.method, path: path.split("?")[0] } }));
+  }
   return body as T;
 }
 

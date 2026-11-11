@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -21,7 +22,11 @@ def get_user_settings(db: Session, owner: str) -> UserSettings:
     if not us:
         us = UserSettings(owner_id=owner)
         db.add(us)
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:  # another request created it at the same moment (first page load fires several)
+            db.rollback()
+            us = db.get(UserSettings, owner)
     return us
 
 

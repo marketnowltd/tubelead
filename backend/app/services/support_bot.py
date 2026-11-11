@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from ..config import get_settings
 from ..models import ChatMessage, KnowledgeArticle, Payment, Subscription
-from . import support
+from . import helper_guide as G, support
 from .audit import log_error, record
 
 MAX_TOOL_ROUNDS = 3
@@ -152,6 +152,7 @@ def run_tool(db: Session, ctx: dict, name: str, raw_args: str) -> dict:
 SYSTEM = """You are the TubeLead support assistant. TubeLead helps businesses find YouTube creators through the official YouTube Data API and organise their publicly published contact details.
 Answer only questions about TubeLead, using the help articles provided or found with search_knowledge. If the articles do not cover it, say you are not sure and offer to open a ticket for the team. Never invent prices, features or policies.
 You cannot issue refunds, cancel or change subscriptions or payments, change billing details, delete accounts or change permissions, and you must never say that any of these has been or will be approved or done. For such requests, explain that a person on the team decides them and offer to open a ticket.
+You are also the TubeLead Helper, a friendly astronaut who guides customers around the website. Use the page context below: explain only what the pages really offer, and never describe a feature, button or page that is not listed. When a walkthrough is offered, the customer can press "Show me how" and you will guide them on the page.
 Be brief and friendly. Use British English."""
 
 
@@ -172,10 +173,34 @@ async def _openai(messages: list[dict], transport: httpx.AsyncBaseTransport | No
     return r.json()
 
 
+def _tour(p: G.Page | None) -> dict | None:
+    return {"id": p.tour, "title": p.tour_title, "path": p.key} if p and p.tour else None
+
+
+def _guide_answer(db: Session, text: str, page: G.Page | None) -> dict | None:
+    """Answers about the website itself (this page, what to do next, show me how), from the helper's page guide."""
+    if G.PAGE_INTENT.search(text) and page:
+        return {"reply": G.describe(page), "tour": _tour(page)}
+    if G.NEXT_INTENT.search(text):
+        if page and page.next_steps and page.key not in ("/",):
+            return {"reply": f"On {page.title}: " + " Then ".join(s.rstrip(".") + "." for s in page.next_steps), "tour": _tour(page)}
+        steps = ("1. Run a search in the Lead Generator (or describe your business in the Growth Assistant).\n"
+                 "2. Review the creators you found in the Lead Database.\n3. Check their contact routes in Contact Finder.\n"
+                 "4. Group the best ones in the Campaign Manager.")
+        return {"reply": "Here's the usual way to get started:\n" + steps, "tour": _tour(G.PAGES["/dashboard"])}
+    if G.SHOW_INTENT.search(text):
+        tp = G.tour_for_text(text) or (page if page and page.tour else None)
+        if tp:
+            return {"reply": f"Sure! Press “Show me how” and I'll guide you through {tp.title} step by step.", "tour": _tour(tp)}
+    return None
+
+
 async def answer(db: Session, *, conversation_id: str, owner: str | None, text: str,
-                 transport: httpx.AsyncBaseTransport | None = None) -> dict:
-    """Produce the assistant's reply. Returns {reply, action, category, mode, meta}."""
+                 transport: httpx.AsyncBaseTransport | None = None, path: str | None = None, journey: list[str] | None = None) -> dict:
+    """Produce the assistant's reply. Returns {reply, action, category, mode, meta, tour}."""
     ctx: dict = {"owner": owner, "conversation_id": conversation_id}
+    page = G.page_for(path) if path else None
+    asks_how = bool(re.search(r"\bhow (do|can|should) i\b", text, re.I)) or bool(G.SHOW_INTENT.search(text))
 
     cat = financial_intent(text)
     if cat:  # decided before any model call
@@ -187,13 +212,25 @@ async def answer(db: Session, *, conversation_id: str, owner: str | None, text: 
         return {"reply": "Of course. Tell us what you need and a person on the TubeLead team will reply by email.",
                 "action": "offer_ticket", "category": "general", "mode": "rules", "meta": {"answered": True, "human": True}}
 
+    if path is not None:  # questions about the website itself, from the helper
+        g = _guide_answer(db, text, page)
+        if g:
+            return {"reply": g["reply"], "action": "tour" if g.get("tour") else None, "category": None, "mode": "guide", "tour": g.get("tour"),
+                    "meta": {"answered": True, "page": page.key if page else None}}
+
     if not get_settings().openai_api_key:
         hits = search_knowledge(db, text)
+        tour = _tour(G.tour_for_text(text)) if asks_how else None
         if hits and hits[0][0] >= 0.5:
             a = hits[0][1]
             excerpt = a.body if len(a.body) <= 700 else a.body[:700].rsplit(" ", 1)[0] + "…"
-            return {"reply": f"{a.title}\n\n{excerpt}", "action": None, "category": None, "mode": "help_articles",
+            return {"reply": f"{a.title}\n\n{excerpt}", "action": "tour" if tour else None, "category": None, "mode": "help_articles", "tour": tour,
                     "meta": {"answered": True, "article": a.id}}
+        if path is not None:
+            found = G.search(text)
+            if found:
+                return {"reply": G.describe(found[0]), "action": "tour" if _tour(found[0]) else None, "category": None, "mode": "guide",
+                        "tour": _tour(found[0]), "meta": {"answered": True, "page": found[0].key}}
         return {"reply": "I couldn't find an answer to that in our help articles. I can pass your question to the team, who will reply by email.",
                 "action": "offer_ticket", "category": "general", "mode": "help_articles", "meta": {"answered": False}}
 
@@ -201,7 +238,8 @@ async def answer(db: Session, *, conversation_id: str, owner: str | None, text: 
     kb = "\n\n".join(f"## {a.title}\n{a.body[:1500]}" for _, a in hits) or "(no matching articles)"
     history = db.scalars(select(ChatMessage).where(ChatMessage.conversation_id == conversation_id)
                          .order_by(ChatMessage.created_at.desc()).limit(HISTORY)).all()[::-1]
-    messages: list[dict] = [{"role": "system", "content": SYSTEM + f"\nThe visitor is {'signed in' if owner else 'not signed in'}.\n\nRelevant help articles:\n{kb}"}]
+    site = ("\n\n" + G.prompt_context(page, journey or [])) if path is not None else ""
+    messages: list[dict] = [{"role": "system", "content": SYSTEM + f"\nThe visitor is {'signed in' if owner else 'not signed in'}.{site}\n\nRelevant help articles:\n{kb}"}]
     messages += [{"role": m.role, "content": m.content} for m in history if m.role in ("user", "assistant")]
     if not history or history[-1].content != text:
         messages.append({"role": "user", "content": text})
@@ -229,7 +267,10 @@ async def answer(db: Session, *, conversation_id: str, owner: str | None, text: 
     if blocked:
         record(db, "chatbot.reply_blocked", actor_type="chatbot", actor_id=owner, target_type="conversation", target_id=conversation_id)
     action = "offer_ticket" if blocked else None
+    tour = _tour(G.tour_for_text(text)) if (asks_how and path is not None and not blocked) else None
+    if tour:
+        action = "tour"
     if ctx.get("ticket_ref"):
         action = "ticket_created"
-    return {"reply": reply, "action": action, "category": "general" if blocked else None, "mode": "ai", "ticket_ref": ctx.get("ticket_ref"),
+    return {"reply": reply, "action": action, "category": "general" if blocked else None, "mode": "ai", "ticket_ref": ctx.get("ticket_ref"), "tour": tour,
             "meta": {"answered": True, "tokens": tokens, "blocked_tools": ctx.get("blocked_tools", []), "reply_blocked": blocked}}
