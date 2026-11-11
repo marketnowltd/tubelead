@@ -28,9 +28,11 @@ Rollback point before this work: commit `becbc2c`.
 | Email HTML renderer (tables, inline CSS, responsive rules, plain text, hosted images) | **Implemented and tested** |
 | Desktop / tablet / mobile preview with measured layout problems | **Implemented and tested** |
 | TubeLead Email Check: design, content, technical, deliverability (links, SPF, DKIM, DMARC), four scores, critical cap, Fix this / Fix all safe, before/after | **Implemented and tested.** Spelling uses a list of common misspellings, not a full dictionary. |
-| Test email to your own address | **Implemented, awaiting `RESEND_API_KEY`.** Tested against a simulated API. |
+| Customer's own email service (SMTP, or their own SendGrid, Mailgun, Postmark or Resend account) | **Implemented and tested.** Connected in Account Settings or the Launch step; the connection is checked without sending; the password or key is encrypted and never returned. SMTP is tested with a simulated server, the APIs with simulated responses: **send one real test from each provider you plan to support before announcing it.** |
+| Test email to your own address | **Implemented and tested.** Sent through the customer's own email service. TubeLead's Resend account is never used for it; without a connected service the customer is asked to connect one. |
+| Campaign sending through the customer's own email service | **Implemented and tested.** Sent in the background at the account's per-minute pace, stopping at its daily limit and continuing the next day. Each email has an unsubscribe link and `List-Unsubscribe` / one-click headers. A rejected password or key pauses the campaign with the reason; the customer fixes it and resumes. Opens aren't tracked. |
 | Approval checklist; critical issues block launch; re-approval if the email changes | **Implemented and tested** |
-| Launch through the customer's own Snov.io account | **Implemented, awaiting each customer's Snov.io connection.** Tested against a simulated API. Snov.io campaigns can't receive custom HTML through the API, so TubeLead puts the personalised subject, HTML and text into the custom fields `tl_subject`, `tl_html` and `tl_text`, and the customer's Snov.io campaign template uses them. **Check in Snov.io that custom fields render HTML in your plan before relying on it.** |
+| Launch through the customer's own Snov.io account (optional alternative) | **Implemented, awaiting each customer's Snov.io connection.** Tested against a simulated API. Snov.io campaigns can't receive custom HTML through the API, so TubeLead puts the personalised subject, HTML and text into the custom fields `tl_subject`, `tl_html` and `tl_text`, and the customer's Snov.io campaign template uses them. **Check in Snov.io that custom fields render HTML in your plan before relying on it.** |
 | Delivery metrics from Snov.io | **Implemented, awaiting credentials;** the analytics response format is unverified. |
 | Reply inbox: classification (rules or AI), suggested responses for approval, unsubscribe → suppression, reply webhook | **Implemented and tested.** TubeLead never sends replies itself. |
 | My Business Results (actual vs classified vs customer-entered) | **Implemented and tested** |
@@ -48,6 +50,8 @@ Dashboard widget ─┐
                   └─> /api/outreach (connection, campaigns, approval, launch, metrics, replies, results, suppression)
 /demo (public) ───> /api/public/email/{render,check,templates}   (stateless, rate limited)
 Snov.io replies ──> /api/hooks/snov/{secret}
+Settings / Launch ─> /api/sending (the customer's own email services)  ── campaign sender thread, resumed by the scheduler
+Recipients ───────> /api/u/{recipient}/{token}   (public unsubscribe page and one-click POST)
 ```
 
 - **One document model** (`backend/app/services/email_doc.py`, mirrored in `frontend/components/studio/model.ts`):
@@ -58,13 +62,14 @@ Snov.io replies ──> /api/hooks/snov/{secret}
 - **Nothing is invented:** prospects come from provider results, emails from public pages or Snov.io (only on the
   prospect's own domain), scores carry their evidence, and "verified" means a verifier said so.
 
-## 3. Database (migration `supabase/migrations/005_growth.sql`)
+## 3. Database (migrations `supabase/migrations/005_growth.sql` and `006_sending.sql`)
 
 `growth_sessions`, `prospects`, `prospect_contacts`, `email_documents`, `email_document_versions`,
 `email_templates`, `brand_kits`, `email_assets`, `outreach_campaigns`, `campaign_recipients`, `suppressions`,
-`outreach_replies`, `business_results`, `provider_connections` (secrets encrypted), `usage_events`, `plan_configs`.
+`outreach_replies`, `business_results`, `provider_connections` (secrets encrypted), `usage_events`, `plan_configs`,
+`sending_accounts` (006; secrets encrypted). 006 also adds `sent_at`, `send_error`, `message_id` and `sending_account_id` to `campaign_recipients`.
 Row Level Security is on for all of them; customers can read only their own rows through the public API, and
-connections, assets, recipients and plan settings aren't readable through it at all.
+connections, sending accounts, assets, recipients and plan settings aren't readable through it at all.
 
 ## 4. API routes
 
@@ -81,6 +86,10 @@ Outreach: `GET|PUT|DELETE /api/outreach/connection`, `GET|POST /api/outreach/cam
 `PATCH /api/outreach/replies/{id}`, `GET|POST /api/outreach/suppressions`, `GET|POST /api/outreach/results`,
 `DELETE /api/outreach/results/{id}`, `POST /api/hooks/snov/{secret}`.
 
+Sending: `GET|POST /api/sending/accounts`, `PUT|DELETE /api/sending/accounts/{id}`, `POST …/{id}/verify`;
+`POST /api/outreach/campaigns/{id}/launch` takes `{"delivery": "own", "sending_account_id": …}` (or `"snov"`, the default),
+`POST …/resume`; public `GET|POST /api/u/{recipient}/{token}` (unsubscribe).
+
 Admin: `GET /api/admin/growth`, `PUT /api/admin/plans/{plan}`.
 
 ## 5. Environment variables (backend)
@@ -91,14 +100,15 @@ Admin: `GET /api/admin/growth`, `PUT /api/admin/plans/{plan}`.
 | `SNOV_CLIENT_ID`, `SNOV_CLIENT_SECRET` | TubeLead's Snov.io account for enrichment and verification |
 | `SNOV_COST_PER_CREDIT_PENCE`, `BRAVE_COST_PER_QUERY_PENCE` | Your provider costs, for margin reporting |
 | `BRAVE_API_KEY` | Brave Search discovery |
-| `RESEND_API_KEY`, `EMAIL_FROM` | Test emails (already used for notifications) |
+| `RESEND_API_KEY`, `EMAIL_FROM` | TubeLead's own notices only (welcome, support, billing). Never used for customers' test emails or campaigns. |
 
-Customers connect their **own** Snov.io account for sending in the wizard's Launch step; AI features use the
+Customers send through their **own** email service (Account Settings › Your email service, or the Launch step),
+or optionally their own Snov.io account. `PUBLIC_API_URL` must be set in production so unsubscribe links point at the API; AI features use the
 provider they connect in AI Connect.
 
 ## 6. Setup and deployment
 
-1. Run `supabase/migrations/005_growth.sql` in the Supabase SQL editor (after 004).
+1. Run `supabase/migrations/005_growth.sql` and then `006_sending.sql` in the Supabase SQL editor (after 004).
 2. Add the variables above to `tubelead-api` on Render; at minimum `PUBLIC_API_URL`.
 3. Deploy both services.
 4. Check Admin › Growth & plans: each provider you configured shows a tick.
@@ -109,17 +119,23 @@ provider they connect in AI Connect.
 
 - Corporate addresses are eligible under legitimate interests; free-mail (personal) addresses are excluded unless the
   customer records consent (UK PECR). Suppressed, bounced and unsubscribed addresses are always excluded.
-- Every email carries an opt-out line; an "unsubscribe" reply suppresses the sender automatically.
+- Every email carries an opt-out line; an "unsubscribe" reply suppresses the sender automatically. Emails sent
+  through the customer's own service also carry an unsubscribe link and `List-Unsubscribe` headers (URL and
+  one-click); using either adds the address to that customer's suppression list, which is checked again right
+  before each email is sent.
+- Customers' emails go out under their own name and their own provider's terms. The connect dialog reminds them
+  that some providers don't allow cold outreach and that mailbox providers limit daily sending.
+- SMTP servers must resolve to public addresses and use port 25, 465, 587 or 2525.
 - Nothing is added to a provider list until the customer approves; any edit after approval requires re-approval.
-- Provider secrets are server-side; a customer's Snov.io secret is encrypted at rest and never returned.
+- Provider secrets are server-side; a customer's Snov.io secret and email-service passwords and keys are encrypted at rest and never returned.
 - Uploaded images are validated by content (PNG, JPEG, GIF, WebP), limited to 2 MB and to the plan's storage.
 - Link checks guard against requests to private network addresses.
-- Account deletion removes all growth data.
+- Account deletion removes all growth data, including connected email services.
 
 ## 8. Test results
 
-- Backend: **134 passed**, on SQLite and on PostgreSQL 16 with migrations 001–005 applied.
-- Browser: **124 passed** (20 new checks covering the widget, wizard, discovery, profile, enrichment, both
+- Backend: **149 passed**, on SQLite and on PostgreSQL 16 with migrations 001–006 applied (15 new tests for the customer's own email service).
+- Browser: **129 passed** (5 newest checks cover connecting an email service, the key never being returned, test email routing, the Snov.io option and the Account Settings panel; 20 earlier checks covering the widget, wizard, discovery, profile, enrichment, both
   editors, undo, mode switching both ways, Email Check, preview HTML, launch gate, results, public demo, and
   reduced-motion on a phone), no page errors, no server errors. One existing billing check failed once on a
   timing flake and passed on rerun.

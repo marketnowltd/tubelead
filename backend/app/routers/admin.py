@@ -43,7 +43,7 @@ def _integrations() -> list[dict]:
         {"name": "Stripe payments", "configured": bool(s.stripe_secret_key), "detail": "STRIPE_SECRET_KEY"},
         {"name": "Stripe webhooks", "configured": bool(s.stripe_webhook_secret), "detail": "STRIPE_WEBHOOK_SECRET"},
         {"name": "Support assistant (OpenAI)", "configured": bool(s.openai_api_key), "detail": "OPENAI_API_KEY (without it the assistant answers from help articles only)"},
-        {"name": "Email (Resend)", "configured": bool(s.resend_api_key), "detail": "RESEND_API_KEY and EMAIL_FROM"},
+        {"name": "Email (Resend) — platform notices only", "configured": bool(s.resend_api_key), "detail": "RESEND_API_KEY and EMAIL_FROM. Used for welcome, support and billing emails. Customer test emails and campaigns go through each customer's own email service."},
         {"name": "Admin alerts", "configured": bool(s.admin_alert_email), "detail": "ADMIN_ALERT_EMAIL"},
         {"name": "Account deletion (sign-in record)", "configured": bool(s.supabase_service_role_key), "detail": "SUPABASE_SERVICE_ROLE_KEY"},
         {"name": "YouTube Data API", "configured": bool(s.youtube_api_key), "detail": "YOUTUBE_API_KEY"},

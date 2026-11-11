@@ -14,7 +14,7 @@ from ..config import get_settings
 from ..db import get_db
 from ..models import (BrandKit, CampaignRecipient, EmailAsset, EmailDocument, EmailDocumentVersion, EmailTemplate, GrowthSession, OutreachCampaign,
                       Prospect, ProspectContact, ProviderConnection, UserAccount, is_uuid)
-from ..services import ai, dns_check, email_check as C, email_doc as E, email_templates, limits, media, studio_ai
+from ..services import ai, dns_check, mailer, email_check as C, email_doc as E, email_templates, limits, media, studio_ai
 from ..services.contacts import is_public_url
 from ..services.credits import allowance
 from ..services.outreach import recipient_values
@@ -256,6 +256,11 @@ async def _check_links(doc: dict) -> dict:
 
 
 def _sender_domain(db: Session, owner: str) -> str | None:
+    """The domain the customer sends from: their default sending account, else their Snov.io sender domain."""
+    from .sending import default_account
+    acc = default_account(db, owner)
+    if acc and "@" in acc.from_email:
+        return acc.from_email.rsplit("@", 1)[1]
     conn = db.scalar(select(ProviderConnection).where(ProviderConnection.owner_id == owner, ProviderConnection.provider == "snov"))
     return (conn.settings or {}).get("sender_domain") if conn and conn.status == "connected" else None
 
@@ -320,21 +325,22 @@ async def send_test(did: str, request: Request, prospect_id: str | None = None, 
     to = acc.email if acc else ""
     if not to:
         raise HTTPException(409, {"code": "no_email", "message": "Your account has no email address to send the test to."})
-    s = get_settings()
-    if not s.resend_api_key:
-        raise HTTPException(503, {"code": "email_not_configured", "message": "Test emails aren't available yet: email sending isn't set up on the server."})
+    from .sending import default_account
+    sender = default_account(db, owner)
+    if not sender:
+        raise HTTPException(409, {"code": "no_sending_account", "message": "Connect your own email service (SMTP, SendGrid, Mailgun, Postmark or Resend) to send test emails."})
     values = _values_for(db, owner, prospect_id, E.normalise(d.doc)["settings"]["fallbacks"].get("campaign_name", ""))
     html, text = E.render(d.doc, values=values, base_url=_base_url(request), subject=d.subject, preheader=d.preheader)
     subject = "[Test] " + (E.fill(d.subject, values, E.normalise(d.doc)["settings"]["fallbacks"], escape=False) or d.name)
-    async with httpx.AsyncClient(base_url=s.resend_api_base, timeout=20, transport=LINK_TRANSPORT) as c:
-        try:
-            r = await c.post("/emails", json={"from": s.email_from, "to": [to], "subject": subject[:300], "html": html, "text": text},
-                             headers={"Authorization": f"Bearer {s.resend_api_key}"})
-        except httpx.HTTPError as exc:
-            raise HTTPException(502, {"code": "send_failed", "message": "The test email couldn't be sent. Please try again."}) from exc
-    if r.status_code >= 300:
-        raise HTTPException(502, {"code": "send_failed", "message": "The test email couldn't be sent. Please try again."})
-    return {"sent_to": to, "subject": subject}
+    try:
+        (_, err), = await mailer.send(sender, [mailer.Outgoing(to=to, subject=subject[:300], html=html, text=text)])
+    except mailer.MailError as exc:
+        sender.status, sender.last_error = "error", str(exc)
+        db.commit()
+        raise HTTPException(502, {"code": "send_failed", "message": f"Your email service refused the test: {exc}"}) from exc
+    if err:
+        raise HTTPException(502, {"code": "send_failed", "message": f"Your email service refused the test: {err}"})
+    return {"sent_to": to, "subject": subject, "sent_from": sender.from_email, "via": sender.provider}
 
 
 # ---------------- templates & brand

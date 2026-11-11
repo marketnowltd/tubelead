@@ -325,7 +325,8 @@ def _asset_url(src: str, base_url: str) -> str:
 
 
 class Renderer:
-    def __init__(self, doc: dict, *, values: dict | None = None, base_url: str = "", subject: str = "", preheader: str = "", include_footer: bool = True):
+    def __init__(self, doc: dict, *, values: dict | None = None, base_url: str = "", subject: str = "", preheader: str = "", include_footer: bool = True,
+                 unsubscribe_url: str | None = None):
         self.doc = normalise(doc)
         self.st = self.doc["settings"]
         self.values = values
@@ -333,6 +334,7 @@ class Renderer:
         self.subject = subject
         self.preheader = preheader
         self.include_footer = include_footer
+        self.unsubscribe_url = unsubscribe_url
         self.mobile_rules: list[str] = []
 
     def t(self, s: str, escape=True) -> str:
@@ -422,7 +424,9 @@ class Renderer:
         footer = ""
         if self.include_footer and st["footer"].strip():
             footer = (f'<tr><td style="padding:16px 32px 28px;font-family:{FONTS[st["fontFamily"]]};font-size:12px;line-height:1.5;color:#8a85a3;text-align:center">'
-                      f'{H.escape(self.t(st["footer"], escape=False))}</td></tr>')
+                      f'{H.escape(self.t(st["footer"], escape=False))}'
+                      + (f'<br><a href="{H.escape(self.unsubscribe_url)}" style="color:#8a85a3;text-decoration:underline">Unsubscribe</a>' if self.unsubscribe_url else "")
+                      + '</td></tr>')
         pre = (f'<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:{st["background"]}">'
                f'{H.escape(self.t(self.preheader, escape=False))}&#847;&zwnj;&nbsp;</div>') if self.preheader else ""
         mobile = "".join(self.mobile_rules)
@@ -461,6 +465,8 @@ class Renderer:
                             lines += ["----------", ""]
         if self.include_footer and self.st["footer"].strip():
             lines += ["--", self.t(self.st["footer"], escape=False)]
+        if self.unsubscribe_url:
+            lines += [f"Unsubscribe: {self.unsubscribe_url}"]
         return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip() + "\n"
 
 

@@ -1,9 +1,10 @@
 "use client";
-import { ArrowRight, Crown } from "lucide-react";
+import { ArrowRight, Crown, Mail } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { mutate as gm } from "swr";
 import { useRouter } from "next/navigation";
+import { SendingAccounts } from "@/components/growth/SendingAccounts";
 import { ErrorState, PageHeader, Panel, PanelHeader, Progress, Skeleton } from "@/components/ui/core";
 import { Field } from "@/components/ui/inputs";
 import { Modal, useToast } from "@/components/ui/overlay";
@@ -78,6 +79,10 @@ export default function SettingsPage() {
               {st ? <div className="min-w-0 flex-1"><div className="mb-1.5 flex justify-between text-xs text-mute"><span><strong className="text-ink">{st.plan.label}</strong> · leads {st.plan.lead_period === "lifetime" ? "in trial" : "this month"}</span><span className="data">{st.plan.leads_used.toLocaleString()} / {st.plan.leads.toLocaleString()}</span></div><Progress label="Leads used" value={(st.plan.leads_used / st.plan.leads) * 100} /></div> : <Skeleton className="h-10 flex-1" />}
               <Link href="/billing" className="btn-primary btn-sm">Manage billing <ArrowRight size={13} /></Link>
             </div>
+          </Panel>
+
+          <Panel><PanelHeader title="Your email service" icon={<Mail size={16} />} sub="Test emails and campaigns are sent from your own mailbox or email provider, never from TubeLead's." />
+            <div className="px-5 pb-5"><SendingAccounts compact /></div>
           </Panel>
 
           <div className="grid gap-6 lg:grid-cols-2">

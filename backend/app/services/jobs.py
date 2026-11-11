@@ -140,6 +140,12 @@ class Scheduler(threading.Thread):
         cls._last_maintenance = time.time()
         from . import email as mail
         mail.deliver_pending()
+        try:
+            from . import delivery
+            s = get_settings()
+            delivery.resume_all((s.public_api_url or s.app_base_url).rstrip("/"))
+        except Exception:  # noqa: BLE001
+            log.exception("campaign delivery resume failed")
         if time.time() - cls._last_purge >= 86400:
             cls._last_purge = time.time()
             purge_old_chats()

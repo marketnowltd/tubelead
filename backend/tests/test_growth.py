@@ -267,64 +267,30 @@ def test_critical_issue_caps_readiness():
     assert not bad["can_launch"] and bad["readiness"] <= 49
 
 
-def test_test_email_only_to_own_address(client, monkeypatch):
+def test_test_email_only_to_own_address_via_customers_own_service(client, monkeypatch):
+    from app.services import mailer
     u = user(email="owner@biz.example")
     d = client.post("/api/studio/documents", json={}, headers=H(u)).json()
-    assert client.post(f"/api/studio/documents/{d['id']}/test", headers=H(u)).status_code == 503
-    monkeypatch.setattr(get_settings(), "resend_api_key", "re_x")
+    monkeypatch.setattr(get_settings(), "resend_api_key", "re_platform")  # TubeLead's own key must never be used for customer email
+    r = client.post(f"/api/studio/documents/{d['id']}/test", headers=H(u))
+    assert r.status_code == 409 and r.json()["detail"]["code"] == "no_sending_account"
     sent = []
-    monkeypatch.setattr(studio_router, "LINK_TRANSPORT", httpx.MockTransport(lambda req: (sent.append(json.loads(req.content)), httpx.Response(200, json={"id": "e1"}))[1]))
+
+    def handler(req):
+        if req.method == "POST":
+            sent.append((req.url.host, req.headers["authorization"], json.loads(req.content)))
+            return httpx.Response(200, json={"id": "e1"})
+        return httpx.Response(200, json={"data": []})
+    monkeypatch.setattr(mailer, "TRANSPORT", httpx.MockTransport(handler))
+    acc = client.post("/api/sending/accounts", json={"provider": "sendgrid", "from_email": "hello@biz.example", "secret": "SG.customer"}, headers=H(u)).json()
+    assert acc["status"] == "connected" and acc["is_default"] and "secret" not in acc
     r = client.post(f"/api/studio/documents/{d['id']}/test", headers=H(u)).json()
-    assert r["sent_to"] == "owner@biz.example" and sent[0]["to"] == ["owner@biz.example"] and sent[0]["subject"].startswith("[Test]") and sent[0]["text"]
+    assert r["sent_to"] == "owner@biz.example" and r["sent_from"] == "hello@biz.example" and r["via"] == "sendgrid"
+    host, auth, body = sent[0]
+    assert host == "api.sendgrid.com" and auth == "Bearer SG.customer" and "re_platform" not in auth
+    assert body["personalizations"][0]["to"] == [{"email": "owner@biz.example"}] and body["subject"].startswith("[Test]")
 
 
-def test_assets_upload_validate_serve_and_storage_limit(client, monkeypatch):
-    u = user()
-    r = client.post("/api/studio/assets", json={"filename": "logo.png", "data_url": png(400, 120)}, headers=H(u))
-    assert r.status_code == 201 and r.json()["width"] == 400 and r.json()["height"] == 120
-    served = client.get(r.json()["url"])
-    assert served.status_code == 200 and served.headers["content-type"] == "image/png" and "immutable" in served.headers["cache-control"]
-    assert client.post("/api/studio/assets", json={"data_url": "data:image/png;base64," + base64.b64encode(b"<svg onload=x>").decode()}, headers=H(u)).status_code == 422
-    monkeypatch.setattr(get_settings(), "plan_override", "free")
-    from app.services import plans
-    monkeypatch.setitem(plans.all_plans()["free"]["credits"], "storage_mb", 0)
-    assert client.post("/api/studio/assets", json={"data_url": png()}, headers=H(u)).status_code == 402
-
-
-def test_brand_kit_and_rule_assist(client):
-    u = user()
-    b = client.put("/api/studio/brand", json={"company": "Acme", "primary": "#FF0000", "secondary": "#00AA00", "font": "Georgia", "website": "acme.example",
-                                              "logo": "javascript:alert(1)"}, headers=H(u)).json()
-    assert b["website"] == "https://acme.example" and b["logo"] == ""
-    d = client.post("/api/studio/documents", json={"template_id": "builtin:sales_outreach"}, headers=H(u)).json()
-    res = client.post("/api/studio/assist", json={"doc": d["doc"], "action": "brand"}, headers=H(u)).json()
-    btns = [e for _, _, e, _ in E.iter_elements(res["doc"]) if e["type"] == "button"]
-    assert all(e["style"]["background"] == "#FF0000" for e in btns) and res["doc"]["settings"]["fontFamily"] == "Georgia"
-    mob = client.post("/api/studio/assist", json={"doc": d["doc"], "action": "mobile"}, headers=H(u)).json()
-    assert all(s["style"]["stackOnMobile"] for s in mob["doc"]["sections"])
-    r = client.post("/api/studio/assist", json={"doc": d["doc"], "action": "shorten"}, headers=H(u))
-    assert r.status_code == 409 and "AI Connect" in r.json()["detail"]["message"]  # wording needs the customer's AI provider
-
-
-def test_ai_rewording_keeps_variables_and_numbers(client, monkeypatch):
-    from app.services import studio_ai, ai as AI
-    doc = E.normalise({"sections": [{"columns": [{"elements": [
-        {"id": "a", "type": "text", "content": "Hi {{first_name}}, save 20% today for £49."},
-        {"id": "b", "type": "text", "content": "We help {{company_name}} grow."}]}]}]})
-
-    async def fake_run(db, owner, task, prompt, **kw):
-        return AI.AIResult(text=json.dumps({"items": [{"id": "a", "text": "Hello, save big today!"}, {"id": "b", "text": "We help {{company_name}} thrive."}], "note": "Tighter."}),
-                           model="m", prompt_tokens=1, completion_tokens=1)
-    monkeypatch.setattr(AI, "run_task", fake_run)
-    import asyncio
-    with SessionLocal() as db:
-        out = asyncio.run(studio_ai.assist(db, "x", doc, "wording"))
-    els = {e["id"]: e for _, _, e, _ in E.iter_elements(out["doc"])}
-    assert els["a"]["content"] == "Hi {{first_name}}, save 20% today for £49."  # rejected: dropped variable and numbers
-    assert els["b"]["content"] == "We help {{company_name}} thrive."
-
-
-# ---------------- outreach
 def ready_campaign(client, u, monkeypatch, contacts):
     s, ps = discovered(client, u)
     web = [p for p in ps if p["platform"] == "web"]

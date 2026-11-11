@@ -110,7 +110,7 @@ export function CreativeStudio({ documentId, demo, demoInitial, prospects, onApp
     if (demo || !documentId) { toast("info", "Test emails are available once you start your free trial."); return; }
     setTestBusy(true);
     try { await api(`/studio/documents/${documentId}`, { method: "PUT", json: { doc, subject, preheader, name, editor_mode: mode } });
-      const r = await api<{ sent_to: string }>(`/studio/documents/${documentId}/test`, { method: "POST" }); toast("success", `Test sent to ${r.sent_to}`); }
+      const r = await api<{ sent_to: string; sent_from: string }>(`/studio/documents/${documentId}/test`, { method: "POST" }); toast("success", `Test sent to ${r.sent_to} from ${r.sent_from}`); }
     catch (e: any) { toast("error", e.message); } finally { setTestBusy(false); }
   };
   const pickTemplate = (t: Template) => { setDoc(t.doc); if (!subject) setSubject(t.subject); setDialog(null); setSelected([]); toast("success", `“${t.name}” applied. Undo to go back.`); };

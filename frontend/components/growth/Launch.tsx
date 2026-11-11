@@ -1,6 +1,6 @@
 "use client";
 import { AnimatePresence, motion } from "motion/react";
-import { Check, Copy, Inbox, Loader2, PlugZap, RefreshCw, Rocket, ShieldCheck, Trash2 } from "lucide-react";
+import { Check, Copy, Inbox, Loader2, Mail, PlugZap, RefreshCw, Rocket, ShieldCheck, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Badge, EmptyState, StatCard } from "@/components/ui/core";
 import { cn } from "@/components/ui/cn";
@@ -8,11 +8,12 @@ import { Field, Segmented } from "@/components/ui/inputs";
 import { Modal, useToast } from "@/components/ui/overlay";
 import { CheckPanel } from "@/components/studio/CheckPanel";
 import { api, useApi } from "@/lib/api";
+import { SendingAccounts, type SendingAccount } from "./SendingAccounts";
 import { StepHeading } from "./steps";
 import type { GrowthSession } from "./types";
 
-interface Campaign { id: string; name: string; status: string; document_id: string; approval: any; metrics: Record<string, any>; error: string; launched_at: string | null;
-  recipients: Record<string, number>; recipient_list: { email: string; eligibility: string; reason: string; provider_status: string; company: string }[] }
+interface Campaign { id: string; name: string; status: string; provider: string; sent_from: string; document_id: string; approval: any; metrics: Record<string, any>; error: string; launched_at: string | null;
+  recipients: Record<string, number>; recipient_list: { email: string; eligibility: string; reason: string; provider_status: string; send_error?: string; company: string }[] }
 interface Connection { connected: boolean; status?: string; last_error?: string; list_id?: string; campaign_id?: string; sender_domain?: string; lists?: { id: string; name: string }[]; webhook_url?: string | null }
 
 const CHECKLIST: [string, string][] = [["design", "Design approved"], ["content", "Content approved"], ["links", "Links checked"], ["personalisation", "Personalisation checked"],
@@ -73,7 +74,13 @@ export function ConnectionCard() {
 
 export function LaunchStep({ session, onSession }: { session: GrowthSession; onSession: () => void }) {
   const toast = useToast();
-  const { data: camp, mutate } = useApi<Campaign>(session.campaign_id ? `/outreach/campaigns/${session.campaign_id}` : null);
+  const { data: camp, mutate } = useApi<Campaign>(session.campaign_id ? `/outreach/campaigns/${session.campaign_id}` : null,
+    { refreshInterval: (c?: Campaign) => (c?.status === "sending" ? 5000 : 0) });
+  const { data: accts } = useApi<{ accounts: SendingAccount[] }>("/sending/accounts");
+  const [delivery, setDelivery] = useState<"own" | "snov">("own");
+  const [accountId, setAccountId] = useState<string | null>(null);
+  const usable = (accts?.accounts ?? []).filter((a) => a.status === "connected");
+  const chosen = usable.find((a) => a.id === accountId) ?? usable.find((a) => a.is_default) ?? usable[0];
   const [check, setCheck] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [consent, setConsent] = useState(false);
@@ -91,11 +98,19 @@ export function LaunchStep({ session, onSession }: { session: GrowthSession; onS
   if (!camp) return <div className="skeleton h-64 rounded-[20px]" />;
   const all = CHECKLIST.every(([k]) => check[k]);
   const launched = camp.status === "launched";
+  const own = camp.provider === "own";
+  const inFlight = camp.status === "sending" || camp.status === "paused";
   return (
     <div className="space-y-5">
-      <StepHeading title={launched ? "Your campaign is live" : "Launch your campaign"} sub={launched ? "Delivery figures come from your sending provider. Replies appear in Replies." : "Check the email, confirm who receives it and approve it. Nothing is sent until you do."} />
-      {!launched && <>
-        <ConnectionCard />
+      <StepHeading title={launched ? "Your campaign is live" : inFlight ? "Sending your campaign" : "Launch your campaign"} sub={launched ? "Delivery figures come from your sending provider. Replies appear in Replies." : "Check the email, confirm who receives it and approve it. Nothing is sent until you do."} />
+      {!launched && !inFlight && <>
+        <Card title="How emails are sent" icon={<Mail size={17} className="text-forest" />} done={delivery === "own" ? !!chosen : undefined}>
+          <Segmented label="Send through" value={delivery} onChange={setDelivery} options={[{ value: "own", label: "Your email service" }, { value: "snov", label: "Snov.io campaign" }]} />
+          <div className="mt-3">{delivery === "own"
+            ? <SendingAccounts selected={chosen?.id ?? null} onSelect={setAccountId} />
+            : <p className="text-[12.5px] text-mute">Recipients are added to a drip campaign in your own Snov.io account, which sends the emails.</p>}</div>
+        </Card>
+        {delivery === "snov" && <ConnectionCard />}
         <Card title="Recipients" icon={<Inbox size={17} className="text-forest" />} done={camp.recipients.eligible > 0}>
           <div className="mb-3 flex flex-wrap gap-2">{Object.entries(ELIG).map(([k, [l, t]]) => <Badge key={k} tone={t as any} dot>{camp.recipients[k] ?? 0} {l.toLowerCase()}</Badge>)}</div>
           {camp.recipient_list.length === 0 && <p className="rounded-xl bg-bg2 p-3 text-[12.5px] text-mute">None of the selected prospects has a usable business email yet. Go back to Enrich and select prospects with a website, or add more prospects.</p>}
@@ -116,12 +131,33 @@ export function LaunchStep({ session, onSession }: { session: GrowthSession; onS
             <button className="btn-primary mt-4" disabled={!all || !!busy} onClick={() => call("approve", { checklist: check }, "Campaign approved")}>{busy === "approve" ? "Approving…" : "Approve campaign"}</button></>}
         </Card>
         <div className="flex items-center justify-end gap-3">
-          <p className="text-[12px] text-mute">{camp.status === "approved" ? `${camp.recipients.eligible} recipient(s) will be added to your Snov.io campaign.` : "Approve the campaign to enable launch."}</p>
-          <motion.button whileTap={{ scale: 0.97 }} className="btn-primary !px-8" disabled={camp.status !== "approved" || !!busy} onClick={() => call("launch", {}, "Campaign launched")}>
+          <p className="text-[12px] text-mute">{camp.status !== "approved" ? "Approve the campaign to enable launch."
+            : delivery === "snov" ? `${camp.recipients.eligible} recipient(s) will be added to your Snov.io campaign.`
+            : chosen ? `${camp.recipients.eligible} email(s) will be sent from ${chosen.from_email}, up to ${chosen.per_minute} a minute and ${chosen.daily_limit} a day.` : "Connect your email service to launch."}</p>
+          <motion.button whileTap={{ scale: 0.97 }} className="btn-primary !px-8" disabled={camp.status !== "approved" || !!busy || (delivery === "own" && !chosen)}
+            onClick={() => call("launch", delivery === "own" ? { delivery: "own", sending_account_id: chosen?.id } : {}, delivery === "own" ? "Sending started" : "Campaign launched")}>
             {busy === "launch" ? <><Loader2 size={15} className="animate-spin" /> Launching</> : <><Rocket size={15} /> Launch campaign</>}</motion.button>
         </div>
       </>}
-      {(launched || camp.status === "failed") && (
+      {own && (launched || inFlight) && (
+        <Card title="Delivery" icon={<Rocket size={17} className="text-forest" />} done={launched}>
+          <p className="mb-3 text-[12.5px] text-mute">Sending from <strong>{camp.sent_from}</strong> through your email service.</p>
+          {camp.status === "paused" && <div className="mb-3 rounded-xl border border-[#B5493A]/30 bg-[#B5493A]/5 p-3 text-[13px]"><p className="text-[#A33A2A]">Paused: {camp.error}</p>
+            <p className="mt-1 text-[12px] text-mute">Fix the connection under “Your email service” (Account Settings), test it, then resume.</p>
+            <button className="btn-primary btn-sm mt-2" disabled={!!busy} onClick={() => call("resume", {}, "Sending resumed")}>Resume sending</button></div>}
+          {(() => { const m = camp.metrics ?? {}; const total = (m.sent ?? 0) + (m.failed ?? 0) + (m.queued ?? 0); const pct = total ? Math.round(((m.sent ?? 0) + (m.failed ?? 0)) / total * 100) : 0;
+            return <>
+              <div className="mb-2 h-2 overflow-hidden rounded-full bg-bg2" role="progressbar" aria-label="Sending progress" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+                <motion.div className="h-full rounded-full bg-forest" initial={false} animate={{ width: `${pct}%` }} transition={{ duration: 0.4 }} /></div>
+              <div className="grid gap-3 sm:grid-cols-3">{(["sent", "queued", "failed"] as const).map((k) => (
+                <div key={k} className="rounded-xl border border-line p-3"><p className="text-[11px] font-semibold uppercase tracking-wide text-mute">{k === "queued" ? "waiting" : k}</p><p className="mt-1 font-display text-[22px] font-extrabold tabular-nums">{m[k] ?? 0}</p></div>))}</div>
+              {m.note && <p className="mt-2 text-[12px] text-mute">{m.note}</p>}
+            </>; })()}
+          {camp.recipient_list.some((r) => r.provider_status === "failed") && <ul className="mt-3 space-y-1 text-[12px]">{camp.recipient_list.filter((r) => r.provider_status === "failed").slice(0, 20).map((r) => <li key={r.email}><span className="font-medium">{r.email}</span> <span className="text-[#A33A2A]">{r.send_error}</span></li>)}</ul>}
+          <p className="mt-2 text-[11px] text-dim">Opens and replies aren't tracked for emails sent through your own service. Replies arrive in your mailbox; add them under Replies to sort them. Every email includes an unsubscribe link that adds the person to your suppression list.</p>
+          <button className="btn-ghost btn-sm mt-2" disabled={!!busy} onClick={() => call("refresh")}><RefreshCw size={13} /> Refresh</button>
+        </Card>)}
+      {!own && (launched || camp.status === "failed") && (
         <Card title="Delivery" icon={<Rocket size={17} className="text-forest" />}>
           {camp.status === "failed" && <p className="mb-2 text-[13px] text-[#A33A2A]">Launch failed: {camp.error}</p>}
           <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">{(["sent", "delivered", "bounced", "opened", "replied", "unsubscribed"] as const).map((k) => (

@@ -12,8 +12,8 @@ from sqlalchemy.orm import Session
 from ..auth import get_owner
 from ..db import get_db
 from ..models import (BusinessResult, CampaignRecipient, EmailDocument, GrowthSession, OutreachCampaign, OutreachReply, Prospect, ProspectContact,
-                      ProviderConnection, Suppression, is_uuid)
-from ..services import credits, crypto, email_doc as E, outreach as O
+                      ProviderConnection, SendingAccount, Suppression, is_uuid)
+from ..services import credits, crypto, delivery, email_doc as E, outreach as O
 from ..services.audit import log_error, record
 from ..services.snov import SnovClient, SnovError
 from .studio import _base_url
@@ -31,6 +31,11 @@ class CampaignIn(BaseModel):
 class RecipientsIn(BaseModel):
     include_risky: bool = False
     consent_emails: list[str] = Field(default_factory=list, max_length=500)
+
+
+class LaunchIn(BaseModel):
+    delivery: str = Field(default="snov", pattern="^(snov|own)$")
+    sending_account_id: str | None = None
 
 
 class ApproveIn(BaseModel):
@@ -131,10 +136,10 @@ def _camp(db: Session, cid: str, owner: str) -> OutreachCampaign:
 def camp_out(db: Session, c: OutreachCampaign) -> dict:
     rows = db.scalars(select(CampaignRecipient).where(CampaignRecipient.campaign_id == c.id)).all()
     return {"id": c.id, "name": c.name, "status": c.status, "document_id": c.document_id, "session_id": c.session_id, "approval": c.approval,
-            "provider": c.provider, "metrics": c.metrics, "error": c.error, "launched_at": c.launched_at.isoformat() if c.launched_at else None,
+            "provider": c.provider, "sent_from": (c.provider_ref or {}).get("from_email", "") if c.provider == "own" else "", "metrics": c.metrics, "error": c.error, "launched_at": c.launched_at.isoformat() if c.launched_at else None,
             "recipients": {k: sum(1 for r in rows if r.eligibility == k) for k in ("eligible", "suppressed", "needs_consent", "unverified")},
             "recipient_list": [{"email": r.email, "eligibility": r.eligibility, "reason": r.reason, "provider_status": r.provider_status,
-                                "company": (r.variables or {}).get("company_name", "")} for r in rows[:500]]}
+                                "send_error": r.send_error or "", "company": (r.variables or {}).get("company_name", "")} for r in rows[:500]]}
 
 
 @router.get("/campaigns")
@@ -210,8 +215,9 @@ def approve(cid: str, body: ApproveIn, owner: str = Depends(get_owner), db: Sess
 
 
 @router.post("/campaigns/{cid}/launch")
-async def launch(cid: str, request: Request, owner: str = Depends(get_owner), db: Session = Depends(get_db)):
-    """Adds each eligible recipient, with their personalised subject and HTML in custom fields, to the Snov.io list
+async def launch(cid: str, request: Request, body: LaunchIn | None = None, owner: str = Depends(get_owner), db: Session = Depends(get_db)):
+    """delivery="own": sends from the customer's own email service (SMTP or their own API account), in the background.
+    delivery="snov" (default): adds each eligible recipient, with their personalised subject and HTML in custom fields, to the Snov.io list
     linked to the customer's drip campaign. Requires the approved version to be unchanged."""
     c = _camp(db, cid, owner)
     if c.status != "approved":
@@ -221,6 +227,8 @@ async def launch(cid: str, request: Request, owner: str = Depends(get_owner), db
         c.status, c.approval = "draft", {}
         db.commit()
         raise HTTPException(409, {"code": "changed", "message": "The email changed after approval. Check and approve it again."})
+    if body and body.delivery == "own":
+        return _launch_own(db, c, body, owner, _base_url(request))
     conn = _conn(db, owner)
     if not conn or conn.status != "connected" or not (conn.settings or {}).get("list_id"):
         raise HTTPException(409, {"code": "no_provider", "message": "Connect your Snov.io account and choose the list linked to your campaign first."})
@@ -258,9 +266,52 @@ async def launch(cid: str, request: Request, owner: str = Depends(get_owner), db
     return camp_out(db, c)
 
 
+def _launch_own(db: Session, c: OutreachCampaign, body: LaunchIn, owner: str, base: str) -> dict:
+    from .sending import default_account
+    acc = db.get(SendingAccount, body.sending_account_id) if body.sending_account_id and is_uuid(body.sending_account_id) else default_account(db, owner)
+    if not acc or acc.owner_id != owner:
+        raise HTTPException(409, {"code": "no_sending_account", "message": "Connect your own email service first."})
+    if acc.status != "connected":
+        raise HTTPException(409, {"code": "sending_account_error", "message": f"Test the connection to {acc.from_email} first. {acc.last_error}".strip()})
+    rows = db.scalars(select(CampaignRecipient).where(CampaignRecipient.campaign_id == c.id, CampaignRecipient.eligibility == "eligible")).all()
+    credits.require(db, owner, "campaign_recipients", len(rows))
+    for r in rows:
+        r.provider_status, r.send_error = "queued", ""
+    c.provider, c.status, c.error = "own", "sending", ""
+    c.launched_at = datetime.now(timezone.utc)
+    c.provider_ref = {"sending_account_id": acc.id, "from_email": acc.from_email, "via": acc.provider}
+    c.metrics = {"sent": 0, "failed": 0, "queued": len(rows), "source": "Your email service", "fetched_at": c.launched_at.isoformat()}
+    db.commit()
+    record(db, "campaign.launched", actor_type="customer", actor_id=owner, target_type="campaign", target_id=c.id, detail={"queued": len(rows), "via": acc.provider})
+    delivery.start(c.id, base, inline=delivery.INLINE)
+    db.refresh(c)
+    return camp_out(db, c)
+
+
+@router.post("/campaigns/{cid}/resume")
+def resume(cid: str, request: Request, owner: str = Depends(get_owner), db: Session = Depends(get_db)):
+    c = _camp(db, cid, owner)
+    if c.provider != "own" or c.status not in ("paused", "sending"):
+        raise HTTPException(409, {"code": "not_paused", "message": "Only paused campaigns sent through your email service can be resumed."})
+    from .sending import default_account
+    acc = db.get(SendingAccount, (c.provider_ref or {}).get("sending_account_id") or "") or default_account(db, owner)
+    if not acc or acc.owner_id != owner or acc.status != "connected":
+        raise HTTPException(409, {"code": "sending_account_error", "message": "Reconnect your email service and test it first."})
+    c.provider_ref = {**(c.provider_ref or {}), "sending_account_id": acc.id, "from_email": acc.from_email, "via": acc.provider}
+    c.status, c.error = "sending", ""
+    db.commit()
+    delivery.start(c.id, _base_url(request), inline=delivery.INLINE)
+    db.refresh(c)
+    return camp_out(db, c)
+
+
 @router.post("/campaigns/{cid}/refresh")
 async def refresh_metrics(cid: str, owner: str = Depends(get_owner), db: Session = Depends(get_db)):
     c = _camp(db, cid, owner)
+    if c.provider == "own":
+        c.metrics = {**(c.metrics or {}), **delivery.summary(db, c), "source": "Your email service", "fetched_at": datetime.now(timezone.utc).isoformat()}
+        db.commit()
+        return camp_out(db, c)
     conn = _conn(db, owner)
     snov_campaign = (c.provider_ref or {}).get("campaign_id")
     if not conn or not snov_campaign:

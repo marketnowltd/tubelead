@@ -566,7 +566,7 @@ class OutreachCampaign(Base):
     name: Mapped[str] = mapped_column(String(200))
     document_id: Mapped[str] = mapped_column(UUID, ForeignKey("email_documents.id", ondelete="RESTRICT"))
     document_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    status: Mapped[str] = mapped_column(String(16), default="draft", index=True)  # draft|approved|launching|launched|failed
+    status: Mapped[str] = mapped_column(String(16), default="draft", index=True)  # draft|approved|launching|sending|paused|launched|failed
     approval: Mapped[dict] = mapped_column(JSON, default=dict)  # checklist, approved_by, approved_at, check scores
     provider: Mapped[str] = mapped_column(String(16), default="snov")
     provider_ref: Mapped[dict] = mapped_column(JSON, default=dict)
@@ -585,8 +585,12 @@ class CampaignRecipient(Base):
     email: Mapped[str] = mapped_column(String(255))
     eligibility: Mapped[str] = mapped_column(String(16), default="eligible")  # eligible|suppressed|needs_consent|unverified
     reason: Mapped[str] = mapped_column(Text, default="")
-    provider_status: Mapped[str] = mapped_column(String(24), default="")
+    provider_status: Mapped[str] = mapped_column(String(24), default="")  # queued|sent|failed (own service) or Snov.io status
     variables: Mapped[dict] = mapped_column(JSON, default=dict)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    send_error: Mapped[str] = mapped_column(Text, default="")
+    message_id: Mapped[str] = mapped_column(String(255), default="")
+    sending_account_id: Mapped[str | None] = mapped_column(UUID, nullable=True, index=True)
 
 
 class Suppression(Base):
@@ -661,3 +665,24 @@ class PlanConfig(Base):
     plan_id: Mapped[str] = mapped_column(String(16), primary_key=True)
     data: Mapped[dict] = mapped_column(JSON, default=dict)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
+
+
+class SendingAccount(Base):
+    """A customer's OWN email service (SMTP or their own API account). TubeLead never sends customer emails through
+    its own email provider. Secrets are encrypted at rest and never returned."""
+    __tablename__ = "sending_accounts"
+    id: Mapped[str] = mapped_column(UUID, primary_key=True, default=uid)
+    owner_id: Mapped[str] = mapped_column(UUID, index=True)
+    provider: Mapped[str] = mapped_column(String(16))  # smtp|sendgrid|mailgun|postmark|resend
+    label: Mapped[str] = mapped_column(String(120), default="")
+    from_name: Mapped[str] = mapped_column(String(120), default="")
+    from_email: Mapped[str] = mapped_column(String(255))
+    reply_to: Mapped[str] = mapped_column(String(255), default="")
+    settings: Mapped[dict] = mapped_column(JSON, default=dict)  # smtp: host, port, security, username; mailgun: domain, region
+    secret_enc: Mapped[str] = mapped_column(Text)  # SMTP password or API key, encrypted
+    daily_limit: Mapped[int] = mapped_column(Integer, default=100)
+    per_minute: Mapped[int] = mapped_column(Integer, default=20)
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False)
+    status: Mapped[str] = mapped_column(String(16), default="unchecked")  # connected|error|unchecked
+    last_error: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
