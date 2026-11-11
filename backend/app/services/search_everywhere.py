@@ -15,6 +15,7 @@ from ..providers.lastfm import LastFmProvider
 from ..providers.mastodon import MastodonProvider
 from ..providers.musicbrainz import MusicBrainzProvider
 from ..providers.reddit import RedditProvider
+from ..providers.serpapi import ENGINES as SERP_ENGINES, SerpApiProvider
 from ..providers.spotify import SpotifyProvider
 from ..providers.twitch import TwitchProvider
 from ..providers.vimeo import VimeoProvider
@@ -22,7 +23,8 @@ from ..providers.youtube import YouTubeProvider
 from . import lead_contacts
 
 PROVIDERS = [YouTubeProvider(), GoogleSearchProvider(), BraveProvider(), ApplePodcastsProvider(), RedditProvider(), TwitchProvider(), BlueskyProvider(),
-             MastodonProvider(), DailymotionProvider(), VimeoProvider(), SpotifyProvider(), LastFmProvider(), MusicBrainzProvider()]
+             MastodonProvider(), DailymotionProvider(), VimeoProvider(), SpotifyProvider(), LastFmProvider(), MusicBrainzProvider()] + \
+            [SerpApiProvider(n) for n in SERP_ENGINES]
 FIND_EMAILS = True  # tests that only check merging switch the email step off
 EMAILS_ONLY = True  # only people who publish an email address are returned
 

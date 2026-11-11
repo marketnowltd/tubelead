@@ -58,6 +58,7 @@ Check: "Continue with Google" on `/signup` returns you signed in to the dashboar
 |---|---|---|
 | `YOUTUBE_API_KEY` | **Required.** The Lead Generator: YouTube creators and the emails in their channel descriptions and websites. | Google Cloud → enable "YouTube Data API v3" → Credentials → API key |
 | `GOOGLE_PSE_KEY`, `GOOGLE_PSE_CX` | Google Search | programmablesearchengine.google.com, plus an API key with the Custom Search API enabled |
+| `SERPAPI_KEY` | Google, Bing, DuckDuckGo, Brave and Yahoo web results, all from one key | serpapi.com → Dashboard → API key |
 | `BRAVE_API_KEY` | Brave Search (also used by the Growth Assistant) | api.search.brave.com |
 | `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET` | Reddit | reddit.com/prefs/apps → "script" app |
 | `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET` | Twitch | dev.twitch.tv/console |

@@ -10,7 +10,7 @@ import re
 
 from .contacts import PageFetcher, extract_emails, is_public_url, scan_website
 
-WEB_PROVIDERS = ("google", "brave")  # their results are web pages: the page itself is the site to read
+WEB_PROVIDERS = ("google", "brave", "serp_google", "serp_bing", "serp_duckduckgo", "serp_brave", "serp_yahoo")  # their results are web pages: the page itself is the site to read
 CONCURRENCY = 10
 TIME_BUDGET = 30.0  # seconds for the whole step; results not finished in time are returned without emails
 TRANSPORT = None    # tests inject a mock transport

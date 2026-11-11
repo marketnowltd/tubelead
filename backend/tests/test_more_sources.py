@@ -128,7 +128,7 @@ def test_search_finds_published_emails_from_feeds_sites_and_bios_and_respects_ro
 def test_keyless_sources_are_on_by_default():
     names = {p.name for p in se.PROVIDERS if p.configured()}
     assert {"applepodcasts", "bluesky", "dailymotion", "mastodon", "musicbrainz"} <= names
-    assert len(se.PROVIDERS) == 13
+    assert len(se.PROVIDERS) == 18
 
 
 class Pool:
@@ -162,3 +162,17 @@ def test_search_says_why_when_sources_run_out(fake_web, monkeypatch):
     monkeypatch.setattr(se, "PROVIDERS", [Pool()])
     out = asyncio.run(se.search_everywhere("fitness", 100))
     assert 0 < len(out["leads"]) < 100 and "no more people who publish an email" in out["short_reason"]
+
+
+def test_serpapi_engines_share_one_key(monkeypatch):
+    from app.providers.serpapi import SerpApiProvider
+    p = SerpApiProvider("serp_yahoo")
+    assert asyncio.run(p.search("x", 5)).status == "not_configured"
+    monkeypatch.setattr(get_settings(), "serpapi_key", "k")
+    seen = {}
+    def h(req):
+        seen.update(req.url.params)
+        return httpx.Response(200, json={"organic_results": [{"title": "Fit Co", "link": "https://fit.example/", "snippet": "Coaching"}]})
+    r = run(p, h, "fitness coach")
+    assert seen["engine"] == "yahoo" and seen["p"].startswith("fitness coach") and seen["api_key"] == "k"
+    assert r.leads[0].source_url == "https://fit.example/"

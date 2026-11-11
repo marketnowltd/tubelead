@@ -67,6 +67,8 @@ services:
         sync: false
       # Extra search sources (Search Everywhere, Pro plan). Each is optional; a source without its key says so.
       # Apple Podcasts, Bluesky, Dailymotion, Mastodon and MusicBrainz need no key.
+      - key: SERPAPI_KEY           # serpapi.com: Google, Bing, DuckDuckGo, Brave and Yahoo results (one key)
+        sync: false
       - key: GOOGLE_PSE_KEY        # Google Programmable Search: API key
         sync: false
       - key: GOOGLE_PSE_CX         # Google Programmable Search: search engine ID

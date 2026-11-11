@@ -133,7 +133,7 @@ def test_provider_status_lists_required_keys(client, no_keys):
     rows = client.get("/api/search-everywhere/providers").json()
     names = {r["name"]: r for r in rows}
     keyless = {"musicbrainz", "applepodcasts", "bluesky", "dailymotion", "mastodon"}
-    assert set(names) == {"youtube", "google", "brave", "reddit", "twitch", "spotify", "lastfm", "vimeo"} | keyless
+    assert set(names) == {"youtube", "google", "brave", "reddit", "twitch", "spotify", "lastfm", "vimeo", "serp_google", "serp_bing", "serp_duckduckgo", "serp_brave", "serp_yahoo"} | keyless
     # these need no key (MusicBrainz only an identifying User-Agent, which has a default)
     assert all(names[n]["configured"] is True for n in keyless)
     assert all(r["configured"] is False for n, r in names.items() if n not in keyless)

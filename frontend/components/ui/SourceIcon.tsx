@@ -1,10 +1,11 @@
 import { SOURCE_LOGOS } from "@/content/logos";
 
 /** Provider names used by the API → brand marks (Simple Icons, see content/logos.ts). */
-const KEY: Record<string, string> = { lastfm: "lastdotfm" };
+const KEY: Record<string, string> = { lastfm: "lastdotfm", serp_google: "google", serp_brave: "brave" };
 export const SOURCE_LABEL: Record<string, string> = {
   youtube: "YouTube", google: "Google Search", brave: "Brave Search", applepodcasts: "Apple Podcasts", reddit: "Reddit", twitch: "Twitch",
   bluesky: "Bluesky", mastodon: "Mastodon", dailymotion: "Dailymotion", vimeo: "Vimeo", spotify: "Spotify", lastfm: "Last.fm", musicbrainz: "MusicBrainz",
+  serp_google: "Google", serp_bing: "Bing", serp_duckduckgo: "DuckDuckGo", serp_brave: "Brave", serp_yahoo: "Yahoo",
 };
 
 /** A small logo showing where a result came from. Falls back to the source's name when there's no mark. */
