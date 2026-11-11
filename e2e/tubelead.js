@@ -43,7 +43,7 @@ const signed = (ev) => { const p = JSON.stringify(ev), t = Math.floor(Date.now()
   await mp.goto(B + '/', { waitUntil: 'networkidle' }); await mp.getByRole('button', { name: 'Open menu' }).click(); ok(await mp.locator('nav[aria-label="Mobile site"]').getByRole('link', { name: 'Pricing' }).isVisible(), 'mobile landing menu opens'); await m.close();
 
   // ================= APP SHELL: 16 modules =================
-  await go('/dashboard'); ok((await page.locator('nav[aria-label="Main navigation"] a').count()) === 17, 'exactly 17 sidebar items for a customer: 16 modules + Help & Support; Admin hidden (no SendLoom link)');
+  await go('/dashboard'); ok((await page.locator('nav[aria-label="Main navigation"] a').count()) === 18, 'exactly 18 sidebar items for a customer: 16 modules + Growth Assistant + Help & Support; Admin hidden');
   for (const p of NAV) { const e0 = errs.length; await go(p); const h = (await page.locator('main h1').first().innerText().catch(() => '')).trim(); ok(h.length > 2 && errs.length === e0, `module ${p} loads ("${h}") with no console errors`, errs.slice(e0).join(' | ')); }
   // every button on every module has an accessible name (no dead/unnamed controls)
   let unnamed = []; for (const p of NAV) { await go(p); unnamed.push(...(await page.evaluate(() => [...document.querySelectorAll('main button, main a')].filter(e => !(e.innerText || e.getAttribute('aria-label') || e.getAttribute('title') || (e.labels && e.labels[0] && e.labels[0].innerText) || '').trim()).map(e => e.outerHTML.slice(0, 60))))); }
@@ -140,9 +140,93 @@ const signed = (ev) => { const p = JSON.stringify(ev), t = Math.floor(Date.now()
   await go('/admin'); await page.getByText('Staff only').waitFor({ timeout: 8000 }); ok(true, 'admin area refuses a customer');
   ok((await api('/admin/refunds')).s === 403 && (await api('/admin/customers')).s === 403, 'admin API refuses a customer');
 
+  // ---------------- Growth Assistant, Creative Studio, Email Check, launch, demo ----------------
+  await go('/dashboard');
+  ok(await page.getByText('Find your next customers.').first().isVisible(), 'Growth Assistant widget on the dashboard');
+  await page.getByLabel('What do you sell, and to whom?').fill('I sell website design services to fitness creators in the UK');
+  await page.getByRole('button', { name: /Start growing/i }).click();
+  await page.waitForURL(/\/growth\?session=/, { timeout: 10000 });
+  await page.getByText('Your campaign summary').waitFor({ timeout: 8000 });
+  ok(await page.getByLabel('Product').inputValue() === 'Website design services' && await page.getByLabel('Location').inputValue() === 'UK', 'widget and wizard share the session: summary interpreted from the description');
+  await page.getByLabel('Target').fill('Fitness creators');
+  await page.getByRole('button', { name: /Find my customers/ }).click();
+  await page.getByText('Understanding your audience').waitFor({ timeout: 8000 });
+  ok(true, 'discovery shows real stage-by-stage progress');
+  await page.getByText(/prospects found/).waitFor({ timeout: 45000 });
+  const cards = page.getByRole('checkbox', { name: /^Select / });
+  ok(await cards.count() > 0, 'discovered prospects are listed', String(await cards.count()));
+  await cards.first().click();
+  await page.waitForTimeout(400);
+  ok(await cards.first().getAttribute('aria-checked') === 'true', 'selecting a prospect animates into its selected state');
+  await page.locator('ul li button.min-w-0').first().click();
+  await page.getByText('Why this lead?').waitFor({ timeout: 5000 });
+  ok(await page.getByText(/Verified fact|Estimate|Unknown/).first().isVisible(), 'prospect profile explains the score with facts vs estimates');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: /Find contacts/ }).click();
+  await page.getByRole('button', { name: /Find contacts for \d+ prospect/ }).click();
+  await page.getByText(/Contacts found/).waitFor({ timeout: 30000 });
+  ok(true, 'enrichment runs and completes with live progress');
+  await page.getByRole('button', { name: /Create your email/ }).click();
+  await page.getByRole('button', { name: /Choose a template/ }).click();
+  await page.getByRole('button', { name: /Sales outreach.*An idea/ }).click();
+  await page.getByRole('radiogroup', { name: 'Editor mode' }).waitFor({ timeout: 10000 });
+  ok(await page.getByRole('radio', { name: 'Easy Editor' }).getAttribute('aria-checked') === 'true', 'Creative Studio opens in Easy Editor');
+  const para = page.locator('[data-el] div[contenteditable]').first();
+  await para.click(); await page.keyboard.press('End'); await page.keyboard.type(' Edited in the test.'); await page.getByLabel('Subject line').click();
+  await page.getByText('Saved', { exact: true }).waitFor({ timeout: 8000 });
+  ok(true, 'inline text editing autosaves');
+  await page.getByRole('radio', { name: 'Pro Editor' }).click();
+  await page.getByRole('tab', { name: /Layers/ }).click();
+  await page.getByRole('button', { name: /^(Hide|Show) layer$/ }).first().waitFor({ timeout: 5000 });
+  const layersBefore = await page.getByRole('button', { name: /^(Hide|Show) layer$/ }).count();
+  await page.getByRole('button', { name: 'Text', exact: true }).click();
+  await page.getByRole('tab', { name: /Layers/ }).click();
+  await page.waitForTimeout(500);
+  const layersAfter = await page.getByRole('button', { name: /^(Hide|Show) layer$/ }).count();
+  ok(layersAfter === layersBefore + 1, 'Pro Editor text tool adds a layer', `${layersBefore} -> ${layersAfter}`);
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await page.waitForTimeout(500);
+  ok(await page.getByRole('button', { name: /^(Hide|Show) layer$/ }).count() === layersBefore, 'undo removes it again');
+  ok(await page.locator('[data-el]').filter({ hasText: 'Edited in the test.' }).count() === 1, 'switching Easy → Pro keeps the edited design');
+  await page.getByRole('radio', { name: 'Easy Editor' }).click();
+  ok(await page.locator('[data-el]').filter({ hasText: 'Edited in the test.' }).count() === 1, 'switching Pro → Easy keeps it too');
+  await page.getByRole('button', { name: /Run checks/ }).click();
+  await page.getByRole('button', { name: /^Run check$/ }).click();
+  await page.getByRole('img', { name: /Readiness \d+ out of 100/ }).waitFor({ timeout: 20000 });
+  ok(await page.getByText('Deliverability readiness').isVisible() && await page.getByText(/No sender is connected/).isVisible(), 'Email Check scores four areas and blocks launch without a sender');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: /^Preview$/ }).click();
+  await page.locator('iframe[title="Email preview"]').waitFor({ timeout: 10000 });
+  const frameHtml = await page.locator('iframe[title="Email preview"]').getAttribute('srcdoc');
+  ok(/<table role="presentation"/.test(frameHtml || '') && !/<script/i.test(frameHtml || ''), 'preview shows the real table-based email HTML with no scripts');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: /Continue to launch/ }).click();
+  await page.getByRole('button', { name: /Prepare campaign/ }).click();
+  await page.getByText('Sending account').waitFor({ timeout: 10000 });
+  ok(await page.getByRole('button', { name: /Launch campaign/ }).isDisabled(), 'launch stays disabled until the campaign is approved');
+  await go('/growth?tab=results');
+  await page.getByText('Prospects discovered').waitFor({ timeout: 8000 });
+  ok(await page.getByText(/a positive reply is not a sale/).isVisible(), 'My Business Results separates sources and never counts replies as sales');
+  // public demo (signed out is not needed: the page is public)
+  await go('/demo');
+  await page.getByText('See what TubeLead can do.').waitFor();
+  ok(await page.getByText('Sample data').first().isVisible(), 'demo is labelled as sample data');
+  await page.getByRole('button', { name: /Continue/ }).click(); await page.getByRole('button', { name: /Find sample customers/ }).click();
+  await page.getByRole('button', { name: /Sample: Olive/ }).click(); await page.getByRole('button', { name: /Create a pitch/ }).click();
+  await page.getByRole('radio', { name: 'Pro Editor' }).click();
+  await page.getByRole('button', { name: /Run checks/ }).click(); await page.getByRole('button', { name: /^Run check$/ }).click();
+  await page.getByRole('img', { name: /Readiness/ }).waitFor({ timeout: 15000 });
+  ok(true, 'demo: Easy → Pro editor and a sample Email Check work without an account');
+  const rm = await browser.newPage({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  rm.on('pageerror', (e) => errs.push('reduced-motion: ' + e.message));
+  await rm.goto(B + '/', { waitUntil: 'networkidle' }); await rm.waitForTimeout(800);
+  await rm.goto(B + '/demo', { waitUntil: 'networkidle' });
+  ok(await rm.getByText('See what TubeLead can do.').isVisible() && await rm.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'demo with reduced motion on a phone: renders, no horizontal scroll');
+  await rm.close();
+
   // The payment provider is never named to customers: check every public and customer page's visible text and HTML.
   const named = [];
-  for (const p of ['/', '/terms', '/privacy', '/login', '/signup', '/billing', '/settings', '/integrations', '/support', '/dashboard']) {
+  for (const p of ['/', '/demo', '/terms', '/privacy', '/login', '/signup', '/billing', '/settings', '/integrations', '/support', '/dashboard', '/growth']) {
     await go(p); const html = await page.content(); if (/stripe/i.test(html)) named.push(p);
   }
   ok(named.length === 0, 'no customer-facing page mentions the payment provider', named.join(', '));

@@ -1,5 +1,6 @@
 "use client";
-import { animate, motion, useReducedMotion } from "motion/react";
+import { useReducedMotionSafe } from "@/components/ui/motion";
+import { animate, motion} from "motion/react";
 import { AlertTriangle, Inbox, RefreshCw } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { initials } from "@/lib/format";
@@ -88,7 +89,7 @@ export function PageHeader({ title, sub, actions, eyebrow }: { title: string; su
 }
 
 export function CountUp({ value, format = (n: number) => Math.round(n).toLocaleString("en"), className }: { value: number; format?: (n: number) => string; className?: string }) {
-  const reduce = useReducedMotion();
+  const reduce = useReducedMotionSafe();
   const [shown, setShown] = useState(0); // never derive initial text from `reduce` (null on server, true on client) — avoids a hydration mismatch
   const prev = useRef(0);
   useEffect(() => {

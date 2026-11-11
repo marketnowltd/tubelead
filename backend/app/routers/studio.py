@@ -445,3 +445,10 @@ async def assist(body: AssistIn, owner: str = Depends(get_owner), db: Session = 
         raise HTTPException(422, {"code": "bad_action", "message": str(exc)}) from exc
     except ai.AIError as exc:
         raise HTTPException(exc.status if exc.status in (409, 429) else 502, {"code": exc.code, "message": str(exc)}) from exc
+
+
+@public.get("/public/email/templates")
+def public_templates():
+    """Built-in templates for the public demo (no customer data)."""
+    return [{"id": f"builtin:{t['category']}", "name": t["name"], "category": t["category"], "category_label": email_templates.CATEGORIES[t["category"]],
+             "subject": t["subject"], "doc": t["doc"], "mine": False} for t in email_templates.build()]

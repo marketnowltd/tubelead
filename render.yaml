@@ -41,6 +41,18 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY   # lets "Delete account" also remove the sign-in record
         sync: false
+      - key: PUBLIC_API_URL        # this API's public URL, for hosted email images, e.g. https://tubelead-api.onrender.com
+        sync: false
+      - key: SNOV_CLIENT_ID        # TubeLead's own Snov.io account: contact enrichment and verification
+        sync: false
+      - key: SNOV_CLIENT_SECRET
+        sync: false
+      - key: SNOV_COST_PER_CREDIT_PENCE   # what one Snov.io credit costs you, for margin reporting
+        sync: false
+      - key: BRAVE_API_KEY         # Brave Search API: web discovery for the Growth Assistant
+        sync: false
+      - key: BRAVE_COST_PER_QUERY_PENCE
+        sync: false
   - type: web
     name: tubelead-web
     runtime: docker

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CampaignChart, CountryBars, NicheDonut, PerformanceChart, QuotaChart, TrendChart } from "@/components/charts/lazy";
 import { WorldMap } from "@/components/map/lazy";
 import { ActivityFeed } from "@/components/pages/ActivityFeed";
+import { GrowthAssistantWidget } from "@/components/growth/GrowthAssistantWidget";
 import { Badge, DemoBanner, EmptyState, ErrorState, Panel, PanelHeader, Skeleton, StatCard } from "@/components/ui/core";
 import { useApi } from "@/lib/api";
 import { useDemo } from "@/lib/demo";
@@ -28,6 +29,7 @@ export default function Dashboard() {
           {st && !st.youtube_configured && <Badge tone="amber" dot>Add YOUTUBE_API_KEY to run real discovery</Badge>}
         </div>
 
+        <GrowthAssistantWidget />
         <DemoBanner count={st?.demo_count ?? 0} onClear={demo.clear} busy={demo.busy} />
         {error && <Panel><ErrorState error={error} onRetry={() => mutate()} /></Panel>}
 

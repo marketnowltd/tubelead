@@ -456,3 +456,12 @@ def test_account_deletion_removes_growth_data(client):
         assert db.query(Prospect).filter(Prospect.owner_id == u["_id"]).count() == 0
         assert db.query(EmailDocument).filter(EmailDocument.owner_id == u["_id"]).count() == 0
         assert db.query(GrowthSession).filter(GrowthSession.owner_id == u["_id"]).count() == 0
+
+
+def test_every_template_passes_contrast_and_only_needs_its_placeholders_filled():
+    from app.services import email_templates
+    for t in email_templates.build():
+        h, x = E.render(t["doc"], subject=t["subject"])
+        r = C.inspect(t["doc"], subject=t["subject"], html=h, text=x, sender_domain="a.example", dns_results={"spf": "present", "dmarc": "present", "dkim": "present (s1)"})
+        assert not [f for f in r["findings"] if "contrast" in f["id"]], t["name"]
+        assert {f["id"].split("-")[0] for f in r["findings"] if f["severity"] == "critical"} <= {"link"}, t["name"]  # only "[your link]" placeholders

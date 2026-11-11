@@ -77,7 +77,7 @@ def rules_interpret(text: str) -> dict:
     if re.search(r"accounting|bookkeeping|payroll", low):
         signals.append("Growing businesses that are hiring or opening new locations")
     if creators:
-        signals.append("Creators who invite business enquiries or have done sponsorships")
+        signals.insert(0, "Creators who invite business enquiries or have done sponsorships")
     if not signals:
         signals.append("Businesses that are hiring, launching or expanding")
     sources = (["YouTube", "Twitch", "Brave Search"] if creators else ["Brave Search", "Google Search", "Public business directories"])
@@ -245,7 +245,7 @@ async def _discover(session_id: str) -> None:
             p = Prospect(owner_id=sess.owner_id, session_id=session_id, dedupe_key=key, name=lead["creator_name"][:300],
                          website=lead.get("source_url") if plat == "web" else None, domain=dom if plat == "web" else None, platform=plat,
                          sources=lead.get("sources") or [lead["provider"]], source_url=url, description=(lead.get("snippet") or "")[:2000],
-                         industry=b.get("industry", "")[:120], location="", score_breakdown={"_flags": ["verified"] if lead.get("verification_status") == "verified" else []})
+                         industry=b.get("industry", "")[:120], location="", audience_size=lead.get("audience_size"), score_breakdown={"_flags": ["verified"] if lead.get("verification_status") == "verified" else []})
             score(p, b)
             db.add(p)
             added.append(p)

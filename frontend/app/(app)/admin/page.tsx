@@ -8,6 +8,7 @@ import { OverviewTab } from "@/components/admin/Overview";
 import { RefundsTab } from "@/components/admin/Refunds";
 import { isAdmin, type Overview } from "@/components/admin/shared";
 import { SystemTab } from "@/components/admin/System";
+import { GrowthTab } from "@/components/admin/Growth";
 import { TicketsTab } from "@/components/admin/Tickets";
 import { EmptyState, ErrorState, PageHeader, Panel, Skeleton } from "@/components/ui/core";
 import { useApi } from "@/lib/api";
@@ -15,7 +16,7 @@ import { useApi } from "@/lib/api";
 const TABS = [
   { id: "overview", label: "Overview", admin: false }, { id: "tickets", label: "Support tickets", admin: false }, { id: "refunds", label: "Refund requests", admin: true },
   { id: "customers", label: "Customers", admin: true }, { id: "subscriptions", label: "Subscriptions", admin: true }, { id: "assistant", label: "Assistant & help", admin: false },
-  { id: "system", label: "System", admin: true },
+  { id: "growth", label: "Growth & plans", admin: true }, { id: "system", label: "System", admin: true },
 ] as const;
 
 function Admin() {
@@ -43,6 +44,7 @@ function Admin() {
       {tab === "customers" && <CustomersTab myRole={data.role} />}
       {tab === "subscriptions" && <SubscriptionsTab />}
       {tab === "assistant" && <AssistantTab myRole={data.role} />}
+      {tab === "growth" && <GrowthTab />}
       {tab === "system" && <SystemTab />}
     </div>
   );

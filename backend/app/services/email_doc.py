@@ -491,7 +491,7 @@ PRESETS = {
     "luxury": {"background": "#0F0E0C", "contentBackground": "#17150F", "fontFamily": "Georgia", "textColor": "#EDE6D6", "linkColor": "#C9A96E", "radius": 0,
                "button": {"background": "#C9A96E", "color": "#17150F", "radius": 0}, "heading": {"fontWeight": 400, "letterSpacing": 1}},
     "bold": {"background": "#FFE9DD", "contentBackground": "#FFFFFF", "fontFamily": "Arial", "textColor": "#1B1433", "linkColor": "#D9531E", "radius": 4,
-             "button": {"background": "#FF7A3D", "color": "#FFFFFF", "radius": 4}, "heading": {"fontWeight": 900, "letterSpacing": -1}},
+             "button": {"background": "#C2410C", "color": "#FFFFFF", "radius": 4}, "heading": {"fontWeight": 900, "letterSpacing": -1}},
     "corporate": {"background": "#EEF2F7", "contentBackground": "#FFFFFF", "fontFamily": "Arial", "textColor": "#1F2937", "linkColor": "#1D4ED8", "radius": 4,
                   "button": {"background": "#1D4ED8", "color": "#FFFFFF", "radius": 4}, "heading": {"fontWeight": 700, "letterSpacing": 0}},
     "creative": {"background": "#FDF2FA", "contentBackground": "#FFFFFF", "fontFamily": "Trebuchet", "textColor": "#2B1036", "linkColor": "#C026D3", "radius": 24,
@@ -508,14 +508,16 @@ def apply_preset(doc: dict, name: str) -> dict:
     for k in ("background", "contentBackground", "fontFamily", "textColor", "linkColor", "radius"):
         d["settings"][k] = p[k]
     d["settings"]["preset"] = name
-    for _, _, el, _ in iter_elements(d):
+    for sec, _, el, _ in iter_elements(d):
+        hero = sec["kind"] == "hero"  # hero text sits on its own background, so its colours are kept
         if el["type"] == "button":
             el["style"].update({k: v for k, v in p["button"].items() if k != "gradient"})
             el["style"]["gradient"] = p["button"].get("gradient")
         elif el["type"] == "heading":
             el["style"].update(p["heading"])
-            el["style"]["color"] = None
-        elif el["type"] == "text":
+            if not hero:
+                el["style"]["color"] = None
+        elif el["type"] == "text" and not hero:
             el["style"]["color"] = None
     for sec in d["sections"]:
         if sec["kind"] != "hero":

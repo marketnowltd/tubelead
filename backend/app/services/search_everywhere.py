@@ -53,6 +53,8 @@ def merge(results: list[ProviderResult]) -> tuple[list[dict], int]:
                     row["verification_status"] = "verified"
                 if lead.youtube_channel_id and not row.get("youtube_channel_id"):
                     row["youtube_channel_id"] = lead.youtube_channel_id
+                if lead.audience_size and not row.get("audience_size"):
+                    row["audience_size"] = lead.audience_size
                 if lead.youtube_url and not row.get("youtube_url"):
                     row["youtube_url"] = lead.youtube_url
             else:

@@ -49,7 +49,7 @@ def build() -> list[dict]:
           "We'd like to explore a paid partnership around [product or campaign].<br><br>[What you're offering, budget range or format.]", fontSize=16),
           _btn("Reply to discuss", "mailto:[your email]"), name="Pitch"), _signoff()], "creative")
     add("influencer_outreach", "Influencer outreach", "Collaboration with {{company_name}}?", [
-        _hero("Let's create something together", "Collaboration", bg="#C026D3"),
+        _hero("Let's create something together", "Collaboration", bg="#86198F", accent="#F5D0FE"),
         _two_col("What we'd love", "[Content format, timing and deliverables]", "What you get", "[Fee, product or commission: be specific]"),
         S(_btn("See the brief", "[link to brief]"), name="Call to action"), _signoff()], "creative")
     add("product_launch", "Product launch", "Introducing [product name]", [
@@ -65,7 +65,7 @@ def build() -> list[dict]:
         S(T("[Story one]", heading=True, fontSize=20), T("[A short summary and why it matters to the reader.]", fontSize=15), _btn("Read more", "[link]", align="left"), name="Story one"),
         S({"id": E.new_id(), "type": "divider", "style": {}}, T("[Story two]", heading=True, fontSize=20), T("[A short summary.]", fontSize=15), name="Story two")], "minimal")
     add("promotional_offer", "Promotional offer", "[Offer] for {{company_name}}", [
-        _hero("[Your offer, e.g. 20% off your first month]", "Offer", bg="#FF7A3D"),
+        _hero("[Your offer, e.g. 20% off your first month]", "Offer", bg="#9A3412", accent="#FED7AA"),
         S(T("[Who it's for, how to claim it and when it ends. State the real terms.]", fontSize=16, align="center"), _btn("Claim the offer", "[offer link]"),
           T("[Terms and conditions]", fontSize=12, align="center", color="#6B6680"), name="Offer")], "bold")
     add("event_invitation", "Event invitation", "You're invited: [event name]", [

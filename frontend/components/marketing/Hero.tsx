@@ -1,6 +1,7 @@
 "use client";
+import { useReducedMotionSafe } from "@/components/ui/motion";
 import { useRef } from "react";
-import { motion, useReducedMotion, useScroll, useSpring, useTransform, type MotionValue } from "motion/react";
+import { motion, useScroll, useSpring, useTransform, type MotionValue } from "motion/react";
 import { ArrowRight, BadgeCheck, BarChart3, Briefcase, Check, Cpu, Dumbbell, Gamepad2, GraduationCap, Leaf, Music, PlayCircle, Search } from "lucide-react";
 import Link from "next/link";
 import { SAMPLE, k } from "@/lib/sample";
@@ -74,7 +75,7 @@ function Scene({ still, cardY }: { still: boolean; cardY?: MotionValue<number> }
 }
 
 export function Hero() {
-  const still = useReducedMotion();
+  const still = useReducedMotionSafe();
   const ref = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
   const p = useSpring(scrollYProgress, { stiffness: 70, damping: 20, mass: 0.4 });
@@ -119,7 +120,7 @@ export function Hero() {
               <Link href={next()} className="group inline-flex items-center gap-3 rounded-full px-8 py-4 text-[15px] font-bold text-white shadow-[0_9px_22px_rgba(189,48,214,.28)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(189,48,214,.36)]" style={{ background: GRADIENT }}>
                 Start Discovering <ArrowRight size={17} className="transition-transform duration-300 group-hover:translate-x-1" />
               </Link>
-              <a href="#how" className="inline-flex items-center gap-2.5 rounded-full border border-forest/40 bg-white/80 px-7 py-4 text-[15px] font-bold text-forest transition duration-300 hover:-translate-y-0.5 hover:border-forest hover:bg-white">
+              <a href="/demo" className="inline-flex items-center gap-2.5 rounded-full border border-forest/40 bg-white/80 px-7 py-4 text-[15px] font-bold text-forest transition duration-300 hover:-translate-y-0.5 hover:border-forest hover:bg-white">
                 <PlayCircle size={20} /> Explore the Platform
               </a>
             </motion.div>

@@ -36,6 +36,7 @@ class YouTubeProvider:
                                   youtube_url=f"https://www.youtube.com/channel/{cid}", youtube_channel_id=cid,
                                   snippet=(ch.get("snippet", {}).get("description") or "")[:240] or None,
                                   verification_status="verified",
+                                  audience_size=int(ch["statistics"]["subscriberCount"]) if str((ch.get("statistics") or {}).get("subscriberCount", "")).isdigit() and not (ch.get("statistics") or {}).get("hiddenSubscriberCount") else None,
                                   evidence=[f"YouTube Data API channel record {cid}"]))
             return ProviderResult(self.name, OK, f"{len(leads)} channels confirmed by the YouTube API.", leads)
         except QuotaBudgetExceeded as exc:

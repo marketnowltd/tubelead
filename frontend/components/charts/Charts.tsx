@@ -1,5 +1,5 @@
 "use client";
-import { useReducedMotion } from "motion/react";
+import { useReducedMotionSafe } from "@/components/ui/motion";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, Line, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { countryName, flag } from "@/lib/countries";
 import { compact, dateShort } from "@/lib/format";
@@ -9,7 +9,7 @@ export const PALETTE = ["#244A3A", "#C8795B", "#C6A46B", "#8FA088", "#37624F", "
 const axis = { stroke: "#6B6962", fontSize: 11, tickLine: false, axisLine: false } as const;
 const grid = <CartesianGrid stroke="rgba(36,74,58,.25)" vertical={false} />;
 const tip = { contentStyle: { background: "#FFFDF8", border: "1px solid rgba(36,74,58,.25)", borderRadius: 10, fontSize: 12, color: "#22231F", boxShadow: "0 12px 30px rgba(34,35,31,.18)" }, labelStyle: { color: "#55534D", marginBottom: 4 }, itemStyle: { color: "#22231F" }, cursor: { fill: "rgba(36,74,58,.25)", stroke: "rgba(36,74,58,.25)" } };
-const useAnim = () => { const r = useReducedMotion(); return { isAnimationActive: !r, animationDuration: 900, animationEasing: "ease-out" as const }; };
+const useAnim = () => { const r = useReducedMotionSafe(); return { isAnimationActive: !r, animationDuration: 900, animationEasing: "ease-out" as const }; };
 
 export function TrendChart({ data }: { data: Overview["trend"] }) {
   const a = useAnim();

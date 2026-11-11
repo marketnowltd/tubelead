@@ -1,9 +1,10 @@
-import { BarChart3, Bot, BrainCircuit, CreditCard, Database, Globe2, KeyRound, LayoutDashboard, LifeBuoy, ListChecks, Megaphone, Plug, Radar, Search, Settings, ShieldCheck, Sparkles, Target, type LucideIcon } from "lucide-react";
+import { BarChart3, Bot, Rocket, BrainCircuit, CreditCard, Database, Globe2, KeyRound, LayoutDashboard, LifeBuoy, ListChecks, Megaphone, Plug, Radar, Search, Settings, ShieldCheck, Sparkles, Target, type LucideIcon } from "lucide-react";
 
 export interface NavItem { href: string; label: string; short: string; icon: LucideIcon; blurb: string; group: "Discover" | "Organise" | "Intelligence" | "Workspace"; staffOnly?: boolean }
 /** The 16 TubeLead modules. */
 export const NAV: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", short: "Home", icon: LayoutDashboard, blurb: "Your day at a glance", group: "Discover" },
+  { href: "/growth", label: "Growth Assistant", short: "Grow", icon: Rocket, blurb: "Find customers, build and launch campaigns", group: "Discover" },
   { href: "/lead-generator", label: "Lead Generator", short: "Generate", icon: Target, blurb: "Configure & launch discovery", group: "Discover" },
   { href: "/discovery-engine", label: "Discovery Engine", short: "Discovery", icon: Radar, blurb: "Live jobs, queue & quota", group: "Discover" },
   { href: "/creator-intelligence", label: "Creator Intelligence", short: "Creators", icon: Globe2, blurb: "Map, niches & profiles", group: "Discover" },
