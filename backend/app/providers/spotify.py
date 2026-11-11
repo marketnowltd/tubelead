@@ -47,5 +47,6 @@ class SpotifyProvider:
             followers = (a.get("followers") or {}).get("total")
             leads.append(Lead(provider=self.name, creator_name=a["name"][:200], source_url=url,
                               snippet=(f"{genres}" + (f" · {followers:,} followers" if isinstance(followers, int) else "")).strip(" ·") or None,
-                              evidence=["Spotify artist record"]))
+                              verification_status="verified",
+                              evidence=["Spotify API artist record"]))
         return ProviderResult(self.name, OK, f"{len(leads)} Spotify artists.", leads)

@@ -72,5 +72,5 @@ async def search_everywhere(query: str, limit: int = 20) -> dict:
         "providers": [r.summary() for r in results],
         "leads": leads,
         "duplicates_merged": duplicates,
-        "verified_youtube": sum(1 for l in leads if l["verification_status"] == "verified"),
+        "verified_count": sum(1 for l in leads if l["verification_status"] == "verified"),
     }

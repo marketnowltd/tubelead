@@ -51,7 +51,7 @@ def test_twitch_token_then_channel_search(keys):
     r = asyncio.run(p.search("fitness", 5))
     assert r.status == OK and len(r.leads) == 1
     assert r.leads[0].source_url == "https://www.twitch.tv/coachjo"
-    assert r.leads[0].verification_status == "unverified"
+    assert r.leads[0].verification_status == "verified"
 
 
 def test_twitch_bad_credentials_reported(keys):
@@ -107,7 +107,7 @@ def test_multi_source_is_pro_and_above(client, monkeypatch):
     for p in PROVIDERS:
         monkeypatch.setattr(p, "configured", lambda: True)
     async def fake(query, limit):
-        return {"query": query, "providers": [], "leads": [], "duplicates_merged": 0, "verified_youtube": 0}
+        return {"query": query, "providers": [], "leads": [], "duplicates_merged": 0, "verified_count": 0}
     monkeypatch.setattr("app.routers.everywhere.search_everywhere", fake)
 
     st = get_settings()

@@ -41,5 +41,6 @@ class LastFmProvider:
             listeners = a.get("listeners")
             leads.append(Lead(provider=self.name, creator_name=a["name"][:200], source_url=a["url"],
                               snippet=f"{int(listeners):,} listeners" if str(listeners or "").isdigit() else None,
-                              evidence=["Last.fm artist page"]))
+                              verification_status="verified",
+                              evidence=["Last.fm API artist record"]))
         return ProviderResult(self.name, OK, f"{len(leads)} Last.fm artists.", leads)

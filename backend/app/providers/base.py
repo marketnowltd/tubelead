@@ -19,7 +19,7 @@ class Lead:
     youtube_url: str | None = None
     youtube_channel_id: str | None = None
     snippet: str | None = None
-    verification_status: str = "unverified"  # verified only when a YouTube API call confirmed the channel
+    verification_status: str = "unverified"  # verified only when the platform's own API returned the account record
     evidence: list[str] = field(default_factory=list)
     collected_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 

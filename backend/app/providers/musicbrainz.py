@@ -38,5 +38,6 @@ class MusicBrainzProvider:
             area = (a.get("area") or {}).get("name") or a.get("country")
             leads.append(Lead(provider=self.name, creator_name=a["name"][:200], source_url=f"https://musicbrainz.org/artist/{mbid}",
                               snippet=" · ".join(x for x in [a.get("type"), area] if x) or None,
-                              evidence=[f"MusicBrainz artist {mbid}"]))
+                              verification_status="verified",
+                              evidence=[f"MusicBrainz API artist record {mbid}"]))
         return ProviderResult(self.name, OK, f"{len(leads)} MusicBrainz artists.", leads)

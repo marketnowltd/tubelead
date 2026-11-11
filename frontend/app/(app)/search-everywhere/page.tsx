@@ -11,7 +11,7 @@ interface Lead {
   creator_name: string; sources: string[]; source_url: string | null; youtube_url: string | null;
   snippet: string | null; verification_status: "verified" | "unverified"; evidence: string[];
 }
-interface SearchResult { query: string; providers: ProviderSummary[]; leads: Lead[]; duplicates_merged: number; verified_youtube: number }
+interface SearchResult { query: string; providers: ProviderSummary[]; leads: Lead[]; duplicates_merged: number; verified_count: number }
 
 const statusTone = { ok: "green", not_configured: "neutral", failed: "red" } as const;
 const statusLabel = { ok: "Returned results", not_configured: "Awaiting configuration", failed: "Did not respond" } as const;
@@ -78,7 +78,7 @@ export default function SearchEverywhere() {
                 </li>
               ))}
             </ul>
-            <p className="mt-3 text-[12px] text-mute">{result.leads.length} people found · {result.verified_youtube} confirmed on YouTube · {result.duplicates_merged} duplicates merged</p>
+            <p className="mt-3 text-[12px] text-mute">{result.leads.length} people found · {result.verified_count} confirmed by their platform · {result.duplicates_merged} duplicates merged</p>
           </Panel>
 
           {result.leads.length === 0 ? (
@@ -92,7 +92,7 @@ export default function SearchEverywhere() {
                     <tr key={`${l.creator_name}-${i}`} className="border-t border-forest/10 align-top">
                       <td className="px-4 py-3"><div className="font-medium">{l.creator_name}</div>{l.snippet && <p className="mt-0.5 line-clamp-2 text-mute">{l.snippet}</p>}</td>
                       <td className="px-4 py-3">{l.sources.join(", ")}</td>
-                      <td className="px-4 py-3"><Badge tone={l.verification_status === "verified" ? "green" : "neutral"} dot>{l.verification_status === "verified" ? "Confirmed on YouTube" : "Unverified web result"}</Badge></td>
+                      <td className="px-4 py-3"><Badge tone={l.verification_status === "verified" ? "green" : "neutral"} dot>{l.verification_status === "verified" ? "Confirmed by platform API" : "Unverified web result"}</Badge></td>
                       <td className="px-4 py-3">
                         <div className="flex flex-col gap-1">
                           {l.youtube_url && <a className="inline-flex items-center gap-1 text-forest underline" href={l.youtube_url} target="_blank" rel="noopener noreferrer">YouTube <ExternalLink size={11} /></a>}

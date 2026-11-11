@@ -1,5 +1,5 @@
-"""Twitch Helix API (official). Client-credentials app token, then channel search. Channel records are platform data,
-so they are reported as 'unverified' creators until the owner checks them."""
+"""Twitch Helix API (official). Client-credentials app token, then channel search. Each result is a channel record
+returned by Twitch's own API, so it is reported as verified (the platform confirmed the account exists)."""
 from __future__ import annotations
 
 import httpx
@@ -45,5 +45,6 @@ class TwitchProvider:
             game = ch.get("game_name") or ""
             leads.append(Lead(provider=self.name, creator_name=(ch.get("display_name") or login)[:200], source_url=url,
                               snippet=(ch.get("title") or game or ch.get("broadcaster_language") or "")[:240] or None,
-                              evidence=[f"Twitch channel {login}" + (f" · {game}" if game else "")]))
+                              verification_status="verified",
+                              evidence=[f"Twitch API channel record {login}" + (f" · {game}" if game else "")]))
         return ProviderResult(self.name, OK, f"{len(leads)} Twitch channels.", leads)
