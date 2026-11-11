@@ -43,7 +43,7 @@ const signed = (ev) => { const p = JSON.stringify(ev), t = Math.floor(Date.now()
   await mp.goto(B + '/', { waitUntil: 'networkidle' }); await mp.getByRole('button', { name: 'Open menu' }).click(); ok(await mp.locator('nav[aria-label="Mobile site"]').getByRole('link', { name: 'Pricing' }).isVisible(), 'mobile landing menu opens'); await m.close();
 
   // ================= APP SHELL: 16 modules =================
-  await go('/dashboard'); ok((await page.locator('nav[aria-label="Main navigation"] a').count()) === 16, 'exactly 16 modules in the sidebar (no SendLoom link — separate product)');
+  await go('/dashboard'); ok((await page.locator('nav[aria-label="Main navigation"] a').count()) === 17, 'exactly 17 sidebar items for a customer: 16 modules + Help & Support; Admin hidden (no SendLoom link)');
   for (const p of NAV) { const e0 = errs.length; await go(p); const h = (await page.locator('main h1').first().innerText().catch(() => '')).trim(); ok(h.length > 2 && errs.length === e0, `module ${p} loads ("${h}") with no console errors`, errs.slice(e0).join(' | ')); }
   // every button on every module has an accessible name (no dead/unnamed controls)
   let unnamed = []; for (const p of NAV) { await go(p); unnamed.push(...(await page.evaluate(() => [...document.querySelectorAll('main button, main a')].filter(e => !(e.innerText || e.getAttribute('aria-label') || e.getAttribute('title') || (e.labels && e.labels[0] && e.labels[0].innerText) || '').trim()).map(e => e.outerHTML.slice(0, 60))))); }
@@ -122,6 +122,23 @@ const signed = (ev) => { const p = JSON.stringify(ev), t = Math.floor(Date.now()
   await page.evaluate(async ([p, s]) => fetch('/api/billing/webhook', { method: 'POST', headers: { 'Stripe-Signature': s }, body: p }), [cancelEv.p, cancelEv.sig]); ok((await api('/billing')).b.current_plan === 'free', 'cancellation webhook returns the account to Free');
   await go('/lead-generator'); await page.getByRole('button', { name: 'Advanced search' }).first().click(); await page.getByRole('radio', { name: /Scheduled Discovery/ }).click(); await page.getByLabel('Schedule name').fill('x'); await page.getByLabel('Keywords').first().fill('tech'); await page.keyboard.press('Enter'); await page.getByRole('button', { name: 'Generate leads' }).click();
   await page.getByRole('dialog').waitFor({ timeout: 8000 }); ok(await page.getByText(/Scheduled discovery is available on the Pro plan/).first().isVisible(), 'UI paywall modal names the exact limit that was hit');
+
+  // Help & support: assistant (help-article mode), refund request goes to a person, customer request thread, admin is staff-only
+  await go('/');
+  await page.getByRole('button', { name: 'Open help chat' }).click();
+  await page.getByRole('button', { name: 'What do the plans cost?' }).click();
+  await page.getByText(/Plans and prices/).first().waitFor({ timeout: 8000 }); ok(await page.getByRole('dialog', { name: 'TubeLead help' }).getByText(/Pro: £49\/month/).isVisible(), 'assistant answers pricing from the help articles');
+  await page.getByLabel('Your message').fill('I want a refund for last month'); await page.getByRole('button', { name: 'Send message' }).click();
+  await page.getByText(/can't issue, approve or promise refunds/).waitFor({ timeout: 8000 }); ok(true, 'assistant refuses to refund and offers the team');
+  await page.getByLabel('What would you like, and why?').fill('I was charged twice for the same month.'); await page.getByRole('button', { name: 'Send to the team' }).click();
+  await page.getByText(/Your reference is TL-[A-Z0-9]{6}/).first().waitFor({ timeout: 8000 });
+  ok(await page.getByText(/Nothing has been approved or changed yet/).first().isVisible(), 'refund request filed with a reference; nothing approved');
+  await page.getByRole('button', { name: 'Close help chat' }).click();
+  await go('/support'); await page.getByText('Refund request').first().waitFor({ timeout: 8000 }); ok(true, 'the request appears on Help & Support');
+  await page.getByText('Refund request').first().click(); await page.getByLabel('Reply').fill('Happy to send a bank statement.'); await page.getByRole('button', { name: 'Send reply' }).click();
+  await page.getByText('Happy to send a bank statement.').waitFor({ timeout: 8000 }); ok(true, 'customer can reply on their request');
+  await go('/admin'); await page.getByText('Staff only').waitFor({ timeout: 8000 }); ok(true, 'admin area refuses a customer');
+  ok((await api('/admin/refunds')).s === 403 && (await api('/admin/customers')).s === 403, 'admin API refuses a customer');
 
   ok(errs.length === 0, 'no page errors / console errors across the whole run', errs.slice(0, 4).join(' | '));
   console.log(`\n${pass} passed, ${fail} failed`); if (fail) console.log('FAILED:\n - ' + failed.join('\n - ')); await browser.close(); process.exit(fail ? 1 : 0);

@@ -29,6 +29,18 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
+      - key: OPERATOR_USER_IDS     # your Supabase user ID: full admin access
+        sync: false
+      - key: OPENAI_API_KEY        # support assistant; without it, answers come from help articles only
+        sync: false
+      - key: RESEND_API_KEY        # transactional email
+        sync: false
+      - key: EMAIL_FROM            # e.g. TubeLead <support@yourdomain.com> (domain verified in Resend)
+        sync: false
+      - key: ADMIN_ALERT_EMAIL     # where new registrations, tickets and failed payments are reported
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY   # lets "Delete account" also remove the sign-in record
+        sync: false
   - type: web
     name: tubelead-web
     runtime: docker

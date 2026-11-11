@@ -6,6 +6,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..models import UserAccount
@@ -32,7 +33,13 @@ def touch(db: Session, owner: str, claims: dict | None = None) -> UserAccount:
     if acc is None:
         acc = UserAccount(owner_id=owner, email=email, full_name=name)
         db.add(acc)
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            # A parallel request for the same new user created the row first; use theirs. Only the first one
+            # sends the welcome email and admin alert.
+            db.rollback()
+            return db.get(UserAccount, owner)
         record(db, "account.created", actor_type="customer", actor_id=owner, target_type="account", target_id=owner)
         mail.queue(db, to=email, template="welcome", ctx={"name": name}, dedupe_key=f"welcome:{owner}")
         mail.alert_admin(db, "New registration", [f"Email: {email or 'not provided'}", f"User ID: {owner}"], f"registration:{owner}")

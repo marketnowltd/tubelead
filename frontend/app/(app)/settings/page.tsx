@@ -3,9 +3,11 @@ import { ArrowRight, Crown } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { mutate as gm } from "swr";
+import { useRouter } from "next/navigation";
 import { ErrorState, PageHeader, Panel, PanelHeader, Progress, Skeleton } from "@/components/ui/core";
 import { Field } from "@/components/ui/inputs";
-import { useToast } from "@/components/ui/overlay";
+import { Modal, useToast } from "@/components/ui/overlay";
+import { useAuth } from "@/lib/auth";
 import { api, useApi } from "@/lib/api";
 import { useDemo } from "@/lib/demo";
 import type { Status } from "@/lib/types";
@@ -85,7 +87,37 @@ export default function SettingsPage() {
               <div className="px-5 pb-5"><p className="mb-3 text-sm text-mute">{st ? `${st.demo_count} demo creators loaded · ${st.real_count} real` : "…"}</p>
                 <div className="flex flex-wrap gap-2"><button className="btn-ghost btn-sm" onClick={demo.seed} disabled={demo.busy || (st?.demo_count ?? 0) > 0}>Load demo data</button><button className="btn-ghost btn-sm !border-[#B5493A]/40 !text-[#A33A2A]" onClick={demo.clear} disabled={demo.busy || !st?.demo_count}>Remove demo data</button></div></div></Panel>
           </div>
+          <DeleteAccount />
         </div>)}
     </div>
+  );
+}
+
+
+/** Self-service account deletion. The server refuses while a paid subscription is still active. */
+function DeleteAccount() {
+  const toast = useToast();
+  const router = useRouter();
+  const { signOut } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const run = async () => {
+    setBusy(true);
+    try {
+      await api("/me", { method: "DELETE", json: { confirm } });
+      toast("success", "Your account has been deleted");
+      await signOut();
+      router.replace("/");
+    } catch (e: any) { toast("error", e.message); setBusy(false); }
+  };
+  return (
+    <Panel><PanelHeader title="Delete account" sub="Permanently removes your leads, searches, settings and sign-in. Cancel any paid plan first." />
+      <div className="px-5 pb-5"><button className="btn-ghost btn-sm !border-[#B5493A]/40 !text-[#A33A2A]" onClick={() => setOpen(true)}>Delete my account…</button></div>
+      <Modal open={open} onOpenChange={(o) => { setOpen(o); if (!o) setConfirm(""); }} title="Delete your account?" description="This cannot be undone. Your support requests are kept, without your account attached, so the team can finish any open ones."
+        footer={<><button className="btn-ghost btn-sm" onClick={() => setOpen(false)}>Cancel</button><button className="btn-primary btn-sm !bg-none !bg-[#B5493A]" disabled={busy || confirm !== "DELETE"} onClick={run}>{busy ? "Deleting…" : "Delete account"}</button></>}>
+        <Field label="Type DELETE to confirm"><input className="field" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="off" /></Field>
+      </Modal>
+    </Panel>
   );
 }

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { compact } from "@/lib/format";
-import { NAV } from "@/lib/nav";
+import { isStaff, NAV } from "@/lib/nav";
 import type { Status } from "@/lib/types";
 import { cn } from "../ui/cn";
 import { Avatar, Progress, Skeleton } from "../ui/core";
@@ -19,6 +19,8 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
   const path = usePathname();
   const { data: st } = useApi<Status>("/status", { refreshInterval: 15000 });
   const { enabled, signOut } = useAuth();
+  const { data: me } = useApi<{ role: string }>("/me");
+  const staff = isStaff(me?.role);
   const q = st?.quota;
   const qPct = q ? (q.used / q.daily_limit) * 100 : 0;
   const plan = st?.plan;
@@ -36,7 +38,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
           <div key={g} className="mb-3">
             {!collapsed && <p className="label mb-1 px-3 !text-[10px]">{g}</p>}
             <ul className="space-y-0.5">
-              {NAV.filter((n) => n.group === g).map((n) => {
+              {NAV.filter((n) => n.group === g && (!n.staffOnly || staff)).map((n) => {
                 const active = isActive(path, n.href);
                 const Icon = n.icon;
                 const Tag: any = Link;

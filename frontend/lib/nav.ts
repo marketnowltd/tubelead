@@ -1,6 +1,6 @@
-import { BarChart3, Bot, BrainCircuit, CreditCard, Database, Globe2, KeyRound, LayoutDashboard, ListChecks, Megaphone, Plug, Radar, Search, Settings, Sparkles, Target, type LucideIcon } from "lucide-react";
+import { BarChart3, Bot, BrainCircuit, CreditCard, Database, Globe2, KeyRound, LayoutDashboard, LifeBuoy, ListChecks, Megaphone, Plug, Radar, Search, Settings, ShieldCheck, Sparkles, Target, type LucideIcon } from "lucide-react";
 
-export interface NavItem { href: string; label: string; short: string; icon: LucideIcon; blurb: string; group: "Discover" | "Organise" | "Intelligence" | "Workspace" }
+export interface NavItem { href: string; label: string; short: string; icon: LucideIcon; blurb: string; group: "Discover" | "Organise" | "Intelligence" | "Workspace"; staffOnly?: boolean }
 /** The 16 TubeLead modules. */
 export const NAV: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", short: "Home", icon: LayoutDashboard, blurb: "Your day at a glance", group: "Discover" },
@@ -19,5 +19,9 @@ export const NAV: NavItem[] = [
   { href: "/api-management", label: "API Management", short: "API", icon: KeyRound, blurb: "Keys & usage", group: "Workspace" },
   { href: "/billing", label: "Billing & Subscription", short: "Billing", icon: CreditCard, blurb: "Plan, usage & invoices", group: "Workspace" },
   { href: "/settings", label: "Account Settings", short: "Settings", icon: Settings, blurb: "Profile & preferences", group: "Workspace" },
+  { href: "/support", label: "Help & Support", short: "Support", icon: LifeBuoy, blurb: "Your requests to the team", group: "Workspace" },
+  { href: "/admin", label: "Admin", short: "Admin", icon: ShieldCheck, blurb: "Customers, support & system", group: "Workspace", staffOnly: true },
 ];
+
+export const isStaff = (role?: string) => role === "support" || role === "admin" || role === "operator";
 export const PRIMARY_MOBILE = ["/dashboard", "/lead-generator", "/lead-database", "/campaigns"];

@@ -5,8 +5,8 @@ import { CheckCircle2, Info, X, XCircle } from "lucide-react";
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 import { cn } from "./cn";
 
-export function Sheet({ open, onOpenChange, title, description, children, width = "max-w-[520px]" }: {
-  open: boolean; onOpenChange: (o: boolean) => void; title: string; description?: string; children: ReactNode; width?: string;
+export function Sheet({ open, onOpenChange, title, description, children, width = "max-w-[520px]", padded = false }: {
+  open: boolean; onOpenChange: (o: boolean) => void; title: string; description?: string; children: ReactNode; width?: string; padded?: boolean;
 }) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -27,7 +27,7 @@ export function Sheet({ open, onOpenChange, title, description, children, width 
                   </div>
                   <Dialog.Close className="rounded-lg p-1.5 text-mute transition hover:bg-ink/[0.06] hover:text-ink" aria-label="Close"><X size={18} /></Dialog.Close>
                 </div>
-                <div className="flex-1 overflow-y-auto">{children}</div>
+                <div className={cn("flex-1 overflow-y-auto", padded && "px-5 py-5")}>{children}</div>
               </motion.aside>
             </Dialog.Content>
           </Dialog.Portal>
