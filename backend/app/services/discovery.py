@@ -5,6 +5,7 @@ Every counter written to DiscoveryJob is a real measurement of what happened."""
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import time
 from collections.abc import Callable
@@ -27,6 +28,9 @@ DEEP_SUFFIXES = ["channel", "creator", "review", "tutorial", "vlog"]
 TOPIC_MODIFIERS = ["tips", "how to", "explained", "for beginners", "review"]
 REPEAT_ORDERS = ["relevance", "viewCount", "date", "rating"]
 MAX_TOP_UP = 24  # extra searches when the planned ones found fewer creators than requested
+YOUTUBE_BUDGET = 40.0     # seconds of YouTube searching; then the other sources fill what is still missing
+TOTAL_BUDGET = 60.0       # the whole job aims to finish within a minute
+FILL_FROM_SOURCES = True  # tests switch this off (it reaches real websites)
 DRY_LIMIT = 6    # the top-up stops after this many searches in a row that find no new channel (nothing left to find)
 
 
@@ -180,6 +184,7 @@ class DiscoveryRun:
         self._update(status="running", started_at=datetime.now(timezone.utc), queries_total=len(queries),
                      current_operation="Planning search queries")
         self._log(f"Planned {len(queries)} search operations in {params.mode} mode")
+        t0 = time.monotonic()
         in_job: set[str] = set()
         rejected_ids: set[str] = set()
         qualified = 0
@@ -202,6 +207,9 @@ class DiscoveryRun:
                     self._update(queries_total=len(queries))
                 query = queries[qi]
                 if qualified >= params.limit:
+                    break
+                if FILL_FROM_SOURCES and time.monotonic() - t0 > YOUTUBE_BUDGET:
+                    self._log(f"YouTube time budget used: {qualified} of {params.limit}; filling from the other sources")
                     break
                 if topped_up and dry >= DRY_LIMIT:
                     self._log(f"Stopped widening: the last {DRY_LIMIT} searches found no new channels")
@@ -245,6 +253,8 @@ class DiscoveryRun:
                 dry = 0 if found_new else dry + 1
                 seen_kw.add(query.q.lower())
                 self._update(queries_done=qi + 1, keywords_done=len(seen_kw), qualified=qualified, quota_used=self.session_spent)
+            if FILL_FROM_SOURCES and qualified < params.limit:
+                qualified += await self._fill(owner, params, params.limit - qualified, max(10.0, TOTAL_BUDGET - (time.monotonic() - t0)))
             self._finish("completed", f"Completed: {qualified} qualified creators")
         except JobCancelled:
             self._finish("cancelled", "Cancelled by user")
@@ -256,6 +266,47 @@ class DiscoveryRun:
         except Exception as exc:  # noqa: BLE001
             log.exception("job %s crashed", self.job_id)
             self._finish("failed", "Failed: unexpected error", error=f"{type(exc).__name__}: {exc}")
+
+    async def _fill(self, owner: str, p: JobParams, need: int, budget: float) -> int:
+        """Fills the rest of the request from the other connected sources: only people who publish an email."""
+        from .search_everywhere import search_everywhere
+        query = " ".join(list(p.keywords) + list(p.niches)).strip()[:300]
+        if len(query) < 3:
+            return 0
+        self._update(current_operation=f"Finding {need} more leads with published emails on the other sources")
+        try:
+            out = await search_everywhere(query, need, time_budget=budget, skip_youtube=True)
+        except Exception as exc:  # noqa: BLE001 - YouTube results stand on their own
+            self._log(f"Other sources unavailable: {type(exc).__name__}")
+            return 0
+        saved = 0
+        with self.sf() as db:
+            emails = {e.lower() for e in db.scalars(select(ContactRoute.value).where(ContactRoute.owner_id == owner, ContactRoute.kind == "email"))}
+            for l in out["leads"]:
+                if saved >= need:
+                    break
+                ems = [e for e in l.get("emails", []) if e["email"].lower() not in emails]
+                if not ems:
+                    continue
+                key = l["sources"][0] + ":" + hashlib.sha1((l.get("source_url") or l["creator_name"]).encode()).hexdigest()[:24]
+                if db.scalar(select(Creator.id).where(Creator.owner_id == owner, Creator.youtube_channel_id == key)):
+                    continue
+                cr = Creator(owner_id=owner, youtube_channel_id=key, title=l["creator_name"][:300], channel_url=l.get("source_url") or "",
+                             description=(l.get("snippet") or "")[:4000], subscriber_count=l.get("audience_size"), niche=(p.niches[0] if p.niches else "General"),
+                             website=l.get("website"), website_status="ok" if l.get("website") else "none", qualification_score=60,
+                             score_breakdown={"source": l["sources"][0]}, verification_status="published", job_id=self.job_id)
+                for e in ems:
+                    emails.add(e["email"].lower())
+                    cr.contacts.append(ContactRoute(owner_id=owner, kind="email", value=e["email"], source=e["source"][:40],
+                                                    source_url=e.get("source_url"), status="published", confidence=.8))
+                db.add(cr)
+                saved += 1
+            job = db.get(DiscoveryJob, self.job_id)
+            job.qualified += saved
+            job.contact_routes_found += saved
+            db.commit()
+        self._log(f"Added {saved} leads with published emails from the other sources")
+        return saved
 
     def _finish(self, status: str, op: str, error: str | None = None) -> None:
         self._update(status=status, current_operation=op, error=error, finished_at=datetime.now(timezone.utc),

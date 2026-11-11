@@ -86,7 +86,7 @@ VARIANTS = ("podcast", "creator", "official", "channel", "blog")  # related word
 TIME_BUDGET = 100.0  # seconds for all rounds together
 
 
-async def search_everywhere(query: str, limit: int = 20) -> dict:
+async def search_everywhere(query: str, limit: int = 20, time_budget: float | None = None, skip_youtube: bool = False) -> dict:
     """Returns `limit` people who publish an email address (exactly that many when the sources have them).
     Rounds: the query with a normal result size, the query with each source's largest result size, then related
     wording. Emails are looked up only for people not checked before; it stops as soon as there are enough."""
@@ -99,7 +99,7 @@ async def search_everywhere(query: str, limit: int = 20) -> dict:
     leads: list[dict] = []
     duplicates = 0
     for i, (q, size, with_youtube) in enumerate(rounds):
-        provs = [p for p in PROVIDERS if (i == 0 or p.configured()) and (with_youtube or p.name != "youtube")]
+        provs = [p for p in PROVIDERS if (i == 0 or p.configured()) and (with_youtube and not skip_youtube or p.name != "youtube")]
         results = await asyncio.gather(*[_safe(p, q, size) for p in provs])
         all_results += results
         for r in results:
@@ -123,7 +123,7 @@ async def search_everywhere(query: str, limit: int = 20) -> dict:
         await lead_contacts.find_emails([row for _, row in new])
         for k, row in new:
             checked[k] = row
-        if sum(1 for row in leads if row["emails"]) >= limit or time.monotonic() - start > TIME_BUDGET:
+        if sum(1 for row in leads if row["emails"]) >= limit or time.monotonic() - start > (time_budget or TIME_BUDGET):
             break
     providers = list(totals.values())
     with_email_rows = [row for row in leads if row.get("emails")]

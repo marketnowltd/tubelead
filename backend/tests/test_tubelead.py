@@ -502,3 +502,18 @@ def test_operator_has_unlimited_access_and_customers_do_not():
     finally:
         job_svc.submit = real_submit
         st.auth_mode, st.supabase_jwt_secret, st.plan_override, st.operator_user_ids = old
+
+
+def test_short_youtube_search_is_filled_to_the_exact_count_from_other_sources(monkeypatch):
+    from app.services import discovery, search_everywhere as se
+    monkeypatch.setattr(discovery, "FILL_FROM_SOURCES", True)
+    async def fake(query, limit, time_budget=None, skip_youtube=False):
+        assert skip_youtube and time_budget
+        return {"leads": [{"creator_name": f"Pod {i}", "sources": ["applepodcasts"], "source_url": f"https://p/{i}", "snippet": "",
+                           "emails": [{"email": f"host{i}@pod.example", "source": "Podcast feed", "source_url": None}]} for i in range(limit)]}
+    monkeypatch.setattr(se, "search_everywhere", fake)
+    job, _ = run_job({"keywords": ["tech"], "min_subscribers": 1000, "limit": 40}, [])
+    assert job.status == "completed" and job.qualified == 40
+    with SessionLocal() as db:
+        extra = db.query(Creator).filter(Creator.youtube_channel_id.like("applepodcasts:%")).all()
+        assert extra and all(c.contacts and c.contacts[0].kind == "email" for c in extra)

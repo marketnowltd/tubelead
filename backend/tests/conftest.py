@@ -33,6 +33,8 @@ def no_email_lookups(monkeypatch):
     """Search Everywhere's email step reads real websites; tests that cover it turn it on with a fake web."""
     from app.services import search_everywhere as se
     monkeypatch.setattr(se, "FIND_EMAILS", False)
+    from app.services import discovery
+    monkeypatch.setattr(discovery, "FILL_FROM_SOURCES", False)
 
 
 @pytest.fixture(autouse=True)

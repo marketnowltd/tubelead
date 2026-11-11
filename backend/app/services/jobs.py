@@ -45,7 +45,10 @@ async def _run_job_async(job_id: str, *, yt_transport=None, fetcher: PageFetcher
     s = get_settings()
     with SessionLocal() as db:
         job = db.get(DiscoveryJob, job_id)
-        owner, max_units = job.owner_id, int(job.params.get("max_quota_units", 1500))
+        owner = job.owner_id
+        # the cap grows with the number of leads asked for, so big requests are not cut short
+        cap = int(job.params.get("max_quota_units", 3000))
+        max_units = max(cap, min(10_000, int(job.params.get("limit", 25)) * 150)) if cap == 3000 else cap  # a cap you set yourself is kept
     run: DiscoveryRun | None = None
 
     def budget_check(cost: int) -> None:
