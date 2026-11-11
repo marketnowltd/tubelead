@@ -1,3 +1,5 @@
+import { ProductDemo } from "@/components/marketing/demo/ProductDemo";
+import { GsapReveal } from "@/components/marketing/GsapReveal";
 import { FAQSection, Footer, Pricing, DatabasePreview } from "@/components/marketing/Sections2";
 import { Capabilities, HowItWorks } from "@/components/marketing/Sections1";
 import { Hero } from "@/components/marketing/Hero";
@@ -11,12 +13,14 @@ export default function Landing() {
       <Hero />
       <TrustedBusinesses />
       <HowItWorks />
+      <ProductDemo />
       <DatabasePreview />
       <Capabilities />
       <Reviews />
       <Statistics />
       <Recognition />
       <Pricing />
+      <GsapReveal />
       <FAQSection />
       <Footer />
     </>

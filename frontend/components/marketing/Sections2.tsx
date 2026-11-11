@@ -129,7 +129,7 @@ const FALLBACK: PlanCard[] = [
   { id: "pro", label: "Pro", tagline: "Scheduled discovery, automation and AI task routing", price_monthly_gbp: 49, price_annual_gbp: 490, leads: 25000, lead_period: "month", team_seats: 3, features: { csv_export: true, scheduled_discovery: true, ai_connect: true, api_access: false, automation: true, team: false } },
   { id: "elite", label: "Elite", tagline: "High volume, API access, teams and priority queue", price_monthly_gbp: 99, price_annual_gbp: 990, leads: 100000, lead_period: "month", team_seats: 10, features: { csv_export: true, scheduled_discovery: true, ai_connect: true, api_access: true, automation: true, team: true } },
 ];
-const FEATURE_ROWS: [string, string][] = [["csv_export", "CSV export"], ["ai_connect", "AI Connect (bring your own key)"], ["scheduled_discovery", "Scheduled discovery"], ["automation", "Automation & webhooks"], ["api_access", "API access"], ["team", "Team accounts"]];
+const FEATURE_ROWS: [string, string][] = [["_all", "YouTube lead search with published emails"], ["_all", "TubeLead Helper & guided tours"], ["_all", "Growth Assistant & Creative Studio"], ["_all", "Send from your own email service"], ["multi_source", "Search 18 sources (Google, Bing, Podcasts…)"], ["csv_export", "CSV export (Lead & Email)"], ["ai_connect", "AI Connect (bring your own key)"], ["scheduled_discovery", "Scheduled discovery"], ["automation", "Automation & webhooks"], ["api_access", "API access"], ["team", "Team accounts"], ["priority_queue", "Priority search queue"]];
 
 export function Pricing() {
   const [annual, setAnnual] = useState(false);
@@ -161,7 +161,7 @@ export function Pricing() {
                   <p className={cn("mt-1 h-4 text-[11.5px]", feat ? "text-paper/70" : "text-dim")}>{annual && p.price_annual_gbp > 0 ? `£${p.price_annual_gbp} billed yearly` : p.price_monthly_gbp > 0 ? "billed monthly" : "no card needed"}</p>
                   <p className={cn("mt-5 rounded-xl px-3 py-2 text-[13px] font-bold", feat ? "bg-paper/10" : "bg-bg2")}><span className="data">{p.leads.toLocaleString()}</span> leads {p.lead_period === "lifetime" ? "to try" : "per month"}</p>
                   <ul className="mt-5 flex-1 space-y-2.5 text-[13.5px]">
-                    {FEATURE_ROWS.map(([key, label]) => <li key={key} className={cn("flex items-center gap-2.5", !p.features[key] && "opacity-45")}><Check size={15} className={cn("shrink-0", feat ? "text-gold" : "text-moss", !p.features[key] && "invisible")} /><span className={cn(!p.features[key] && "line-through")}>{label}</span></li>)}
+                    {FEATURE_ROWS.map(([key, label]) => { const on = key === "_all" || !!p.features[key]; return <li key={label} data-gsap="feat" className={cn("flex items-center gap-2.5", !on && "opacity-45")}><Check size={15} className={cn("shrink-0", feat ? "text-gold" : "text-moss", !on && "invisible")} /><span className={cn(!on && "line-through")}>{label}</span></li>; })}
                     <li className="flex items-center gap-2.5"><Check size={15} className={cn("shrink-0", feat ? "text-gold" : "text-moss")} />{p.team_seats} seat{p.team_seats > 1 ? "s" : ""}</li>
                   </ul>
                   <Link href={`/signup?plan=${p.id}&interval=${annual ? "annual" : "monthly"}&next=/billing`} className={cn("mt-7", feat ? "btn-primary pill-gold" : p.id === "free" ? "btn-ghost" : "btn-primary")}>{p.id === "free" ? "Start free" : `Choose ${p.label}`} <ArrowRight size={14} /></Link>
