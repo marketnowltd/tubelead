@@ -22,6 +22,9 @@ class Lead:
     verification_status: str = "unverified"  # verified only when the platform's own API returned the account record
     evidence: list[str] = field(default_factory=list)
     audience_size: int | None = None  # subscriber/follower count reported by the platform, when it reports one
+    website: str | None = None       # the creator's own site, as listed by the platform (scanned for published emails)
+    feed_url: str | None = None      # podcast RSS feed (its owner email is a published contact)
+    emails: list[dict] = field(default_factory=list)  # {email, source, source_url}: only addresses found published
     collected_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> dict:

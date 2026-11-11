@@ -132,10 +132,12 @@ def test_endpoint_503_when_nothing_configured(client, no_keys, monkeypatch):
 def test_provider_status_lists_required_keys(client, no_keys):
     rows = client.get("/api/search-everywhere/providers").json()
     names = {r["name"]: r for r in rows}
-    assert set(names) == {"youtube", "google", "brave", "reddit", "twitch", "spotify", "lastfm", "musicbrainz"}
-    # MusicBrainz needs no key, only an identifying User-Agent, which has a default
-    assert names["musicbrainz"]["configured"] is True
-    assert all(r["configured"] is False for n, r in names.items() if n != "musicbrainz")
+    keyless = {"musicbrainz", "applepodcasts", "bluesky", "dailymotion", "mastodon"}
+    assert set(names) == {"youtube", "google", "brave", "reddit", "twitch", "spotify", "lastfm", "vimeo"} | keyless
+    # these need no key (MusicBrainz only an identifying User-Agent, which has a default)
+    assert all(names[n]["configured"] is True for n in keyless)
+    assert all(r["configured"] is False for n, r in names.items() if n not in keyless)
+    assert "VIMEO_ACCESS_TOKEN" in names["vimeo"]["requires"]
     assert "TWITCH_CLIENT_SECRET" in names["twitch"]["requires"]
     assert "GOOGLE_PSE_KEY" in names["google"]["requires"]
     assert "REDDIT_CLIENT_SECRET" in names["reddit"]["requires"]

@@ -76,7 +76,7 @@ const Err = ({ m }: { m?: string }) => (m ? <p role="alert" className="mt-1 text
 
 interface OtherLead { creator_name: string; sources: string[]; source_url: string | null; youtube_url: string | null; snippet: string | null; verification_status: string }
 interface OtherSearch { providers: { provider: string; status: string; message: string; count: number }[]; leads: OtherLead[] }
-const OTHER_SOURCES = "YouTube, Google Search, Reddit, Twitch, Spotify, Last.fm and MusicBrainz";
+const OTHER_SOURCES = "YouTube, Google Search, Brave Search, Apple Podcasts, Reddit, Twitch, Bluesky, Mastodon, Dailymotion, Vimeo, Spotify, Last.fm and MusicBrainz";
 
 export default function LeadGenerator() {
   const toast = useToast();
@@ -218,8 +218,8 @@ export default function LeadGenerator() {
           </div>
           {level === "basic" ? (
             <Panel className="p-5 sm:p-6">
-              <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_200px_auto_auto] lg:items-end">
-                <Field label="Search creators or niche" hint="Press Enter after each. Example: fitness, budget travel"><TagInput label="Search creators or niche" value={f.keywords} onChange={(v) => set("keywords", v)} placeholder="e.g. UK fitness creators" /><Err m={show("keywords")} /></Field>
+              <div className="grid gap-4 sm:grid-cols-[200px_minmax(0,1fr)_auto] sm:items-end">
+                <Field className="sm:col-span-3" label="Search creators or niche" hint="Press Enter after each. Example: fitness, budget travel"><TagInput label="Search creators or niche" value={f.keywords} onChange={(v) => set("keywords", v)} placeholder="e.g. UK fitness creators" /><Err m={show("keywords")} /></Field>
                 <Field label="How many leads">
                   <select className="field" aria-label="How many leads" value={f.limit} onChange={(e) => set("limit", Number(e.target.value))}>
                     {[10, 25, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
@@ -232,7 +232,7 @@ export default function LeadGenerator() {
                   </button>
                   Big brands are left out
                 </label>
-                <button className="btn-primary w-full lg:w-auto" onClick={submit} disabled={busy}><Rocket size={16} /> {busy ? "Starting…" : "Find Leads"}</button>
+                <button className="btn-primary w-full sm:w-auto" onClick={submit} disabled={busy}><Rocket size={16} /> {busy ? "Starting…" : "Find Leads"}</button>
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[12px]">
                 <span className="text-mute">Only creators with a public email are included.</span>
@@ -337,7 +337,7 @@ export default function LeadGenerator() {
           <Panel>
             <PanelHeader title="Other sources" sub={multiSource ? "The same keywords, searched across the other sources" : "Included from the Pro plan"} icon={multiSource ? <Layers size={16} /> : <Lock size={16} />} />
             {!multiSource ? (
-              <div className="px-5 pb-5 text-sm text-mute"><p>Multi-source search covers {OTHER_SOURCES}. It is included from the Pro plan.</p>
+              <div className="px-5 pb-5 text-sm text-mute"><p>Multi-source search covers {OTHER_SOURCES}, and finds the emails they publish. It is included from the Pro plan.</p>
                 <Link href="/billing" className="mt-3 inline-flex text-xs font-semibold text-forest hover:underline">See plans →</Link></div>
             ) : othersBusy ? (
               <p className="px-5 pb-5 text-sm text-mute">Searching the other sources…</p>
@@ -359,7 +359,7 @@ export default function LeadGenerator() {
           </Panel>
           <Panel glow={!!jobId}>
             <PanelHeader title="Discovery progress" sub="Real job state, refreshed every 1.5 s" icon={<Layers size={16} />} />
-            {jobId ? <JobMonitor jobId={jobId} compact /> : <EmptyState title="No job running" body="Press Generate Leads to start a background discovery. Counters here come straight from the job record." />}
+            {jobId ? <JobMonitor jobId={jobId} compact /> : <EmptyState title="No job running" body="Press Find Leads to start a background discovery. Counters here come straight from the job record." />}
           </Panel>
           {recent && recent.filter((j) => !j.is_demo).length > 0 && (
             <Panel><PanelHeader title="Recent runs" action={<Link href="/discovery-engine" className="text-xs font-semibold text-forest hover:underline">All jobs →</Link>} />

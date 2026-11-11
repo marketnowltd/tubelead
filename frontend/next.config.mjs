@@ -1,14 +1,10 @@
-const BACKEND = process.env.BACKEND_URL || "http://127.0.0.1:8000";
-
 /** @type {import('next').NextConfig} */
 export default {
   reactStrictMode: true,
   poweredByHeader: false,
   output: "standalone",
-  // The browser only ever talks to /api/* on this origin; the backend URL and all secrets stay server-side.
-  async rewrites() {
-    return [{ source: "/api/:path*", destination: `${BACKEND}/api/:path*` }];
-  },
+  // The browser only ever talks to /api/* on this origin; app/api/[...path]/route.ts forwards it to BACKEND_URL at run
+  // time, so the backend URL and all secrets stay server-side.
   async headers() {
     // CSP: Next.js injects inline bootstrap scripts, so 'unsafe-inline' stays for scripts (a nonce setup is the stricter next step).
     // Everything else is locked down; images may come from https (YouTube thumbnails); Supabase is allowed for auth calls.

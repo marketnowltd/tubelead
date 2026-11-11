@@ -24,7 +24,7 @@ export function SearchSources() {
                 <span className="block text-[13.5px] font-bold">{s.name}</span>
                 <span className="block text-[11.5px] text-mute">{s.detail}</span>
               </span>
-              <span className={cn("ml-2 rounded-full px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wider", s.status === "live" ? "bg-moss/10 text-moss" : "bg-ink/5 text-dim")}>{s.status === "live" ? "Live" : "Planned"}</span>
+              <span className={cn("ml-2 rounded-full px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wider", s.status === "live" ? "bg-moss/10 text-moss" : "bg-forest/10 text-forest")}>{s.status === "live" ? "Live" : "Pro"}</span>
             </li>
           ))}
         </ul>

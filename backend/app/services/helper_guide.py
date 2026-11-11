@@ -217,7 +217,8 @@ ANSWERS: dict[str, tuple[str, str | None]] = {  # question -> (answer, walkthrou
                                       "service. You use your own API key, which is encrypted.", None),
     "what happens if a provider fails": ("In AI Task Manager each task can have a fallback provider, which is used if the first one fails. A task can also follow "
                                          "your default provider, or be switched off.", None),
-    "which sources are included": ("YouTube, Google Search, Brave Search, Reddit, Twitch, Spotify, Last.fm and MusicBrainz. Sources that aren't set up say so, "
+    "which sources are included": ("YouTube, Google Search, Brave Search, Apple Podcasts, Reddit, Twitch, Bluesky, Mastodon, Dailymotion, Vimeo, Spotify, "
+                                   "Last.fm and MusicBrainz, and it looks for the emails they publish. Sources that aren't set up say so, "
                                    "and nothing is filled in with made-up results. Searching several sources is included from the Pro plan.", None),
     "what does big brands are left out mean": ("When it's on (the default), the search keeps independent creators and leaves out brand and media-company channels. "
                                                "Turn it off to include them.", "lead-generator"),

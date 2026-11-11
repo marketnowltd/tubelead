@@ -29,6 +29,13 @@ def fresh_db():
 
 
 @pytest.fixture(autouse=True)
+def no_email_lookups(monkeypatch):
+    """Search Everywhere's email step reads real websites; tests that cover it turn it on with a fake web."""
+    from app.services import search_everywhere as se
+    monkeypatch.setattr(se, "FIND_EMAILS", False)
+
+
+@pytest.fixture(autouse=True)
 def elite_by_default():
     from app.config import get_settings as _gs
     _gs().dev_owner_is_operator = False  # tests exercise the customer plan rules

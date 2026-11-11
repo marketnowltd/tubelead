@@ -79,12 +79,12 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 
       <div className={cn("flex items-center gap-3 border-t border-line p-2.5", collapsed && "flex-col")}>
         <div className="relative">
-          <Avatar name={st?.profile.display_name ?? "Operator"} size={38} />
+          <Avatar name={st?.profile.display_name ?? "…"} size={38} />
           <span className={cn("absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-bg2", st?.youtube_configured ? "bg-moss" : "bg-gold")} title={st?.youtube_configured ? "Search ready" : "Search being prepared"} />
         </div>
         {!collapsed && (
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-semibold">{st?.profile.display_name ?? "Operator"}</p>
+            <p className="truncate text-[13px] font-semibold">{st?.profile.display_name ?? "…"}</p>
             <p className="truncate text-[11px] text-dim">{st ? "Signed in" : "…"}</p>
           </div>
         )}

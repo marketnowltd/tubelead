@@ -153,3 +153,15 @@ def test_every_suggested_question_gets_its_own_answer(client):
 def test_connect_my_email_is_answered_about_email_not_ai_keys(client):
     m = chat(client, "How do I connect my email?", "/settings")
     assert "Your email service" in m["content"] and "AI" not in m["content"] and m["tour"]["id"] == "settings"
+
+
+def test_customers_are_not_called_operator(client):
+    from app.models import UserAccount
+    u = user(email="maria.lopez@shop.example")
+    with SessionLocal() as db:
+        acc = db.get(UserAccount, u["_id"])
+        if acc:
+            acc.full_name = ""
+            db.commit()
+    p = client.get("/api/status", headers=H(u)).json()["profile"]
+    assert p["display_name"] == "maria.lopez" and p["email"] == "maria.lopez@shop.example"

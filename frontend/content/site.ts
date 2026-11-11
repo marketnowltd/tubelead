@@ -28,14 +28,20 @@ export const INDUSTRIES: { name: string; example: string }[] = [
 ];
 
 /** Where TubeLead finds creators. Only sources that are live are listed as live. */
-export const SEARCH_SOURCES: { key: string; name: string; status: "live" | "planned"; detail: string }[] = [
+export const SEARCH_SOURCES: { key: string; name: string; status: "live" | "pro"; detail: string }[] = [
   { key: "youtube", name: "YouTube", status: "live", detail: "Public channels, videos and channel descriptions" },
-  { key: "google", name: "Google Search", status: "planned", detail: "Public web pages that mention a creator" },
-  { key: "reddit", name: "Reddit", status: "planned", detail: "Public posts and communities" },
-  { key: "twitch", name: "Twitch", status: "planned", detail: "Public streamer channels" },
-  { key: "spotify", name: "Spotify", status: "planned", detail: "Music artist profiles" },
-  { key: "lastdotfm", name: "Last.fm", status: "planned", detail: "Music artist pages" },
-  { key: "musicbrainz", name: "MusicBrainz", status: "planned", detail: "Open music artist records" },
+  { key: "google", name: "Google Search", status: "pro", detail: "Public web pages that mention a creator" },
+  { key: "brave", name: "Brave Search", status: "pro", detail: "Independent web search" },
+  { key: "applepodcasts", name: "Apple Podcasts", status: "pro", detail: "Podcasts, with the contact email their owners publish in the show feed" },
+  { key: "reddit", name: "Reddit", status: "pro", detail: "Public posts and communities" },
+  { key: "twitch", name: "Twitch", status: "pro", detail: "Public streamer channels" },
+  { key: "bluesky", name: "Bluesky", status: "pro", detail: "Public profiles" },
+  { key: "mastodon", name: "Mastodon", status: "pro", detail: "Public profiles" },
+  { key: "dailymotion", name: "Dailymotion", status: "pro", detail: "Public video creators" },
+  { key: "vimeo", name: "Vimeo", status: "pro", detail: "Public video creators" },
+  { key: "spotify", name: "Spotify", status: "pro", detail: "Music artist profiles" },
+  { key: "lastdotfm", name: "Last.fm", status: "pro", detail: "Music artist pages" },
+  { key: "musicbrainz", name: "MusicBrainz", status: "pro", detail: "Open music artist records, with official websites" },
 ];
 
 /** Product strengths shown when there are no awards yet. These describe what the product really does. */

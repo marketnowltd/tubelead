@@ -19,6 +19,8 @@ const signed = (ev) => { const p = JSON.stringify(ev), t = Math.floor(Date.now()
   const heads = await page.locator('main section h2').allInnerTexts(); ok(heads.length >= 8, `landing has ${heads.length} headed sections`);
   for (const id of ['dashboard', 'how', 'capabilities', 'trusted', 'reviews', 'stats', 'awards', 'pricing', 'faq']) ok(await page.locator('#' + id).count() === 1, `homepage section #${id} exists`);
   ok(await page.getByText('Sample data').count() >= 1, 'sample data on landing is labelled "Sample data"');
+  const strip = await page.locator('section[aria-label="Sources TubeLead searches"]').innerText();
+  ok(!/\bsoon\b/i.test(strip) && /Apple Podcasts/.test(strip) && /Bluesky/.test(strip), 'homepage sources: no "Soon" labels, new sources listed');
   // interactive generator demo
 
 
@@ -59,7 +61,9 @@ const signed = (ev) => { const p = JSON.stringify(ev), t = Math.floor(Date.now()
   const pr = await api('/settings', { method: 'PUT', json: { plan: 'elite' } }); ok((await api('/billing')).b.current_plan === 'free', 'PUT /settings cannot self-upgrade the plan');
 
   // ================= GENERATOR + ENGINE =================
-  await go('/lead-generator'); await page.getByRole('button', { name: 'Advanced search' }).first().click();
+  await go('/lead-generator');
+  const kw = await page.getByLabel('Search creators or niche').boundingBox(); ok(kw && kw.width > 300, 'basic search keyword field is wide enough to type in', JSON.stringify(kw));
+  await page.getByRole('button', { name: 'Advanced search' }).first().click();
   await page.getByLabel('Describe the creators you want').fill('UK tech review creators with 1k-100k subscribers and a public email'); await page.getByRole('button', { name: 'Interpret' }).click();
   await page.getByText(/Proposed criteria/).waitFor(); ok(await page.getByText(/Built-in rules/).isVisible(), 'assistant works without AI (rules parser) and shows proposed criteria first');
   await page.getByRole('button', { name: 'Apply to form' }).click(); ok(await page.getByText('tech review').first().isVisible(), 'criteria applied into the editable form');

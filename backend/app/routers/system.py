@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from ..auth import get_owner
 from ..config import get_settings
 from ..db import engine, get_db
-from ..models import ActivityEvent, Creator, UserSettings
+from ..models import ActivityEvent, Creator, UserAccount, UserSettings
 from ..services import demo as demo_svc
 from ..services import quota
 from ..services import entitlements as ent
@@ -36,6 +36,17 @@ def health(db: Session = Depends(get_db)):
     return {"ok": True, "time": datetime.now(timezone.utc).isoformat()}
 
 
+def _profile(db: Session, owner: str, us: UserSettings, pid: str) -> dict:
+    """The name shown in the app. "Operator" is only the settings default, so a customer who hasn't chosen a name sees
+    their own name, or the start of their email address."""
+    name, email = us.display_name, us.email
+    if name == "Operator" and pid != "operator":
+        acc = db.get(UserAccount, owner)
+        email = email or (acc.email if acc else "")
+        name = (acc.full_name if acc and acc.full_name else "") or (email.split("@")[0] if email else "") or "Your account"
+    return {"display_name": name, "email": email}
+
+
 @router.get("/status")
 def status(owner: str = Depends(get_owner), db: Session = Depends(get_db)):
     s = get_settings()
@@ -53,7 +64,7 @@ def status(owner: str = Depends(get_owner), db: Session = Depends(get_db)):
         "scheduler_enabled": s.scheduler_enabled,
         "plan": {"id": pid, "label": plan["label"], "leads": plan["leads"], "lead_period": plan["lead_period"], "max_jobs_per_day": plan["max_jobs_per_day"],
                  "features": plan["features"], "leads_used": usage["leads_used"], "at_limit": usage["at_limit"]},
-        "profile": {"display_name": us.display_name, "email": us.email},
+        "profile": _profile(db, owner, us, pid),
         "demo_count": demo_count, "real_count": real_count,
     }
 

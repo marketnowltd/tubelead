@@ -1,5 +1,5 @@
 "use client";
-import { ExternalLink, Globe, Search } from "lucide-react";
+import { Download, ExternalLink, Globe, Search } from "lucide-react";
 import { useState } from "react";
 import { Badge, EmptyState, ErrorState, PageHeader, Panel, Skeleton } from "@/components/ui/core";
 import { useToast } from "@/components/ui/overlay";
@@ -10,11 +10,24 @@ interface ProviderSummary { provider: string; status: "ok" | "not_configured" | 
 interface Lead {
   creator_name: string; sources: string[]; source_url: string | null; youtube_url: string | null;
   snippet: string | null; verification_status: "verified" | "unverified"; evidence: string[];
+  website?: string | null; audience_size?: number | null; emails?: { email: string; source: string; source_url: string | null }[];
 }
-interface SearchResult { query: string; providers: ProviderSummary[]; leads: Lead[]; duplicates_merged: number; verified_count: number }
+interface SearchResult { query: string; providers: ProviderSummary[]; leads: Lead[]; duplicates_merged: number; verified_count: number; with_email?: number }
 
 const statusTone = { ok: "green", not_configured: "neutral", failed: "red" } as const;
 const statusLabel = { ok: "Returned results", not_configured: "Awaiting configuration", failed: "Did not respond" } as const;
+
+const csvCell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+/** Results as a CSV file, built in the browser from what the search returned. */
+function downloadCsv(r: SearchResult, label: (n: string) => string) {
+  const rows = [["Name", "Email", "Email found on", "Found on", "Followers", "Website", "Profile"]];
+  for (const l of r.leads) rows.push([l.creator_name, (l.emails ?? []).map((e) => e.email).join("; "), (l.emails ?? []).map((e) => e.source).join("; "),
+    l.sources.map(label).join("; "), l.audience_size ?? "", l.website ?? "", l.source_url ?? ""].map(String));
+  const blob = new Blob([rows.map((row) => row.map(csvCell).join(",")).join("\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = `tubelead-${r.query.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.csv`;
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
 
 export default function SearchEverywhere() {
   const toast = useToast();
@@ -22,6 +35,8 @@ export default function SearchEverywhere() {
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<SearchResult | null>(null);
+  const [onlyEmail, setOnlyEmail] = useState(false);
+  const label = (n: string) => providers.data?.find((p) => p.name === n)?.label ?? n;
 
   const run = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,7 +93,11 @@ export default function SearchEverywhere() {
                 </li>
               ))}
             </ul>
-            <p className="mt-3 text-[12px] text-mute">{result.leads.length} people found · {result.verified_count} confirmed by their platform · {result.duplicates_merged} duplicates merged</p>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <p className="text-[12px] text-mute">{result.leads.length} people found · <strong className="text-ink">{result.with_email ?? 0} with a published email</strong> · {result.verified_count} confirmed by their platform · {result.duplicates_merged} duplicates merged</p>
+              <label className="ml-auto flex items-center gap-2 text-[12px] font-semibold"><input type="checkbox" className="accent-[#7B3FF2]" checked={onlyEmail} onChange={(e) => setOnlyEmail(e.target.checked)} /> Only with an email</label>
+              <button type="button" className="btn-ghost btn-sm" onClick={() => downloadCsv(result, label)} disabled={!result.leads.length}><Download size={13} /> Download CSV</button>
+            </div>
           </Panel>
 
           {result.leads.length === 0 ? (
@@ -86,16 +105,21 @@ export default function SearchEverywhere() {
           ) : (
             <Panel className="overflow-x-auto p-0">
               <table className="w-full min-w-[640px] text-left text-[13px]">
-                <thead className="text-[11px] uppercase tracking-wide text-mute"><tr><th className="px-4 py-3">Name</th><th className="px-4 py-3">Found on</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Links</th></tr></thead>
+                <thead className="text-[11px] uppercase tracking-wide text-mute"><tr><th className="px-4 py-3">Name</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Found on</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Links</th></tr></thead>
                 <tbody>
-                  {result.leads.map((l, i) => (
+                  {result.leads.filter((l) => !onlyEmail || l.emails?.length).map((l, i) => (
                     <tr key={`${l.creator_name}-${i}`} className="border-t border-forest/10 align-top">
                       <td className="px-4 py-3"><div className="font-medium">{l.creator_name}</div>{l.snippet && <p className="mt-0.5 line-clamp-2 text-mute">{l.snippet}</p>}</td>
-                      <td className="px-4 py-3">{l.sources.join(", ")}</td>
+                      <td className="px-4 py-3">{l.emails?.length ? <ul className="space-y-1">{l.emails.slice(0, 3).map((e) => (
+                        <li key={e.email}><a className="font-medium text-forest underline" href={`mailto:${e.email}`}>{e.email}</a>
+                          <span className="block text-[11px] text-dim">{e.source_url ? <a className="underline" href={e.source_url} target="_blank" rel="noopener noreferrer">{e.source}</a> : e.source}</span></li>))}</ul>
+                        : <span className="text-[12px] text-dim">None published</span>}</td>
+                      <td className="px-4 py-3">{l.sources.map(label).join(", ")}{l.audience_size ? <span className="block text-[11px] text-dim">{l.audience_size.toLocaleString()} followers</span> : null}</td>
                       <td className="px-4 py-3"><Badge tone={l.verification_status === "verified" ? "green" : "neutral"} dot>{l.verification_status === "verified" ? "Confirmed by platform API" : "Unverified web result"}</Badge></td>
                       <td className="px-4 py-3">
                         <div className="flex flex-col gap-1">
                           {l.youtube_url && <a className="inline-flex items-center gap-1 text-forest underline" href={l.youtube_url} target="_blank" rel="noopener noreferrer">YouTube <ExternalLink size={11} /></a>}
+                          {l.website && <a className="inline-flex items-center gap-1 text-forest underline" href={l.website} target="_blank" rel="noopener noreferrer">Website <ExternalLink size={11} /></a>}
                           {l.source_url && <a className="inline-flex items-center gap-1 text-forest underline" href={l.source_url} target="_blank" rel="noopener noreferrer">Source <ExternalLink size={11} /></a>}
                         </div>
                       </td>

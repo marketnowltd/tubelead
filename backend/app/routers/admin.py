@@ -36,7 +36,10 @@ def _iso(d: datetime | None) -> str | None:
 
 
 def _integrations() -> list[dict]:
+    from ..services.search_everywhere import PROVIDERS as SEARCH_PROVIDERS
     s = get_settings()
+    prices = [s.stripe_price_starter_monthly, s.stripe_price_starter_annual, s.stripe_price_pro_monthly, s.stripe_price_pro_annual,
+              s.stripe_price_elite_monthly, s.stripe_price_elite_annual]
     return [
         {"name": "Database", "configured": True, "detail": "Connected"},
         {"name": "Supabase sign-in", "configured": s.auth_mode != "dev" and bool(s.supabase_url), "detail": "SUPABASE_URL"},
@@ -47,7 +50,9 @@ def _integrations() -> list[dict]:
         {"name": "Admin alerts", "configured": bool(s.admin_alert_email), "detail": "ADMIN_ALERT_EMAIL"},
         {"name": "Account deletion (sign-in record)", "configured": bool(s.supabase_service_role_key), "detail": "SUPABASE_SERVICE_ROLE_KEY"},
         {"name": "YouTube Data API", "configured": bool(s.youtube_api_key), "detail": "YOUTUBE_API_KEY"},
-    ]
+        {"name": "Stripe plan prices", "configured": all(prices), "detail": f"{sum(map(bool, prices))} of 6 set: STRIPE_PRICE_STARTER/PRO/ELITE_MONTHLY and _ANNUAL"},
+    ] + [{"name": f"Search source: {p.label}", "configured": p.configured(),
+          "detail": ", ".join(p.required_settings) if p.required_settings else "No key needed"} for p in SEARCH_PROVIDERS if p.name != "youtube"]
 
 
 # ---------------- overview ----------------

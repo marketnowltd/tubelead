@@ -29,6 +29,18 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
+      - key: STRIPE_PRICE_STARTER_MONTHLY   # Stripe Price IDs (price_...) for each plan and billing period
+        sync: false
+      - key: STRIPE_PRICE_STARTER_ANNUAL
+        sync: false
+      - key: STRIPE_PRICE_PRO_MONTHLY
+        sync: false
+      - key: STRIPE_PRICE_PRO_ANNUAL
+        sync: false
+      - key: STRIPE_PRICE_ELITE_MONTHLY
+        sync: false
+      - key: STRIPE_PRICE_ELITE_ANNUAL
+        sync: false
       - key: OPERATOR_USER_IDS     # your Supabase user ID: full admin access
         sync: false
       - key: OPENAI_API_KEY        # support assistant; without it, answers come from help articles only
@@ -52,6 +64,30 @@ services:
       - key: BRAVE_API_KEY         # Brave Search API: web discovery for the Growth Assistant
         sync: false
       - key: BRAVE_COST_PER_QUERY_PENCE
+        sync: false
+      # Extra search sources (Search Everywhere, Pro plan). Each is optional; a source without its key says so.
+      # Apple Podcasts, Bluesky, Dailymotion, Mastodon and MusicBrainz need no key.
+      - key: GOOGLE_PSE_KEY        # Google Programmable Search: API key
+        sync: false
+      - key: GOOGLE_PSE_CX         # Google Programmable Search: search engine ID
+        sync: false
+      - key: REDDIT_CLIENT_ID
+        sync: false
+      - key: REDDIT_CLIENT_SECRET
+        sync: false
+      - key: TWITCH_CLIENT_ID
+        sync: false
+      - key: TWITCH_CLIENT_SECRET
+        sync: false
+      - key: SPOTIFY_CLIENT_ID
+        sync: false
+      - key: SPOTIFY_CLIENT_SECRET
+        sync: false
+      - key: LASTFM_API_KEY
+        sync: false
+      - key: VIMEO_ACCESS_TOKEN
+        sync: false
+      - key: MASTODON_INSTANCE     # optional: Mastodon server to search (default mastodon.social)
         sync: false
   - type: web
     name: tubelead-web

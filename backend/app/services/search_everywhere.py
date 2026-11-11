@@ -5,17 +5,25 @@ from __future__ import annotations
 import asyncio
 import re
 
+from ..providers.applepodcasts import ApplePodcastsProvider
 from ..providers.base import Lead, ProviderResult
+from ..providers.bluesky import BlueskyProvider
 from ..providers.brave import BraveProvider
+from ..providers.dailymotion import DailymotionProvider
 from ..providers.google_search import GoogleSearchProvider
 from ..providers.lastfm import LastFmProvider
+from ..providers.mastodon import MastodonProvider
 from ..providers.musicbrainz import MusicBrainzProvider
 from ..providers.reddit import RedditProvider
 from ..providers.spotify import SpotifyProvider
 from ..providers.twitch import TwitchProvider
+from ..providers.vimeo import VimeoProvider
 from ..providers.youtube import YouTubeProvider
+from . import lead_contacts
 
-PROVIDERS = [YouTubeProvider(), GoogleSearchProvider(), BraveProvider(), RedditProvider(), TwitchProvider(), SpotifyProvider(), LastFmProvider(), MusicBrainzProvider()]
+PROVIDERS = [YouTubeProvider(), GoogleSearchProvider(), BraveProvider(), ApplePodcastsProvider(), RedditProvider(), TwitchProvider(), BlueskyProvider(),
+             MastodonProvider(), DailymotionProvider(), VimeoProvider(), SpotifyProvider(), LastFmProvider(), MusicBrainzProvider()]
+FIND_EMAILS = True  # tests that only check merging switch the email step off
 
 
 async def _safe(p, query: str, limit: int) -> ProviderResult:
@@ -57,6 +65,12 @@ def merge(results: list[ProviderResult]) -> tuple[list[dict], int]:
                     row["audience_size"] = lead.audience_size
                 if lead.youtube_url and not row.get("youtube_url"):
                     row["youtube_url"] = lead.youtube_url
+                for k in ("website", "feed_url"):
+                    if getattr(lead, k) and not row.get(k):
+                        row[k] = getattr(lead, k)
+                for e in lead.emails:
+                    if all(x["email"] != e["email"] for x in row["emails"]):
+                        row["emails"].append(e)
             else:
                 row = lead.to_dict()
                 row["sources"] = [lead.provider]
@@ -70,10 +84,12 @@ def merge(results: list[ProviderResult]) -> tuple[list[dict], int]:
 async def search_everywhere(query: str, limit: int = 20) -> dict:
     results = await asyncio.gather(*[_safe(p, query, limit) for p in PROVIDERS])
     leads, duplicates = merge(list(results))
+    with_email = await lead_contacts.find_emails(leads) if FIND_EMAILS else 0
     return {
         "query": query,
         "providers": [r.summary() for r in results],
         "leads": leads,
         "duplicates_merged": duplicates,
         "verified_count": sum(1 for l in leads if l["verification_status"] == "verified"),
+        "with_email": with_email,
     }

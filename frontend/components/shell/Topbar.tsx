@@ -23,7 +23,10 @@ export function Topbar() {
         <kbd className="data absolute right-3 top-1/2 -translate-y-1/2 rounded border border-line px-1.5 text-[10px] text-dim">↵</kbd>
       </form>
       <div className="ml-auto flex items-center gap-3">
-        {error ? <Badge tone="red" dot>Offline</Badge> : st && st.youtube_configured ? <Badge tone="green" dot>Search ready</Badge> : null}
+        {error ? ((error as any).status === 401 || (error as any).status === 403
+          ? <Link href="/login" title="Your session has ended. Sign in again."><Badge tone="amber" dot>Signed out · sign in</Badge></Link>
+          : <span title={(error as any).message}><Badge tone="red" dot>API unreachable</Badge></span>)
+          : st && st.youtube_configured ? <Badge tone="green" dot>Search ready</Badge> : null}
         {st && <Badge tone="neutral" className="uppercase">{st.database}</Badge>}
         <button onClick={() => setOpen(true)} aria-label="Open activity feed" className="relative grid h-10 w-10 place-items-center rounded-xl border border-line bg-panel text-mute transition hover:border-forest/50 hover:text-ink">
           <Bell size={18} /><span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-terracotta" />

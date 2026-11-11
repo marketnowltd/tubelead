@@ -153,7 +153,7 @@ export function Hero() {
                     className="flex items-center gap-2 text-[15px] font-bold text-ink">
                     {logo && <svg role="img" aria-label={`${src.name} logo`} viewBox="0 0 24 24" className="h-6 w-6 shrink-0"><path d={logo.path} fill={logo.hex} /></svg>}
                     {src.name}
-                    {live ? <span className="rounded-full bg-moss/10 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-moss">Live</span> : <span className="text-[9.5px] font-bold uppercase tracking-wider text-dim">Soon</span>}
+                    {live ? <span className="rounded-full bg-moss/10 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-moss">Live</span> : <span className="rounded-full bg-forest/10 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-forest">Pro</span>}
                   </motion.li>
                 );
               })}

@@ -133,7 +133,8 @@ class PageFetcher:
                 continue
             if r.status_code != 200:
                 return f"http_{r.status_code}", None, url
-            if "html" not in r.headers.get("content-type", "html") and "text" not in r.headers.get("content-type", ""):
+            ctype = r.headers.get("content-type", "html")
+            if not any(t in ctype for t in ("html", "text", "xml")):  # xml: podcast RSS feeds
                 return "ok", "", url
             return "ok", r.text[: self._max], url
         return "unreachable", None, url
