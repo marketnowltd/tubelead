@@ -3,27 +3,32 @@ at a JSON file ({"pro": {"leads": 30000}}) to override individual values without
 Enforcement is real (see services/entitlements.py); Stripe confirms purchases via verified webhooks only."""
 import json
 from copy import deepcopy
-from functools import lru_cache
 
 from ..config import get_settings
 
 ORDER = ["free", "starter", "pro", "elite"]
 OPERATOR_ALL = {k: True for k in ("csv_export", "scheduled_discovery", "ai_connect", "api_access", "automation", "team", "priority_queue", "multi_source")}
+CREDIT_KINDS = ("discovery", "enrichment", "verification", "campaign_recipients")
 OPERATOR = {"label": "Operator", "tagline": "Site owner: unlimited access", "price_monthly_gbp": 0, "price_annual_gbp": 0,
-            "leads": 1_000_000_000, "lead_period": "lifetime", "max_jobs_per_day": 1_000_000, "team_seats": 1000, "features": OPERATOR_ALL}
+            "leads": 1_000_000_000, "lead_period": "lifetime", "max_jobs_per_day": 1_000_000, "team_seats": 1000, "features": OPERATOR_ALL,
+            "credits": {"discovery": 10**9, "enrichment": 10**9, "verification": 10**9, "campaign_recipients": 10**9, "storage_mb": 10**6}}
 
 DEFAULT_PLANS: dict[str, dict] = {
     "free": {"label": "Free", "tagline": "Try discovery with a 25-lead trial", "price_monthly_gbp": 0, "price_annual_gbp": 0,
              "leads": 25, "lead_period": "lifetime", "max_jobs_per_day": 3, "team_seats": 1,
+             "credits": {"discovery": 5, "enrichment": 10, "verification": 25, "campaign_recipients": 0, "storage_mb": 20},
              "features": {"csv_export": False, "scheduled_discovery": False, "ai_connect": False, "api_access": False, "automation": False, "team": False, "priority_queue": False, "multi_source": False}},
     "starter": {"label": "Starter", "tagline": "For solo researchers and small outreach teams", "price_monthly_gbp": 19, "price_annual_gbp": 190,
                 "leads": 2500, "lead_period": "month", "max_jobs_per_day": 15, "team_seats": 1,
+             "credits": {"discovery": 60, "enrichment": 250, "verification": 500, "campaign_recipients": 500, "storage_mb": 200},
                 "features": {"csv_export": True, "scheduled_discovery": False, "ai_connect": True, "api_access": False, "automation": False, "team": False, "priority_queue": False, "multi_source": False}},
     "pro": {"label": "Pro", "tagline": "Scheduled discovery, automation and AI task routing", "price_monthly_gbp": 49, "price_annual_gbp": 490,
             "leads": 25000, "lead_period": "month", "max_jobs_per_day": 60, "team_seats": 3,
+             "credits": {"discovery": 300, "enrichment": 1500, "verification": 3000, "campaign_recipients": 5000, "storage_mb": 1000},
             "features": {"csv_export": True, "scheduled_discovery": True, "ai_connect": True, "api_access": False, "automation": True, "team": False, "priority_queue": False, "multi_source": True}},
     "elite": {"label": "Elite", "tagline": "High volume, API access, teams and priority queue", "price_monthly_gbp": 99, "price_annual_gbp": 990,
               "leads": 100000, "lead_period": "month", "max_jobs_per_day": 300, "team_seats": 10,
+             "credits": {"discovery": 1500, "enrichment": 6000, "verification": 12000, "campaign_recipients": 25000, "storage_mb": 5000},
               "features": {"csv_export": True, "scheduled_discovery": True, "ai_connect": True, "api_access": True, "automation": True, "team": True, "priority_queue": True, "multi_source": True}},
 }
 
@@ -31,8 +36,38 @@ FEATURE_MIN_PLAN = {"csv_export": "Starter", "scheduled_discovery": "Pro", "ai_c
 FEATURE_LABELS = {"csv_export": "CSV export", "scheduled_discovery": "Scheduled discovery", "ai_connect": "AI Connect", "api_access": "API access", "automation": "Automation", "team": "Team accounts", "multi_source": "Multi-source search"}
 
 
-@lru_cache
+_cache: dict = {"at": 0.0, "plans": None}
+CACHE_SECONDS = 30
+
+
+def invalidate() -> None:
+    _cache["plans"] = None
+
+
+def _merge(plans: dict, overrides: dict) -> None:
+    for k, v in overrides.items():
+        if k in plans and isinstance(v, dict):
+            for kk, vv in v.items():
+                if isinstance(vv, dict) and isinstance(plans[k].get(kk), dict):
+                    plans[k][kk].update(vv)
+                else:
+                    plans[k][kk] = vv
+
+
+def _db_overrides() -> dict:
+    try:
+        from ..db import SessionLocal
+        from ..models import PlanConfig
+        with SessionLocal() as db:
+            return {r.plan_id: r.data for r in db.query(PlanConfig).all()}
+    except Exception:  # noqa: BLE001 - table missing before migration 005, or DB unavailable
+        return {}
+
+
 def _load() -> dict[str, dict]:
+    import time
+    if _cache["plans"] is not None and time.time() - _cache["at"] < CACHE_SECONDS:
+        return _cache["plans"]
     plans = deepcopy(DEFAULT_PLANS)
     plans["operator"] = deepcopy(OPERATOR)
     f = get_settings().plans_file
@@ -48,6 +83,8 @@ def _load() -> dict[str, dict]:
                                 plans[k][kk] = vv
         except (OSError, ValueError):
             pass
+    _merge(plans, {k: v for k, v in _db_overrides().items() if k != "operator"})  # admin edits (Admin > Plans) win
+    _cache.update(at=time.time(), plans=plans)
     return plans
 
 

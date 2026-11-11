@@ -2,7 +2,7 @@
 import uuid
 from datetime import date, datetime, timezone
 
-from sqlalchemy import (JSON, BigInteger, Boolean, Date, DateTime, Float, ForeignKey,
+from sqlalchemy import (JSON, BigInteger, Boolean, Date, DateTime, Float, ForeignKey, LargeBinary,
                         Integer, String, Text, UniqueConstraint, Uuid)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -431,3 +431,233 @@ class ErrorLog(Base):
     path: Mapped[str] = mapped_column(String(300), default="")
     message: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Growth Assistant, Creative Studio and outreach. Mirrors supabase/migrations/005_growth.sql (keep in sync).
+# ---------------------------------------------------------------------------------------------------------------
+
+class GrowthSession(Base):
+    """One run of the Growth Assistant wizard. Customers can leave and resume."""
+    __tablename__ = "growth_sessions"
+    id: Mapped[str] = mapped_column(UUID, primary_key=True, default=uid)
+    owner_id: Mapped[str] = mapped_column(UUID, index=True)
+    step: Mapped[int] = mapped_column(Integer, default=1)
+    description: Mapped[str] = mapped_column(Text, default="")
+    business: Mapped[dict] = mapped_column(JSON, default=dict)  # interpreted, customer-editable summary
+    discovery: Mapped[dict] = mapped_column(JSON, default=dict)  # {status, stages[], sources[], totals, error}
+    enrichment: Mapped[dict] = mapped_column(JSON, default=dict)  # {status, done, total, credits_used, error}
+    document_id: Mapped[str | None] = mapped_column(UUID, nullable=True)
+    campaign_id: Mapped[str | None] = mapped_column(UUID, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
+
+
+class Prospect(Base):
+    __tablename__ = "prospects"
+    id: Mapped[str] = mapped_column(UUID, primary_key=True, default=uid)
+    owner_id: Mapped[str] = mapped_column(UUID, index=True)
+    session_id: Mapped[str | None] = mapped_column(UUID, ForeignKey("growth_sessions.id", ondelete="SET NULL"), nullable=True, index=True)
+    dedupe_key: Mapped[str] = mapped_column(String(200))
+    name: Mapped[str] = mapped_column(String(300))
+    website: Mapped[str | None] = mapped_column(Text, nullable=True)
+    domain: Mapped[str | None] = mapped_column(String(200), nullable=True, index=True)
+    platform: Mapped[str] = mapped_column(String(32), default="web")
+    sources: Mapped[list] = mapped_column(JSON, default=list)
+    source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description: Mapped[str] = mapped_column(Text, default="")
+    industry: Mapped[str] = mapped_column(String(120), default="")
+    location: Mapped[str] = mapped_column(String(120), default="")
+    image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    audience_size: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    score: Mapped[int] = mapped_column(Integer, default=0, index=True)
+    score_breakdown: Mapped[dict] = mapped_column(JSON, default=dict)  # {relevance:{points,max,evidence,basis}, ...}
+    classification: Mapped[str] = mapped_column(String(24), default="low")  # excellent|good|low
+    selected: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    saved: Mapped[bool] = mapped_column(Boolean, default=False)
+    removed: Mapped[bool] = mapped_column(Boolean, default=False)
+    enrichment_status: Mapped[str] = mapped_column(String(16), default="pending")  # pending|done|failed
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+
+
+class ProspectContact(Base):
+    __tablename__ = "prospect_contacts"
+    __table_args__ = (UniqueConstraint("prospect_id", "email", name="uq_prospect_contact_email"),)
+    id: Mapped[str] = mapped_column(UUID, primary_key=True, default=uid)
+    prospect_id: Mapped[str] = mapped_column(UUID, ForeignKey("prospects.id", ondelete="CASCADE"), index=True)
+    owner_id: Mapped[str] = mapped_column(UUID, index=True)
+    email: Mapped[str] = mapped_column(String(255))
+    first_name: Mapped[str] = mapped_column(String(120), default="")
+    last_name: Mapped[str] = mapped_column(String(120), default="")
+    position: Mapped[str] = mapped_column(String(160), default="")
+    status: Mapped[str] = mapped_column(String(16), default="unverified")  # verified|risky|unverified|not_found
+    personal: Mapped[bool] = mapped_column(Boolean, default=False)  # free-mail address -> treated as an individual under PECR
+    source: Mapped[str] = mapped_column(String(32))  # website|contact_page|snov
+    source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class EmailDocument(Base):
+    """The Creative Studio document. One JSON model shared by Easy and Pro editors; HTML is generated from it."""
+    __tablename__ = "email_documents"
+    id: Mapped[str] = mapped_column(UUID, primary_key=True, default=uid)
+    owner_id: Mapped[str] = mapped_column(UUID, index=True)
+    name: Mapped[str] = mapped_column(String(200), default="Untitled email")
+    subject: Mapped[str] = mapped_column(String(300), default="")
+    preheader: Mapped[str] = mapped_column(String(300), default="")
+    doc: Mapped[dict] = mapped_column(JSON, default=dict)
+    editor_mode: Mapped[str] = mapped_column(String(8), default="easy")
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    html: Mapped[str] = mapped_column(Text, default="")
+    text: Mapped[str] = mapped_column(Text, default="")
+    last_check: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now, index=True)
+
+
+class EmailDocumentVersion(Base):
+    __tablename__ = "email_document_versions"
+    id: Mapped[str] = mapped_column(UUID, primary_key=True, default=uid)
+    document_id: Mapped[str] = mapped_column(UUID, ForeignKey("email_documents.id", ondelete="CASCADE"), index=True)
+    version: Mapped[int] = mapped_column(Integer)
+    subject: Mapped[str] = mapped_column(String(300), default="")
+    doc: Mapped[dict] = mapped_column(JSON, default=dict)
+    note: Mapped[str] = mapped_column(String(200), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class EmailTemplate(Base):
+    __tablename__ = "email_templates"
+    id: Mapped[str] = mapped_column(UUID, primary_key=True, default=uid)
+    owner_id: Mapped[str | None] = mapped_column(UUID, nullable=True, index=True)  # null = built-in
+    category: Mapped[str] = mapped_column(String(40), index=True)
+    name: Mapped[str] = mapped_column(String(160))
+    subject: Mapped[str] = mapped_column(String(300), default="")
+    doc: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class BrandKit(Base):
+    __tablename__ = "brand_kits"
+    owner_id: Mapped[str] = mapped_column(UUID, primary_key=True)
+    data: Mapped[dict] = mapped_column(JSON, default=dict)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
+
+
+class EmailAsset(Base):
+    """Uploaded email images, served from /api/assets/{id} so emails reference a hosted https URL."""
+    __tablename__ = "email_assets"
+    id: Mapped[str] = mapped_column(UUID, primary_key=True, default=uid)
+    owner_id: Mapped[str] = mapped_column(UUID, index=True)
+    filename: Mapped[str] = mapped_column(String(200))
+    content_type: Mapped[str] = mapped_column(String(40))
+    size: Mapped[int] = mapped_column(Integer)
+    width: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    height: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    data: Mapped[bytes] = mapped_column(LargeBinary)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class OutreachCampaign(Base):
+    __tablename__ = "outreach_campaigns"
+    id: Mapped[str] = mapped_column(UUID, primary_key=True, default=uid)
+    owner_id: Mapped[str] = mapped_column(UUID, index=True)
+    session_id: Mapped[str | None] = mapped_column(UUID, nullable=True)
+    name: Mapped[str] = mapped_column(String(200))
+    document_id: Mapped[str] = mapped_column(UUID, ForeignKey("email_documents.id", ondelete="RESTRICT"))
+    document_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    status: Mapped[str] = mapped_column(String(16), default="draft", index=True)  # draft|approved|launching|launched|failed
+    approval: Mapped[dict] = mapped_column(JSON, default=dict)  # checklist, approved_by, approved_at, check scores
+    provider: Mapped[str] = mapped_column(String(16), default="snov")
+    provider_ref: Mapped[dict] = mapped_column(JSON, default=dict)
+    metrics: Mapped[dict] = mapped_column(JSON, default=dict)  # provider metrics with fetched_at
+    error: Mapped[str] = mapped_column(Text, default="")
+    launched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+
+
+class CampaignRecipient(Base):
+    __tablename__ = "campaign_recipients"
+    __table_args__ = (UniqueConstraint("campaign_id", "email", name="uq_campaign_recipient"),)
+    id: Mapped[str] = mapped_column(UUID, primary_key=True, default=uid)
+    campaign_id: Mapped[str] = mapped_column(UUID, ForeignKey("outreach_campaigns.id", ondelete="CASCADE"), index=True)
+    prospect_id: Mapped[str | None] = mapped_column(UUID, nullable=True)
+    email: Mapped[str] = mapped_column(String(255))
+    eligibility: Mapped[str] = mapped_column(String(16), default="eligible")  # eligible|suppressed|needs_consent|unverified
+    reason: Mapped[str] = mapped_column(Text, default="")
+    provider_status: Mapped[str] = mapped_column(String(24), default="")
+    variables: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class Suppression(Base):
+    __tablename__ = "suppressions"
+    __table_args__ = (UniqueConstraint("owner_id", "email", name="uq_suppression"),)
+    id: Mapped[str] = mapped_column(UUID, primary_key=True, default=uid)
+    owner_id: Mapped[str] = mapped_column(UUID, index=True)
+    email: Mapped[str] = mapped_column(String(255))
+    reason: Mapped[str] = mapped_column(String(32))  # unsubscribe|bounce|manual|complaint
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class OutreachReply(Base):
+    __tablename__ = "outreach_replies"
+    id: Mapped[str] = mapped_column(UUID, primary_key=True, default=uid)
+    owner_id: Mapped[str] = mapped_column(UUID, index=True)
+    campaign_id: Mapped[str | None] = mapped_column(UUID, nullable=True, index=True)
+    external_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    from_email: Mapped[str] = mapped_column(String(255))
+    subject: Mapped[str] = mapped_column(String(300), default="")
+    body: Mapped[str] = mapped_column(Text, default="")
+    classification: Mapped[str] = mapped_column(String(24), default="other", index=True)
+    classified_by: Mapped[str] = mapped_column(String(8), default="rules")  # rules|ai|customer
+    suggested_response: Mapped[str] = mapped_column(Text, default="")
+    response_status: Mapped[str] = mapped_column(String(16), default="none")  # none|draft|approved
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+
+
+class BusinessResult(Base):
+    """Customer-entered outcomes: meetings, enquiries and sales. Never inferred from replies."""
+    __tablename__ = "business_results"
+    id: Mapped[str] = mapped_column(UUID, primary_key=True, default=uid)
+    owner_id: Mapped[str] = mapped_column(UUID, index=True)
+    campaign_id: Mapped[str | None] = mapped_column(UUID, nullable=True)
+    kind: Mapped[str] = mapped_column(String(16))  # meeting|enquiry|sale
+    amount_pence: Mapped[int] = mapped_column(Integer, default=0)
+    note: Mapped[str] = mapped_column(Text, default="")
+    occurred_on: Mapped[date] = mapped_column(Date, default=lambda: datetime.now(timezone.utc).date())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class ProviderConnection(Base):
+    """A customer's own connection to a sending provider (Snov.io). Secrets are encrypted at rest."""
+    __tablename__ = "provider_connections"
+    __table_args__ = (UniqueConstraint("owner_id", "provider", name="uq_provider_connection"),)
+    id: Mapped[str] = mapped_column(UUID, primary_key=True, default=uid)
+    owner_id: Mapped[str] = mapped_column(UUID, index=True)
+    provider: Mapped[str] = mapped_column(String(16))
+    client_id_enc: Mapped[str] = mapped_column(Text)
+    client_secret_enc: Mapped[str] = mapped_column(Text)
+    settings: Mapped[dict] = mapped_column(JSON, default=dict)  # list id, campaign id, sender domain, webhook token
+    status: Mapped[str] = mapped_column(String(16), default="unchecked")
+    last_error: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class UsageEvent(Base):
+    """Metered usage for credits and for the owner's cost/margin reporting."""
+    __tablename__ = "usage_events"
+    id: Mapped[str] = mapped_column(UUID, primary_key=True, default=uid)
+    owner_id: Mapped[str] = mapped_column(UUID, index=True)
+    kind: Mapped[str] = mapped_column(String(24), index=True)  # discovery|enrichment|verification|campaign
+    units: Mapped[int] = mapped_column(Integer, default=1)
+    provider: Mapped[str] = mapped_column(String(24), default="")
+    provider_cost_pence: Mapped[float] = mapped_column(Float, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+
+
+class PlanConfig(Base):
+    """Admin overrides for plan prices and allowances (merged over DEFAULT_PLANS)."""
+    __tablename__ = "plan_configs"
+    plan_id: Mapped[str] = mapped_column(String(16), primary_key=True)
+    data: Mapped[dict] = mapped_column(JSON, default=dict)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)

@@ -66,6 +66,14 @@ class Settings(BaseSettings):
     support_email: str = ""
     # Supabase service key: only used server-side to delete a user's sign-in record when they delete their account
     supabase_service_role_key: str = ""
+    # Growth Assistant providers (server-side; customers never configure these)
+    public_api_url: str = ""         # public URL of this API, used for hosted email images (e.g. https://tubelead-api.onrender.com)
+    snov_client_id: str = ""         # TubeLead's own Snov.io account, used for contact enrichment and verification
+    snov_client_secret: str = ""
+    snov_api_base: str = "https://api.snov.io"
+    snov_cost_per_credit_pence: float = 0.0   # what one Snov.io credit costs you, for margin reporting
+    brave_api_key: str = ""          # Brave Search API (web discovery)
+    brave_cost_per_query_pence: float = 0.0
     operator_user_ids: str = ""  # comma-separated Supabase user IDs with unlimited access (site owner)
     plan_override: str = ""  # DEV ONLY (auth_mode=dev): pretend the local user is on this plan, to evaluate paid features without Stripe
     plans_file: str = ""  # optional JSON file overriding plan prices/allowances

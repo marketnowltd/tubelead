@@ -132,7 +132,7 @@ def test_endpoint_503_when_nothing_configured(client, no_keys, monkeypatch):
 def test_provider_status_lists_required_keys(client, no_keys):
     rows = client.get("/api/search-everywhere/providers").json()
     names = {r["name"]: r for r in rows}
-    assert set(names) == {"youtube", "google", "reddit", "twitch", "spotify", "lastfm", "musicbrainz"}
+    assert set(names) == {"youtube", "google", "brave", "reddit", "twitch", "spotify", "lastfm", "musicbrainz"}
     # MusicBrainz needs no key, only an identifying User-Agent, which has a default
     assert names["musicbrainz"]["configured"] is True
     assert all(r["configured"] is False for n, r in names.items() if n != "musicbrainz")

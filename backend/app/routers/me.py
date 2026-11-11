@@ -2,7 +2,7 @@
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from ..auth import get_owner
@@ -43,8 +43,10 @@ async def delete_account(body: DeleteIn, owner: str = Depends(get_owner), db: Se
     for model in _DETACH:
         db.execute(update(model).where(model.owner_id == owner).values(owner_id=None))
     detached = {m.__tablename__ for m in _DETACH}
-    tables = [t for t in Base.metadata.sorted_tables if "owner_id" in t.c and t.name not in detached]
-    tables.sort(key=lambda t: (t.name not in _ORDER_FIRST, _ORDER_FIRST.index(t.name) if t.name in _ORDER_FIRST else 0))
+    # Children before parents, so foreign keys never block a delete (e.g. contacts -> prospects -> sessions).
+    tables = [t for t in reversed(Base.metadata.sorted_tables) if "owner_id" in t.c and t.name not in detached]
+    from ..models import CampaignRecipient, OutreachCampaign
+    db.execute(delete(CampaignRecipient).where(CampaignRecipient.campaign_id.in_(select(OutreachCampaign.id).where(OutreachCampaign.owner_id == owner))))
     removed = {}
     for t in tables:
         removed[t.name] = db.execute(delete(t).where(t.c.owner_id == owner)).rowcount

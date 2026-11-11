@@ -63,6 +63,12 @@ TASKS: dict[str, dict] = {
                           "system": "You write a concise factual report from the statistics provided, citing only those numbers."},
     "search_assistant": {"label": "Search assistant", "blurb": "Turn natural language into editable search criteria",
                          "system": "You convert a natural-language request into structured creator-search criteria."},
+    "growth_interpretation": {"label": "Growth Assistant setup", "blurb": "Understand what you sell and who to reach",
+                              "system": "You read a short business description and return ONLY JSON describing the product, audience, location and campaign. Use only what the text says; leave unknown fields empty."},
+    "email_writing": {"label": "Email writing", "blurb": "Improve wording in Creative Studio without changing meaning",
+                      "system": "You edit marketing email copy. Keep the meaning, facts, offers, prices and legal wording exactly; never add claims, numbers or promises. Return ONLY JSON."},
+    "reply_assistant": {"label": "Reply assistant", "blurb": "Sort campaign replies and draft responses for your approval",
+                        "system": "You classify replies to a business outreach email and draft a short, polite response. Never promise discounts, refunds or anything not in the supplied context. Return ONLY JSON."},
 }
 PREAMBLE = ("Rules: never invent facts, numbers, names, URLs or email addresses. If the supplied data does not say it, say it is unknown. "
             "Be concise. ")

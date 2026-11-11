@@ -6,6 +6,7 @@ import asyncio
 import re
 
 from ..providers.base import Lead, ProviderResult
+from ..providers.brave import BraveProvider
 from ..providers.google_search import GoogleSearchProvider
 from ..providers.lastfm import LastFmProvider
 from ..providers.musicbrainz import MusicBrainzProvider
@@ -14,7 +15,7 @@ from ..providers.spotify import SpotifyProvider
 from ..providers.twitch import TwitchProvider
 from ..providers.youtube import YouTubeProvider
 
-PROVIDERS = [YouTubeProvider(), GoogleSearchProvider(), RedditProvider(), TwitchProvider(), SpotifyProvider(), LastFmProvider(), MusicBrainzProvider()]
+PROVIDERS = [YouTubeProvider(), GoogleSearchProvider(), BraveProvider(), RedditProvider(), TwitchProvider(), SpotifyProvider(), LastFmProvider(), MusicBrainzProvider()]
 
 
 async def _safe(p, query: str, limit: int) -> ProviderResult:

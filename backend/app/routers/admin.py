@@ -542,3 +542,75 @@ def audit(action: str = "", me: str = Depends(ADMIN), db: Session = Depends(get_
     if action:
         stmt = stmt.where(AuditLog.action.ilike(f"{action}%"))
     return [_audit_out(a) for a in db.scalars(stmt).all()]
+
+
+# ---------------- Growth Assistant: providers, usage, costs, plan allowances
+class PlanEdit(BaseModel):
+    label: str | None = Field(default=None, max_length=40)
+    price_monthly_gbp: float | None = Field(default=None, ge=0, le=10000)
+    price_annual_gbp: float | None = Field(default=None, ge=0, le=100000)
+    leads: int | None = Field(default=None, ge=0, le=10**9)
+    team_seats: int | None = Field(default=None, ge=1, le=10000)
+    credits: dict[str, int] | None = None
+
+
+@router.get("/growth")
+def growth_overview(me: str = Depends(ADMIN), db: Session = Depends(get_db)):
+    from ..models import GrowthSession, OutreachCampaign, Prospect, ProspectContact, UsageEvent
+    from ..services.credits import month_start
+    from ..services.search_everywhere import PROVIDERS
+    s = get_settings()
+    since = month_start()
+    usage = db.execute(select(UsageEvent.kind, UsageEvent.provider, func.sum(UsageEvent.units), func.sum(UsageEvent.provider_cost_pence))
+                       .where(UsageEvent.created_at >= since).group_by(UsageEvent.kind, UsageEvent.provider)).all()
+    cost_pence = sum(float(r[3] or 0) for r in usage)
+    revenue_pence = db.scalar(select(func.coalesce(func.sum(Payment.amount - Payment.refunded_amount), 0)).where(Payment.created_at >= since)) or 0
+    per_customer = db.execute(select(UsageEvent.owner_id, UsageEvent.kind, func.sum(UsageEvent.units)).where(UsageEvent.created_at >= since)
+                              .group_by(UsageEvent.owner_id, UsageEvent.kind)).all()
+    custs: dict[str, dict] = {}
+    for owner, kind, units in per_customer:
+        custs.setdefault(owner, {})[kind] = int(units or 0)
+    emails = {a.owner_id: a.email for a in db.scalars(select(UserAccount).where(UserAccount.owner_id.in_(list(custs) or ["00000000-0000-0000-0000-000000000000"]))).all()}
+    sessions = db.scalars(select(GrowthSession).where(GrowthSession.created_at >= since)).all()
+    disc_done = [x for x in sessions if (x.discovery or {}).get("status") == "done"]
+    enr = db.scalars(select(Prospect).where(Prospect.created_at >= since, Prospect.enrichment_status == "done")).all()
+    enr_with = len({c.prospect_id for c in db.scalars(select(ProspectContact).where(ProspectContact.prospect_id.in_([p.id for p in enr] or ["00000000-0000-0000-0000-000000000000"]))).all()})
+    camps = db.scalars(select(OutreachCampaign).where(OutreachCampaign.created_at >= since)).all()
+    return {
+        "providers": [{"name": p.label, "configured": p.configured(), "requires": list(p.required_settings)} for p in PROVIDERS]
+                     + [{"name": "Snov.io (enrichment & verification)", "configured": bool(s.snov_client_id and s.snov_client_secret), "requires": ["SNOV_CLIENT_ID", "SNOV_CLIENT_SECRET"]},
+                        {"name": "Hosted email images", "configured": bool(s.public_api_url), "requires": ["PUBLIC_API_URL"]}],
+        "usage": [{"kind": r[0], "provider": r[1] or "—", "units": int(r[2] or 0), "cost_pence": round(float(r[3] or 0), 2)} for r in usage],
+        "month": {"provider_cost_gbp": round(cost_pence / 100, 2), "revenue_gbp": round(revenue_pence / 100, 2),
+                  "estimated_margin_gbp": round((revenue_pence - cost_pence) / 100, 2),
+                  "note": "Costs use the per-unit prices set in SNOV_COST_PER_CREDIT_PENCE and BRAVE_COST_PER_QUERY_PENCE; revenue is payments received this month."},
+        "discovery": {"runs": len(sessions), "completed": len(disc_done), "failed": sum(1 for x in sessions if (x.discovery or {}).get("status") == "failed"),
+                      "prospects_found": sum(int(((x.discovery or {}).get("totals") or {}).get("found", 0)) for x in disc_done)},
+        "enrichment": {"prospects_enriched": len(enr), "with_contact": enr_with, "success_rate": round(100 * enr_with / len(enr)) if enr else None},
+        "campaigns": {"created": len(camps), "approved": sum(1 for c in camps if c.status in ("approved", "launching", "launched")),
+                      "launched": sum(1 for c in camps if c.status == "launched"), "failed": sum(1 for c in camps if c.status == "failed")},
+        "customers": sorted([{"owner_id": o, "email": emails.get(o, ""), **u} for o, u in custs.items()], key=lambda x: -sum(v for k, v in x.items() if isinstance(v, int)))[:100],
+        "plans": all_plans(),
+    }
+
+
+@router.put("/plans/{pid}")
+def edit_plan(pid: str, body: PlanEdit, me: str = Depends(ADMIN), db: Session = Depends(get_db)):
+    from ..models import PlanConfig
+    from ..services import plans as P
+    if pid not in P.purchasable_plans():
+        raise HTTPException(404, {"code": "not_found", "message": "Plan not found."})
+    data = {k: v for k, v in body.model_dump(exclude_none=True).items() if k != "credits"}
+    if body.credits:
+        allowed = set(P.CREDIT_KINDS) | {"storage_mb"}
+        data["credits"] = {k: max(0, min(int(v), 10**9)) for k, v in body.credits.items() if k in allowed}
+    row = db.get(PlanConfig, pid) or PlanConfig(plan_id=pid, data={})
+    merged = dict(row.data or {})
+    for k, v in data.items():
+        merged[k] = {**merged.get(k, {}), **v} if isinstance(v, dict) else v
+    row.data = merged
+    db.merge(row)
+    db.commit()
+    P.invalidate()
+    record(db, "plan.updated", actor_type="staff", actor_id=me, target_type="plan", target_id=pid, detail=data)
+    return P.all_plans()[pid]
