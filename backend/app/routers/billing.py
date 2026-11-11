@@ -16,7 +16,9 @@ from sqlalchemy.orm import Session
 from ..auth import get_owner
 from ..config import get_settings
 from ..db import get_db
-from ..models import ActivityEvent, StripeEvent, Subscription
+from ..models import ActivityEvent, Payment, StripeEvent, Subscription, UserAccount
+from ..services import email as mail
+from ..services.audit import log_error
 from ..services import entitlements as ent
 from ..services.plans import FEATURE_LABELS, all_plans, plan_for, price_id, purchasable_plans
 from .system import get_user_settings
@@ -195,6 +197,36 @@ def _ts(v) -> datetime | None:
     return datetime.fromtimestamp(int(v), timezone.utc) if v else None
 
 
+def _money(amount: int, currency: str) -> str:
+    sym = {"gbp": "£", "usd": "$", "eur": "€"}.get((currency or "").lower(), "")
+    return f"{sym}{amount / 100:,.2f}" if sym else f"{amount / 100:,.2f} {currency.upper()}"
+
+
+def _side_effects(db: Session, owner: str, t: str, obj: dict, row: Subscription) -> None:
+    """Payments ledger and customer emails. Every email has a dedupe key, so Stripe retries never send twice."""
+    acc = db.get(UserAccount, owner)
+    to = (acc.email if acc else "") or get_user_settings(db, owner).email
+    name = acc.full_name if acc else ""
+    label = all_plans().get(row.plan, {}).get("label", row.plan.title())
+    if t == "checkout.session.completed" and row.status == "active":
+        mail.queue(db, to=to, template="subscription_confirmed", ctx={"name": name, "plan": label}, dedupe_key=f"subscription_confirmed:{obj.get('subscription') or obj.get('id')}")
+    elif t in ("invoice.paid", "invoice.payment_succeeded") and obj.get("id"):
+        if not db.get(Payment, obj["id"]):
+            db.add(Payment(id=obj["id"], owner_id=owner, amount=int(obj.get("amount_paid") or 0), currency=obj.get("currency") or "gbp",
+                           charge_id=obj.get("charge"), payment_intent_id=obj.get("payment_intent"), created_at=_ts(obj.get("created")) or datetime.now(timezone.utc)))
+        if int(obj.get("amount_paid") or 0) > 0:
+            mail.queue(db, to=to, template="payment_confirmed", ctx={"name": name, "amount": _money(int(obj["amount_paid"]), obj.get("currency") or "gbp")}, dedupe_key=f"payment_confirmed:{obj['id']}")
+    elif t == "invoice.payment_failed":
+        mail.queue(db, to=to, template="payment_failed", ctx={"name": name}, dedupe_key=f"payment_failed:{obj.get('id')}")
+        mail.alert_admin(db, "Payment failed", [f"Customer: {to or owner}", f"Invoice: {obj.get('id')}"], f"payment_failed:{obj.get('id')}")
+    elif t == "customer.subscription.deleted" or (t == "customer.subscription.updated" and obj.get("cancel_at_period_end")):
+        mail.queue(db, to=to, template="cancellation_confirmed", ctx={"name": name}, dedupe_key=f"cancellation:{obj.get('id')}")
+    elif t == "charge.refunded" and obj.get("id"):
+        pay = db.scalar(select(Payment).where(Payment.charge_id == obj["id"]))
+        if pay:
+            pay.refunded_amount = int(obj.get("amount_refunded") or 0)
+
+
 def apply_event(db: Session, ev: dict) -> str:
     t, obj = ev["type"], ev["data"]["object"]
     owner = _find_owner(db, obj)
@@ -236,6 +268,7 @@ def apply_event(db: Session, ev: dict) -> str:
         row.last_payment_status = "refunded"
     else:
         return f"ignored: {t}"
+    _side_effects(db, owner, t, obj, row)
     us = get_user_settings(db, owner)
     us.plan = row.plan
     db.add(ActivityEvent(owner_id=owner, kind="billing", message=f"Billing update ({t}): plan {row.plan}, status {row.status}"))
@@ -260,6 +293,15 @@ async def webhook(request: Request, db: Session = Depends(get_db)):
         return {"received": True, "duplicate": True}
     db.add(StripeEvent(id=eid, type=etype))
     db.commit()
-    result = apply_event(db, ev)
+    try:
+        result = apply_event(db, ev)
+    except Exception as exc:
+        # Forget the event so Stripe's automatic retry is processed instead of skipped as a duplicate.
+        db.rollback()
+        db.query(StripeEvent).filter(StripeEvent.id == eid).delete()
+        db.commit()
+        log_error("webhook", f"Stripe {etype} {eid} failed: {type(exc).__name__}: {exc}", "/api/billing/webhook")
+        raise
+    mail.deliver_pending_soon()
     log.info("stripe %s %s -> %s", etype, eid, result)
     return {"received": True, "result": result}

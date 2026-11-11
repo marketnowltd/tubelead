@@ -129,8 +129,24 @@ class Scheduler(threading.Thread):
             except Exception:  # noqa: BLE001
                 log.exception("scheduler tick failed")
 
+    _last_maintenance = 0.0
+
+    @classmethod
+    def maintenance(cls) -> None:
+        """Every 10 minutes: retry queued/failed email. Daily: delete chat conversations past the retention period."""
+        if time.time() - cls._last_maintenance < 600:
+            return
+        cls._last_maintenance = time.time()
+        from . import email as mail
+        mail.deliver_pending()
+        purge_old_chats()
+
     @staticmethod
     def tick() -> int:
+        try:
+            Scheduler.maintenance()
+        except Exception:  # noqa: BLE001
+            log.exception("maintenance failed")
         s = get_settings()
         if not s.youtube_api_key:
             return 0
@@ -146,3 +162,19 @@ class Scheduler(threading.Thread):
                 submit(job.id)
                 fired += 1
         return fired
+
+
+def purge_old_chats() -> int:
+    """Data retention: conversations untouched for CHAT_RETENTION_DAYS are deleted (messages cascade).
+    Conversations linked to a support ticket are kept as part of the ticket record."""
+    from sqlalchemy import delete
+    from ..models import ChatConversation, ChatMessage, SupportTicket
+    cutoff = datetime.now(timezone.utc) - timedelta(days=get_settings().chat_retention_days)
+    with SessionLocal() as db:
+        keep = select(SupportTicket.conversation_id).where(SupportTicket.conversation_id.is_not(None))
+        old = db.scalars(select(ChatConversation.id).where(ChatConversation.updated_at < cutoff, ChatConversation.id.not_in(keep))).all()
+        if old:
+            db.execute(delete(ChatMessage).where(ChatMessage.conversation_id.in_(old)))
+            db.execute(delete(ChatConversation).where(ChatConversation.id.in_(old)))
+            db.commit()
+        return len(old)

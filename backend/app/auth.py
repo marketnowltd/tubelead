@@ -28,11 +28,8 @@ def _jwks_client(supabase_url: str) -> jwt.PyJWKClient:
     return _jwks_clients[url]
 
 
-def get_owner(
-    authorization: str | None = Header(default=None),
-    x_api_key: str | None = Header(default=None),
-    db: Session = Depends(get_db),
-) -> str:
+def _resolve(authorization: str | None, x_api_key: str | None, db: Session) -> tuple[str, dict]:
+    """Return (user id, token claims). Raises 401 for missing or invalid credentials."""
     s = get_settings()
     if x_api_key:
         row = db.scalar(select(ApiKey).where(ApiKey.key_hash == hash_key(x_api_key), ApiKey.revoked_at.is_(None)))
@@ -40,9 +37,9 @@ def get_owner(
             raise HTTPException(401, "Invalid API key")
         row.last_used_at = datetime.now(timezone.utc)
         db.commit()
-        return row.owner_id
+        return row.owner_id, {}
     if s.auth_mode == "dev":
-        return DEV_OWNER
+        return DEV_OWNER, {}
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(401, "Missing bearer token")
     token = authorization[7:]
@@ -65,4 +62,35 @@ def get_owner(
     sub = claims.get("sub")
     if not sub:
         raise HTTPException(401, "Token has no subject")
-    return sub
+    return sub, claims
+
+
+def _check_account(db: Session, owner: str, claims: dict) -> None:
+    from .services.accounts import touch
+    from .services.entitlements import is_operator
+    acc = touch(db, owner, claims)
+    if acc.status == "suspended" and not is_operator(owner):
+        raise HTTPException(403, {"code": "account_suspended", "message": "This account is suspended. Contact support if you think this is a mistake."})
+
+
+def get_owner(
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+) -> str:
+    owner, claims = _resolve(authorization, x_api_key, db)
+    _check_account(db, owner, claims)
+    return owner
+
+
+def get_optional_owner(
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+) -> str | None:
+    """Like get_owner, but visitors without credentials get None instead of 401 (used by the public chat)."""
+    if not authorization and not x_api_key and get_settings().auth_mode != "dev":
+        return None
+    owner, claims = _resolve(authorization, x_api_key, db)
+    _check_account(db, owner, claims)
+    return owner

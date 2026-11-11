@@ -275,3 +275,150 @@ class Review(Base):
     photo_url: Mapped[str | None] = mapped_column(Text, nullable=True)  # only with the customer's permission
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Business infrastructure: accounts, support, chatbot, refunds, email, audit and error logs.
+# Mirrors supabase/migrations/004_business.sql (keep in sync).
+# ---------------------------------------------------------------------------------------------------------------
+
+class UserAccount(Base):
+    """One row per signed-in user, created on first authenticated request. Holds status and staff role."""
+    __tablename__ = "user_accounts"
+    owner_id: Mapped[str] = mapped_column(UUID, primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), default="", index=True)
+    full_name: Mapped[str] = mapped_column(String(160), default="")
+    status: Mapped[str] = mapped_column(String(16), default="active", index=True)  # active|suspended
+    role: Mapped[str] = mapped_column(String(16), default="customer")  # customer|support|admin
+    status_reason: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+    last_login_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+
+
+class Payment(Base):
+    """A paid Stripe invoice, recorded from verified webhooks. Used for revenue reporting and refund review."""
+    __tablename__ = "payments"
+    id: Mapped[str] = mapped_column(String(80), primary_key=True)  # Stripe invoice id
+    owner_id: Mapped[str | None] = mapped_column(UUID, nullable=True, index=True)
+    amount: Mapped[int] = mapped_column(Integer, default=0)  # minor units (pence)
+    currency: Mapped[str] = mapped_column(String(8), default="gbp")
+    charge_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    payment_intent_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    refunded_amount: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+
+
+class KnowledgeArticle(Base):
+    __tablename__ = "knowledge_articles"
+    id: Mapped[str] = mapped_column(UUID, primary_key=True, default=uid)
+    title: Mapped[str] = mapped_column(String(200))
+    category: Mapped[str] = mapped_column(String(40), default="faq", index=True)  # company|product|pricing|faq|policy|tutorial|support
+    body: Mapped[str] = mapped_column(Text)
+    published: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
+
+
+class ChatConversation(Base):
+    __tablename__ = "chat_conversations"
+    id: Mapped[str] = mapped_column(UUID, primary_key=True, default=uid)
+    owner_id: Mapped[str | None] = mapped_column(UUID, nullable=True, index=True)  # null for visitors
+    visitor_token_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    status: Mapped[str] = mapped_column(String(16), default="open", index=True)  # open|escalated|closed
+    escalated: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
+
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+    id: Mapped[str] = mapped_column(UUID, primary_key=True, default=uid)
+    conversation_id: Mapped[str] = mapped_column(UUID, ForeignKey("chat_conversations.id", ondelete="CASCADE"), index=True)
+    role: Mapped[str] = mapped_column(String(16))  # user|assistant
+    content: Mapped[str] = mapped_column(Text)
+    meta: Mapped[dict] = mapped_column(JSON, default=dict)  # answered, source, tokens, blocked_tools
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+
+
+class SupportTicket(Base):
+    __tablename__ = "support_tickets"
+    id: Mapped[str] = mapped_column(UUID, primary_key=True, default=uid)
+    ref: Mapped[str] = mapped_column(String(16), unique=True, index=True)  # TL-XXXXXX, shown to the customer
+    owner_id: Mapped[str | None] = mapped_column(UUID, nullable=True, index=True)
+    email: Mapped[str] = mapped_column(String(255), default="")
+    name: Mapped[str] = mapped_column(String(160), default="")
+    conversation_id: Mapped[str | None] = mapped_column(UUID, nullable=True)
+    category: Mapped[str] = mapped_column(String(24), default="general", index=True)  # general|technical|billing|refund|cancellation|account
+    subject: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(24), default="open", index=True)  # open|in_progress|waiting_customer|resolved|closed
+    assigned_to: Mapped[str | None] = mapped_column(UUID, nullable=True, index=True)
+    source: Mapped[str] = mapped_column(String(16), default="web")  # chatbot|web|admin
+    resolution: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class TicketMessage(Base):
+    __tablename__ = "ticket_messages"
+    id: Mapped[str] = mapped_column(UUID, primary_key=True, default=uid)
+    ticket_id: Mapped[str] = mapped_column(UUID, ForeignKey("support_tickets.id", ondelete="CASCADE"), index=True)
+    author_type: Mapped[str] = mapped_column(String(16))  # customer|staff
+    author_id: Mapped[str | None] = mapped_column(UUID, nullable=True)
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class RefundRequest(Base):
+    """A customer's request for a refund. Only staff can decide it; only an admin can execute a refund."""
+    __tablename__ = "refund_requests"
+    id: Mapped[str] = mapped_column(UUID, primary_key=True, default=uid)
+    ticket_id: Mapped[str] = mapped_column(UUID, ForeignKey("support_tickets.id", ondelete="CASCADE"), index=True)
+    owner_id: Mapped[str | None] = mapped_column(UUID, nullable=True, index=True)
+    reason: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(16), default="pending", index=True)  # pending|approved|rejected|refunded
+    decided_by: Mapped[str | None] = mapped_column(UUID, nullable=True)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    decision_note: Mapped[str] = mapped_column(Text, default="")
+    payment_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    refund_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    refund_amount: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    id: Mapped[str] = mapped_column(UUID, primary_key=True, default=uid)
+    actor_id: Mapped[str | None] = mapped_column(UUID, nullable=True, index=True)
+    actor_type: Mapped[str] = mapped_column(String(16))  # staff|system|chatbot|customer
+    action: Mapped[str] = mapped_column(String(64), index=True)
+    target_type: Mapped[str] = mapped_column(String(32), default="")
+    target_id: Mapped[str] = mapped_column(String(80), default="")
+    detail: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+
+
+class EmailOutbox(Base):
+    """Every transactional email. dedupe_key makes each notification send at most once."""
+    __tablename__ = "email_outbox"
+    id: Mapped[str] = mapped_column(UUID, primary_key=True, default=uid)
+    dedupe_key: Mapped[str] = mapped_column(String(160), unique=True)
+    to_email: Mapped[str] = mapped_column(String(255))
+    template: Mapped[str] = mapped_column(String(48), index=True)
+    subject: Mapped[str] = mapped_column(String(200))
+    html: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(24), default="queued", index=True)  # queued|sent|failed|not_configured
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str] = mapped_column(Text, default="")
+    provider_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ErrorLog(Base):
+    __tablename__ = "error_logs"
+    id: Mapped[str] = mapped_column(UUID, primary_key=True, default=uid)
+    source: Mapped[str] = mapped_column(String(32), index=True)  # api|webhook|email|job|chatbot|frontend
+    path: Mapped[str] = mapped_column(String(300), default="")
+    message: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)

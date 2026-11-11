@@ -53,6 +53,19 @@ class Settings(BaseSettings):
     spotify_client_secret: str = ""
     lastfm_api_key: str = ""
     musicbrainz_user_agent: str = "TubeLead/1.0 (lead discovery)"
+    # Support assistant (OpenAI). Server-side only; the browser never sees the key.
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
+    openai_api_base: str = "https://api.openai.com/v1"
+    chat_retention_days: int = 180
+    # Transactional email (Resend)
+    resend_api_key: str = ""
+    resend_api_base: str = "https://api.resend.com"
+    email_from: str = "TubeLead <support@tubelead.app>"
+    admin_alert_email: str = ""
+    support_email: str = ""
+    # Supabase service key: only used server-side to delete a user's sign-in record when they delete their account
+    supabase_service_role_key: str = ""
     operator_user_ids: str = ""  # comma-separated Supabase user IDs with unlimited access (site owner)
     plan_override: str = ""  # DEV ONLY (auth_mode=dev): pretend the local user is on this plan, to evaluate paid features without Stripe
     plans_file: str = ""  # optional JSON file overriding plan prices/allowances
