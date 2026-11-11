@@ -27,6 +27,14 @@ async def lifespan(app: FastAPI):
     if engine.dialect.name == "sqlite":
         Base.metadata.create_all(engine)
         ensure_sqlite_columns()  # Postgres/Supabase schema is managed by supabase/migrations
+    elif s.auto_migrate:
+        from .migrate import run_migrations
+        try:
+            done = run_migrations(engine)
+            if done:
+                log.info("Database updated: %s", ", ".join(done))
+        except Exception:  # noqa: BLE001 - e.g. the database refused the connection; the health check will show it
+            log.exception("Automatic database migration failed")
     from .db import SessionLocal
     from .services.knowledge_seed import seed
     try:

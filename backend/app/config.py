@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     spotify_client_secret: str = ""
     lastfm_api_key: str = ""
     musicbrainz_user_agent: str = "TubeLead/1.0 (lead discovery)"
+    auto_migrate: bool = True          # apply app/migrations/*.sql at start-up (PostgreSQL only)
     vimeo_access_token: str = ""      # Vimeo API (developer.vimeo.com): an app's access token with the "public" scope
     mastodon_instance: str = "mastodon.social"  # Mastodon server whose public account search is used
     # Support assistant (OpenAI). Server-side only; the browser never sees the key.

@@ -10,10 +10,12 @@ Your screenshot showed **Offline** in the top bar, which means the website could
 1. Open https://tubelead-api.onrender.com/api/health in your browser. You should see `{"ok":true,...}`.
    - **It loads slowly the first time.** On Render's free plan the API sleeps when unused and takes up to a minute to
      wake. For launch, switch **tubelead-api** to a paid instance (Starter) so customers never wait.
-   - **It shows an error, or nothing.** Open Render → **tubelead-api** → **Logs**. The usual causes are a wrong
-     `DATABASE_URL` or migrations not applied (step 2).
-2. In Supabase → **SQL Editor**, run each file in `supabase/migrations/` in order: `001` to `006`. Each one is safe to
-   run again.
+   - **It shows an error, or nothing.** Open Render → **tubelead-api** → **Logs**. The usual cause is a wrong
+     `DATABASE_URL`.
+2. The database tables are created and updated automatically when the API starts. Every file in
+   `supabase/migrations/` is applied once and recorded in the `tubelead_migrations` table. If one fails, the API logs
+   "Database migration … failed" and keeps running. You can also still run the files by hand in Supabase's SQL Editor;
+   each one is safe to run again.
 3. In Render → **tubelead-web** → **Environment**, set `BACKEND_URL` to `https://tubelead-api.onrender.com`. The
    website now reads this when it runs, so a restart is enough; no rebuild is needed.
 4. In Render → **tubelead-api** → **Environment**, set:
@@ -21,8 +23,11 @@ Your screenshot showed **Offline** in the top bar, which means the website could
    - `CORS_ORIGINS=https://tubelead-web.onrender.com`
    - `PUBLIC_API_URL=https://tubelead-api.onrender.com`
 
-Check: sign in. The top bar shows **Search ready** (or nothing, if the YouTube key isn't set yet), not
-"API unreachable". If it says **Signed out · sign in**, your session has ended; sign in again.
+Check: sign in. The top bar shows **Search ready** (or nothing, if the YouTube key isn't set yet).
+- **Signed out · sign in:** your session has ended; sign in again.
+- **Server error:** the API answered with an error. Rest the mouse on the badge to see the message, and check
+  Render → tubelead-api → **Logs**.
+- **API unreachable:** the website can't connect to the API at all. Check `BACKEND_URL`.
 
 ## 2. Sign-in (email and Google)
 

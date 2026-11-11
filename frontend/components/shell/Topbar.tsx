@@ -25,7 +25,7 @@ export function Topbar() {
       <div className="ml-auto flex items-center gap-3">
         {error ? ((error as any).status === 401 || (error as any).status === 403
           ? <Link href="/login" title="Your session has ended. Sign in again."><Badge tone="amber" dot>Signed out · sign in</Badge></Link>
-          : <span title={(error as any).message}><Badge tone="red" dot>API unreachable</Badge></span>)
+          : <span title={(error as any).message}><Badge tone="red" dot>{(error as any).status === 0 || (error as any).code === "api_unreachable" ? "API unreachable" : "Server error"}</Badge></span>)
           : st && st.youtube_configured ? <Badge tone="green" dot>Search ready</Badge> : null}
         {st && <Badge tone="neutral" className="uppercase">{st.database}</Badge>}
         <button onClick={() => setOpen(true)} aria-label="Open activity feed" className="relative grid h-10 w-10 place-items-center rounded-xl border border-line bg-panel text-mute transition hover:border-forest/50 hover:text-ink">
