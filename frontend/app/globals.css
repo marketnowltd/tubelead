@@ -155,3 +155,13 @@
 @keyframes lg-glow { 50% { box-shadow: 0 16px 40px -8px rgba(122,45,255,.75), inset 0 1px 0 rgba(255,255,255,.35); } }
 @keyframes lg-shine { 0%, 55% { transform: translateX(-120%); } 85%, 100% { transform: translateX(120%); } }
 @media (prefers-reduced-motion: reduce) { .lg-launch, .lg-launch-shine { animation: none; } .lg-launch-shine { display: none; } }
+
+/* discovery journey card (matches the dashboard's deep-violet glass cards) */
+.journey-card { background: #0d0620; box-shadow: 0 30px 70px -30px rgba(122,45,255,.7), 0 0 0 1px rgba(201,182,255,.14); }
+.journey-info { display: flex; gap: 12px; align-items: flex-start; margin: -2px 14px 14px; padding: 12px 16px; border-radius: 18px;
+  background: linear-gradient(135deg, rgba(122,45,255,.22), rgba(232,31,118,.12) 60%, rgba(255,122,0,.1));
+  border: 1px solid rgba(201,182,255,.18); backdrop-filter: blur(10px); }
+.journey-dot { width: 9px; height: 9px; margin-top: 6px; border-radius: 50%; flex: none; background: #8FF5D2; box-shadow: 0 0 10px #8FF5D2; animation: helper-pulse 1.4s ease-in-out infinite; }
+.journey-dot.is-done { background: #FFC300; box-shadow: 0 0 10px #FFC300; animation: none; }
+.journey-dot.is-failed { background: #FF8A5B; box-shadow: 0 0 10px #FF8A5B; animation: none; }
+@media (prefers-reduced-motion: reduce) { .journey-dot { animation: none; } }

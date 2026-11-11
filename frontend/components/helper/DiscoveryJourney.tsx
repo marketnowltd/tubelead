@@ -13,17 +13,9 @@ import { useEffect, useMemo, useRef } from "react";
 import { useReducedMotionSafe } from "@/components/ui/motion";
 import { useApi } from "@/lib/api";
 import type { Job } from "@/lib/types";
-import { FPS, HEIGHT, HOVER, JourneyScene, type JourneyPlanet, SEG, WIDTH, durationFor } from "./journey/JourneyScene";
+import { DURATION, FPS, HEIGHT, HOLD_LEN, HOLDS, type JourneyData, JourneyScene, WIDTH } from "./journey/JourneyScene";
 import { frameSrc } from "./sprites";
 
-const PLANETS: JourneyPlanet[] = [
-  { key: "launch", name: "Launch pad", colours: ["#B9A6FF", "#7A2DFF"] },
-  { key: "search", name: "Planet Search", colours: ["#FF8A8A", "#E81F76"], ring: true },
-  { key: "filter", name: "Planet Filter", colours: ["#FFD27A", "#FF7A00"] },
-  { key: "contact", name: "Planet Contact", colours: ["#8FE3C8", "#1E9E7A"], ring: true },
-  { key: "sources", name: "Planet Everywhere", colours: ["#9ED0FF", "#2E6BFF"] },
-  { key: "home", name: "Results", colours: ["#FFE58A", "#FFC300"], ring: true },
-];
 
 const active = (j?: Job) => !!j && ["queued", "running", "paused", "cancelling"].includes(j.status);
 
@@ -51,61 +43,51 @@ export function DiscoveryJourney({ jobId, othersBusy, multiSource }: { jobId: st
   const reduced = useReducedMotionSafe();
   const { data: job } = useApi<Job>(`/jobs/${jobId}`, { refreshInterval: (j) => (active(j) ? 1500 : 0) });
   const s = useMemo(() => (job ? stage(job, othersBusy, multiSource) : { at: 0, lines: ["Preparing for launch…"] }), [job, othersBusy, multiSource]);
-  const planets = useMemo(() => (multiSource ? PLANETS : PLANETS.filter((p) => p.key !== "sources")), [multiSource]);
-  const at = multiSource ? s.at : s.at >= 4 ? s.at - 1 : s.at;
-  const last = planets.length - 1;
-  const duration = durationFor(planets.length);
-  const inputProps = useMemo(() => ({ planets, helperSrc: frameSrc("e_happy") }), [planets]);
+  // journey stages: 0 search, 1 filter, 2 contact (including other sources), 3 complete
+  const at = s.at <= 1 ? 0 : s.at === 2 ? 1 : s.at <= 4 ? 2 : 3;
+  const failed = !!job && (job.status === "failed" || job.status === "cancelled");
+  const data: JourneyData = useMemo(() => ({
+    stage: at, failed, message: s.lines[0] ?? "", queriesDone: job?.queries_done ?? 0, queriesTotal: job?.queries_total ?? 0,
+    found: job?.unique_found ?? 0, qualified: job?.qualified ?? 0, rejected: job?.rejected ?? 0, duplicates: job?.duplicates_removed ?? 0,
+    contacts: job?.contact_routes_found ?? 0, enriched: job?.enriched ?? 0, enrichTotal: job?.enrich_total ?? 0, limit: Number(job?.params?.limit ?? 0),
+  }), [job, at, failed, s.lines]);
+  const inputProps = useMemo(() => ({ data, helperSrc: frameSrc("e_happy") }), [data]);
   const player = useRef<PlayerRef>(null);
   const frame = useRef(0);
   const target = useRef(at);
   target.current = at;
 
-  // Drive the scene's frame from the job's stage.
   useEffect(() => {
-    const seek = (f: number) => player.current?.seekTo(Math.max(0, Math.min(duration - 1, Math.floor(f))));
-    if (reduced) {
-      frame.current = at === last ? duration - 1 : at * SEG;
-      seek(frame.current);
-      return;
-    }
-    let raf = 0;
-    let prev = performance.now();
+    const seek = (f: number) => player.current?.seekTo(Math.max(0, Math.min(DURATION - 1, Math.floor(f))));
+    if (reduced) { frame.current = HOLDS[at][0] + 20; seek(frame.current); return; }
+    let raf = 0, prev = performance.now();
     const tick = (now: number) => {
       const step = ((now - prev) / 1000) * FPS;
       prev = now;
       let f = frame.current;
-      const cur = Math.min(Math.floor(f / SEG), last);
-      const want = target.current;
-      if (cur < want) {
-        f = Math.max(f, cur * SEG + HOVER) + step * (want - cur > 1 ? 2 : 1); // set off now, faster when behind
-      } else if (cur === last) {
-        f = Math.min(f + step, duration - 1); // land, then rest
-      } else {
-        f += step;
-        const end = cur * SEG + HOVER;
-        if (f >= end) f = cur * SEG + ((f - end) % HOVER); // wait at this planet, seamlessly
-      }
+      const want = target.current, [a, b] = HOLDS[want];
+      if (f < a) f = Math.min(a, f + step * (f < HOLDS[Math.max(0, want - 1)][1] - 1 ? 3.5 : 1.4)); // fly on; faster when behind
+      else { f += step; if (f >= b) f = a + ((f - b) % HOLD_LEN); }                                  // stay with this stage
       frame.current = f;
       seek(f);
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [reduced, duration, last, at]);
+  }, [reduced, at]);
 
   return (
-    <section aria-label="Discovery journey" className="relative overflow-hidden rounded-[22px] bg-[#1A0D2E] text-white shadow-pop">
+    <section aria-label="Discovery journey" className="journey-card relative overflow-hidden rounded-[24px] text-white">
       <div className="pointer-events-none">
-        <Player ref={player} component={JourneyScene} inputProps={inputProps} durationInFrames={duration} fps={FPS}
+        <Player ref={player} component={JourneyScene} inputProps={inputProps} durationInFrames={DURATION} fps={FPS}
           compositionWidth={WIDTH} compositionHeight={HEIGHT} style={{ width: "100%", aspectRatio: `${WIDTH} / ${HEIGHT}` }}
           controls={false} autoPlay={false} loop={false} clickToPlay={false} doubleClickToFullscreen={false} spaceKeyToPlayOrPause={false}
           numberOfSharedAudioTags={0} acknowledgeRemotionLicense />
       </div>
-      <div className="px-4 pb-4">
-        <div className="-mt-1 rounded-2xl border border-white/10 bg-white/[0.07] px-3.5 py-2.5 backdrop-blur" aria-live="polite">
-          <p className="text-[12.5px] font-semibold leading-snug">{planets[at]?.name}</p>
-          {s.lines.filter(Boolean).map((l, i) => <p key={i} className="text-[12px] leading-snug text-white/75">{l}</p>)}
+      <div className="journey-info" aria-live="polite">
+        <span className={"journey-dot" + (failed ? " is-failed" : at === 3 ? " is-done" : "")} aria-hidden />
+        <div className="min-w-0">
+          {s.lines.filter(Boolean).map((l, i) => <p key={i} className={i ? "text-[12.5px] text-white/65" : "text-[13.5px] font-semibold"}>{l}</p>)}
         </div>
       </div>
     </section>
