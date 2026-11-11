@@ -165,3 +165,19 @@
 .journey-dot.is-done { background: #FFC300; box-shadow: 0 0 10px #FFC300; animation: none; }
 .journey-dot.is-failed { background: #FF8A5B; box-shadow: 0 0 10px #FF8A5B; animation: none; }
 @media (prefers-reduced-motion: reduce) { .journey-dot { animation: none; } }
+
+/* Lead Generator: clearer, more selectable controls */
+main [role="radiogroup"] { gap: 4px; padding: 4px; border-radius: 14px; background: #F3E9FF; border-color: rgba(122,45,255,.25); }
+main [role="radiogroup"] > button, main [role="radiogroup"] > label { padding: 8px 14px; border-radius: 10px; font-size: 13px; cursor: pointer;
+  transition: transform .15s cubic-bezier(.22,1,.36,1), background .2s, box-shadow .2s, color .2s; }
+main [role="radiogroup"] > button:hover { background: #fff; color: #7A2DFF; transform: translateY(-1px); box-shadow: 0 4px 12px -6px rgba(122,45,255,.5); }
+main [role="radiogroup"] > button:active { transform: scale(.96); }
+main [role="radiogroup"] > [aria-checked="true"] { background: linear-gradient(135deg,#7A2DFF,#E81F76) !important; color: #fff !important;
+  box-shadow: 0 6px 16px -6px rgba(232,31,118,.6); animation: lg-pick .3s cubic-bezier(.22,1,.36,1); }
+@keyframes lg-pick { from { transform: scale(.92); } to { transform: scale(1); } }
+main .field { transition: border-color .2s, box-shadow .2s; }
+main .field:hover { border-color: rgba(122,45,255,.45); }
+main .field:focus { border-color: #7A2DFF; box-shadow: 0 0 0 4px rgba(122,45,255,.15); }
+main button[role="switch"] { cursor: pointer; transition: transform .15s; }
+main button[role="switch"]:hover { transform: scale(1.06); }
+@media (prefers-reduced-motion: reduce) { main [role="radiogroup"] > * { transition: none; animation: none !important; } }
