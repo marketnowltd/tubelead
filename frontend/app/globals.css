@@ -80,3 +80,11 @@
 
 @keyframes acc-down { from { height: 0; opacity: .4; } to { height: var(--radix-accordion-content-height); opacity: 1; } }
 @keyframes acc-up { from { height: var(--radix-accordion-content-height); } to { height: 0; opacity: .4; } }
+
+/* Hero artwork: flush with the top and right of the hero, dissolving into the page on the left and bottom */
+.hero-art-mask {
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 13%), linear-gradient(to bottom, #000 72%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent 0%, #000 13%), linear-gradient(to bottom, #000 72%, transparent 100%);
+  mask-composite: intersect;
+}

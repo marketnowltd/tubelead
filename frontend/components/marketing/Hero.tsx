@@ -1,5 +1,6 @@
 "use client";
-import { motion, useReducedMotion } from "motion/react";
+import { useRef } from "react";
+import { motion, useReducedMotion, useScroll, useSpring, useTransform, type MotionValue } from "motion/react";
 import { ArrowRight, BadgeCheck, BarChart3, Briefcase, Check, Cpu, Dumbbell, Gamepad2, GraduationCap, Leaf, Music, PlayCircle, Search } from "lucide-react";
 import Link from "next/link";
 import { SAMPLE, k } from "@/lib/sample";
@@ -29,54 +30,15 @@ function Sparkline({ delay }: { delay: number }) {
   );
 }
 
-export function Hero() {
-  const still = useReducedMotion();
+function Scene({ still, cardY }: { still: boolean; cardY?: MotionValue<number> }) {
   return (
-    <>
-      <section className="relative overflow-hidden bg-[linear-gradient(180deg,#fdfaff_0%,#f6edff_55%,#f8f4ff_100%)]">
-        {/* drifting colour fields */}
-        <div aria-hidden className="pointer-events-none absolute -right-40 -top-48 h-[690px] w-[690px] rounded-full bg-[linear-gradient(135deg,rgba(119,70,245,.5),rgba(255,91,175,.28))] blur-[70px] motion-safe:animate-drift" />
-        <div aria-hidden className="pointer-events-none absolute -bottom-64 right-[4%] h-[440px] w-[750px] rounded-full bg-[linear-gradient(90deg,rgba(243,72,210,.17),rgba(255,177,115,.3))] blur-[60px] motion-safe:animate-drift-slow" />
-        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_48%_55%,rgba(255,255,255,.6),transparent_35%)]" />
-
-        <div className="relative mx-auto grid max-w-[1320px] grid-cols-[minmax(0,1fr)] items-center gap-10 py-12 pl-[max(20px,env(safe-area-inset-left,0px))] pr-[max(20px,env(safe-area-inset-right,0px))] sm:px-8 lg:grid-cols-[minmax(0,.96fr)_minmax(0,1.04fr)] lg:py-16">
-          <div>
-            <motion.p {...rise(0)} className="mb-8 inline-flex items-center gap-2.5 rounded-full border border-forest/15 bg-white/90 px-4 py-2 text-[13.5px] font-semibold text-ink shadow-card">
-              <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" role="img" aria-label="YouTube logo"><path d={SOURCE_LOGOS.youtube.path} fill={SOURCE_LOGOS.youtube.hex} /></svg>
-              Official YouTube Data API <Check size={15} strokeWidth={3} className="text-forest" aria-hidden />
-            </motion.p>
-            <motion.h1 {...rise(0.08)} className="font-display text-[clamp(2.3rem,4.3vw,3.8rem)] font-extrabold leading-[1] tracking-[-0.045em]">
-              Discover the<br />
-              <em className="bg-[linear-gradient(90deg,#f33b85,#9d29e9)] bg-clip-text pr-1 italic text-transparent">right</em> creators.<br />
-              Without the<br />endless searching.
-            </motion.h1>
-            <motion.p {...rise(0.18)} className="mt-6 max-w-[560px] text-[18px] leading-relaxed text-mute">
-              TubeLead helps you find, analyse and connect with YouTube creators at scale. Get real contacts, remove duplicates and discover high-value opportunities in minutes.
-            </motion.p>
-            <motion.div {...rise(0.28)} className="mt-9 flex flex-wrap items-center gap-4">
-              <Link href={next()} className="group inline-flex items-center gap-3 rounded-full px-8 py-4 text-[15px] font-bold text-white shadow-[0_9px_22px_rgba(189,48,214,.28)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(189,48,214,.36)]" style={{ background: GRADIENT }}>
-                Start Discovering <ArrowRight size={17} className="transition-transform duration-300 group-hover:translate-x-1" />
-              </Link>
-              <a href="#how" className="inline-flex items-center gap-2.5 rounded-full border border-forest/40 bg-white/80 px-7 py-4 text-[15px] font-bold text-forest transition duration-300 hover:-translate-y-0.5 hover:border-forest hover:bg-white">
-                <PlayCircle size={20} /> Explore the Platform
-              </a>
-            </motion.div>
-            <motion.ul {...rise(0.38)} className="mt-8 flex flex-wrap gap-x-7 gap-y-2.5 text-[13.5px] font-medium text-ink">
-              {["25 free leads, no card", "Duplicates removed automatically", "Bring your own AI key"].map((t) => (
-                <li key={t} className="flex items-center gap-2"><span className="grid h-[19px] w-[19px] place-items-center rounded-full bg-[linear-gradient(120deg,#c02df0,#f06bd0)] text-white"><Check size={12} strokeWidth={3.5} /></span>{t}</li>
-              ))}
-            </motion.ul>
-          </div>
-
-          {/* Artwork with a live preview card over it */}
-          <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2, duration: 1, ease: EASE }} className="relative mx-auto w-full max-w-[760px] [container-type:inline-size]" aria-label="TubeLead creator discovery preview">
-            <div className="relative aspect-[846/596] motion-safe:animate-floaty max-sm:mb-[12%]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/hero-art.webp" alt="Astronaut with a laptop on a purple planet" width={846} height={596} fetchPriority="high"
-                className="absolute inset-0 h-full w-full select-none rounded-[28px] object-cover [mask-image:radial-gradient(ellipse_72%_74%_at_52%_48%,#000_58%,transparent_100%)]" draggable={false} />
-              <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.55, duration: 0.9, ease: EASE }}
-                className="absolute left-[26.5%] top-[13%] w-[71.5%] overflow-hidden max-sm:left-[3%] max-sm:top-[13%] max-sm:w-[94%] rounded-[3.2cqw] border border-white/80 bg-white/75 shadow-[0_2.5cqw_6cqw_rgba(96,45,170,.28)] backdrop-blur-xl">
-                <div className="[container-type:inline-size]">
+    <div className="relative aspect-[846/596] max-sm:mb-[12%]">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/hero-art.webp" alt="Astronaut with a laptop on a purple planet" width={1692} height={1192} fetchPriority="high" draggable={false}
+        className="hero-art-mask absolute inset-0 h-full w-full select-none object-cover motion-safe:animate-floaty" />
+      <motion.div style={cardY && !still ? { y: cardY } : undefined} initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.55, duration: 0.9, ease: EASE }}
+        className="pointer-events-auto absolute left-[25%] top-[12.5%] w-[60%] overflow-hidden rounded-[3.2cqw] border border-white/80 bg-white/75 shadow-[0_2.5cqw_6cqw_rgba(96,45,170,.28)] backdrop-blur-xl max-sm:left-[3%] max-sm:top-[13%] max-sm:w-[94%]">
+        <div className="[container-type:inline-size]">
                 <div className="flex items-center gap-[1.4cqw] border-b border-forest/10 bg-white/40 px-[3.64cqw] py-[2.52cqw]">
                   {["#ed31bd", "#ff8b2c", "#8d22f4"].map((c) => <i key={c} className="h-[2.1cqw] w-[2.1cqw] rounded-full" style={{ background: c }} />)}
                   <span className="data ml-[2.24cqw] text-[2.45cqw] text-mute">tubelead.app / discover</span>
@@ -106,9 +68,71 @@ export function Hero() {
                   </ul>
                 </div>
                 </div>
-              </motion.div>
-            </div>
+      </motion.div>
+    </div>
+  );
+}
+
+export function Hero() {
+  const still = useReducedMotion();
+  const ref = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
+  const p = useSpring(scrollYProgress, { stiffness: 70, damping: 20, mass: 0.4 });
+  // Layers travel at different speeds as the hero scrolls away: far glow slowest, scene slower than the page, text slightly faster.
+  const sceneY = useTransform(p, [0, 1], [0, 170]);
+  const sceneScale = useTransform(p, [0, 1], [1, 1.07]);
+  const cardY = useTransform(p, [0, 1], [0, -16]);
+  const glowY = useTransform(p, [0, 1], [0, 240]);
+  const textY = useTransform(p, [0, 1], [0, -46]);
+  const fade = useTransform(p, [0, 0.9], [1, 0.65]);
+  return (
+    <>
+      <section ref={ref} className="relative overflow-hidden bg-[linear-gradient(180deg,#fdfaff_0%,#f6edff_55%,#f8f4ff_100%)]">
+        {/* drifting colour fields */}
+        <motion.div aria-hidden style={still ? undefined : { y: glowY }} className="pointer-events-none absolute inset-0">
+          <div className="absolute -right-40 -top-48 h-[690px] w-[690px] rounded-full bg-[linear-gradient(135deg,rgba(119,70,245,.5),rgba(255,91,175,.28))] blur-[70px] motion-safe:animate-drift" />
+          <div className="absolute -bottom-64 right-[4%] h-[440px] w-[750px] rounded-full bg-[linear-gradient(90deg,rgba(243,72,210,.17),rgba(255,177,115,.3))] blur-[60px] motion-safe:animate-drift-slow" />
+        </motion.div>
+
+        {/* The scene: artwork bleeds to the top and right edges and fades into the page; the live card rides on it */}
+        <motion.div style={still ? undefined : { y: sceneY, scale: sceneScale, opacity: fade }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1.2, ease: EASE }}
+          className="pointer-events-none relative z-0 order-2 mx-auto mt-2 w-full max-w-[760px] origin-top [container-type:inline-size] max-lg:hidden lg:absolute lg:right-0 lg:top-0 lg:left-[max(42%,calc(50%_-_70px))] lg:mt-0 lg:w-auto lg:max-w-none"
+          aria-label="TubeLead creator discovery preview">
+          <Scene still={!!still} cardY={cardY} />
+        </motion.div>
+
+        <div className="relative z-10 mx-auto max-w-[1320px] py-12 pl-[max(20px,env(safe-area-inset-left,0px))] pr-[max(20px,env(safe-area-inset-right,0px))] sm:px-8 lg:py-16">
+          <motion.div style={still ? undefined : { y: textY }} className="lg:w-[44%]">
+            <motion.p {...rise(0)} className="mb-8 inline-flex items-center gap-2.5 rounded-full border border-forest/15 bg-white/90 px-4 py-2 text-[13.5px] font-semibold text-ink shadow-card">
+              <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" role="img" aria-label="YouTube logo"><path d={SOURCE_LOGOS.youtube.path} fill={SOURCE_LOGOS.youtube.hex} /></svg>
+              Official YouTube Data API <Check size={15} strokeWidth={3} className="text-forest" aria-hidden />
+            </motion.p>
+            <motion.h1 {...rise(0.08)} className="font-display text-[clamp(2.3rem,4.3vw,3.8rem)] font-extrabold leading-[1] tracking-[-0.045em]">
+              Discover the<br />
+              <em className="bg-[linear-gradient(90deg,#f33b85,#9d29e9)] bg-clip-text pr-1 italic text-transparent">right</em> creators.<br />
+              Without the<br />endless searching.
+            </motion.h1>
+            <motion.p {...rise(0.18)} className="mt-6 max-w-[540px] text-[18px] leading-relaxed text-mute">
+              TubeLead helps you find, analyse and connect with YouTube creators at scale. Get real contacts, remove duplicates and discover high-value opportunities in minutes.
+            </motion.p>
+            <motion.div {...rise(0.28)} className="mt-9 flex flex-wrap items-center gap-4">
+              <Link href={next()} className="group inline-flex items-center gap-3 rounded-full px-8 py-4 text-[15px] font-bold text-white shadow-[0_9px_22px_rgba(189,48,214,.28)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(189,48,214,.36)]" style={{ background: GRADIENT }}>
+                Start Discovering <ArrowRight size={17} className="transition-transform duration-300 group-hover:translate-x-1" />
+              </Link>
+              <a href="#how" className="inline-flex items-center gap-2.5 rounded-full border border-forest/40 bg-white/80 px-7 py-4 text-[15px] font-bold text-forest transition duration-300 hover:-translate-y-0.5 hover:border-forest hover:bg-white">
+                <PlayCircle size={20} /> Explore the Platform
+              </a>
+            </motion.div>
+            <motion.ul {...rise(0.38)} className="mt-8 flex flex-wrap gap-x-7 gap-y-2.5 text-[13.5px] font-medium text-ink">
+              {["25 free leads, no card", "Duplicates removed automatically", "Bring your own AI key"].map((t) => (
+                <li key={t} className="flex items-center gap-2"><span className="grid h-[19px] w-[19px] place-items-center rounded-full bg-[linear-gradient(120deg,#c02df0,#f06bd0)] text-white"><Check size={12} strokeWidth={3.5} /></span>{t}</li>
+              ))}
+            </motion.ul>
           </motion.div>
+          {/* Below desktop width the scene sits in the flow under the text */}
+          <div className="relative mt-10 w-full [container-type:inline-size] lg:hidden" aria-label="TubeLead creator discovery preview">
+            <Scene still={!!still} />
+          </div>
         </div>
       </section>
 
