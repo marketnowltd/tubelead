@@ -6,6 +6,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { SAMPLE, k } from "@/lib/sample";
 import { SEARCH_SOURCES } from "@/content/site";
+import { SOURCE_LOGOS } from "@/content/logos";
 import { AvatarTile, ContactBadge, ScoreDial, SampleTag } from "./bits";
 
 const ROWS = [SAMPLE[0], SAMPLE[3], SAMPLE[10], SAMPLE[7]];
@@ -42,13 +43,19 @@ export function Hero() {
           <div className="mt-8" aria-label="Sources TubeLead searches">
             <p className="label mb-2.5 !text-[11px] text-dim">Searches across</p>
             <ul className="flex flex-wrap gap-2">
-              {SEARCH_SOURCES.map((src) => (
-                <li key={src.name} title={src.detail} className={src.status === "live" ? "rounded-full border border-moss/30 bg-moss/10 px-3 py-1 text-[12px] font-semibold text-moss" : "rounded-full border border-line bg-panel px-3 py-1 text-[12px] font-semibold text-mute"}>
-                  {src.name}{src.status === "live" ? "" : <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wider text-dim">Soon</span>}
-                </li>
-              ))}
+              {SEARCH_SOURCES.map((src) => {
+                const logo = SOURCE_LOGOS[src.key];
+                const live = src.status === "live";
+                return (
+                  <li key={src.name} title={src.detail} className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-semibold ${live ? "border-moss/30 bg-panel text-ink" : "border-line bg-panel text-mute"}`}>
+                    {logo && <svg role="img" aria-label={`${src.name} logo`} viewBox="0 0 24 24" className={`h-3.5 w-3.5 shrink-0 ${live ? "" : "opacity-50"}`}><path d={logo.path} fill={logo.hex} /></svg>}
+                    {src.name}
+                    {live ? <span className="rounded-full bg-moss/10 px-1.5 text-[9.5px] font-bold uppercase tracking-wider text-moss">Live</span> : <span className="text-[9.5px] font-bold uppercase tracking-wider text-dim">Soon</span>}
+                  </li>
+                );
+              })}
             </ul>
-            <p className="mt-2.5 text-[12px] text-dim">Multi-source search is included from the Pro plan.</p>
+            <p className="mt-2.5 text-[12px] text-dim">Multi-source search is included from the Pro plan. Logos are trademarks of their owners; TubeLead is not affiliated with or endorsed by them.</p>
           </div>
           <ul className="mt-8 flex flex-wrap gap-x-8 gap-y-2 text-[13px] text-mute">
             {["25 free leads, no card", "Duplicates removed automatically", "Public contacts only"].map((t) => <li key={t} className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-terracotta" />{t}</li>)}

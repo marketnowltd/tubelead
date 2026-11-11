@@ -28,14 +28,14 @@ export const INDUSTRIES: { name: string; example: string }[] = [
 ];
 
 /** Where TubeLead finds creators. Only sources that are live are listed as live. */
-export const SEARCH_SOURCES: { name: string; status: "live" | "planned"; detail: string }[] = [
-  { name: "YouTube", status: "live", detail: "Public channels, videos and channel descriptions" },
-  { name: "Google Search", status: "planned", detail: "Public web pages that mention a creator" },
-  { name: "Reddit", status: "planned", detail: "Public posts and communities" },
-  { name: "Twitch", status: "planned", detail: "Public streamer channels" },
-  { name: "Spotify", status: "planned", detail: "Music artist profiles" },
-  { name: "Last.fm", status: "planned", detail: "Music artist pages" },
-  { name: "MusicBrainz", status: "planned", detail: "Open music artist records" },
+export const SEARCH_SOURCES: { key: string; name: string; status: "live" | "planned"; detail: string }[] = [
+  { key: "youtube", name: "YouTube", status: "live", detail: "Public channels, videos and channel descriptions" },
+  { key: "google", name: "Google Search", status: "planned", detail: "Public web pages that mention a creator" },
+  { key: "reddit", name: "Reddit", status: "planned", detail: "Public posts and communities" },
+  { key: "twitch", name: "Twitch", status: "planned", detail: "Public streamer channels" },
+  { key: "spotify", name: "Spotify", status: "planned", detail: "Music artist profiles" },
+  { key: "lastdotfm", name: "Last.fm", status: "planned", detail: "Music artist pages" },
+  { key: "musicbrainz", name: "MusicBrainz", status: "planned", detail: "Open music artist records" },
 ];
 
 /** Product strengths shown when there are no awards yet. These describe what the product really does. */
