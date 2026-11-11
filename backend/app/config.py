@@ -47,6 +47,12 @@ class Settings(BaseSettings):
     reddit_client_id: str = ""
     reddit_client_secret: str = ""
     reddit_user_agent: str = "TubeLead/1.0 (lead discovery)"
+    twitch_client_id: str = ""
+    twitch_client_secret: str = ""
+    spotify_client_id: str = ""
+    spotify_client_secret: str = ""
+    lastfm_api_key: str = ""
+    musicbrainz_user_agent: str = "TubeLead/1.0 (lead discovery)"
     operator_user_ids: str = ""  # comma-separated Supabase user IDs with unlimited access (site owner)
     plan_override: str = ""  # DEV ONLY (auth_mode=dev): pretend the local user is on this plan, to evaluate paid features without Stripe
     plans_file: str = ""  # optional JSON file overriding plan prices/allowances

@@ -1,5 +1,5 @@
 "use client";
-import { AlertTriangle, CalendarClock, Globe, Layers, Layers3, Lightbulb, Repeat, Rocket, Save, Search, Sparkles, Telescope, Wand2 } from "lucide-react";
+import { AlertTriangle, CalendarClock, ExternalLink, Globe, Layers, Layers3, Lightbulb, Lock, Repeat, Rocket, Save, Search, Sparkles, Telescope, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { JobMonitor, isActiveJob } from "@/components/pages/JobMonitor";
@@ -74,6 +74,10 @@ const USES: { name: string; how: string }[] = [
 const fmtK = (n: number) => (n >= 1_000_000 ? `${n / 1_000_000}M` : `${n / 1000}K`);
 const Err = ({ m }: { m?: string }) => (m ? <p role="alert" className="mt-1 text-[11px] text-[#A33A2A]">{m}</p> : null);
 
+interface OtherLead { creator_name: string; sources: string[]; source_url: string | null; youtube_url: string | null; snippet: string | null; verification_status: string }
+interface OtherSearch { providers: { provider: string; status: string; message: string; count: number }[]; leads: OtherLead[] }
+const OTHER_SOURCES = "YouTube, Google Search, Reddit, Twitch, Spotify, Last.fm and MusicBrainz";
+
 export default function LeadGenerator() {
   const toast = useToast();
   const [f, setF] = useState<Form>(DEFAULTS);
@@ -88,6 +92,9 @@ export default function LeadGenerator() {
   const bigOut = f.creatorType === "creator";
   const setBigOut = (on: boolean) => setF((x) => ({ ...x, creatorType: on ? "creator" : "any", maxSubs: on ? 500_000 : "" }));
   const [ready, setReady] = useState<Job | null>(null);
+  const [others, setOthers] = useState<OtherSearch | null>(null);
+  const [othersBusy, setOthersBusy] = useState(false);
+  const multiSource = !!st?.plan.features?.multi_source;
   const sawActive = useRef<string | null>(null);
   const { data: live } = useApi<Job>(jobId ? `/jobs/${jobId}` : null, { refreshInterval: (j) => (isActiveJob(j) ? 1500 : 0) });
   useEffect(() => {
@@ -166,6 +173,14 @@ export default function LeadGenerator() {
       if (f.mode === "scheduled") { body.schedule = f.schedule; body.save_as = f.saveName.trim(); }
       const job = await api<Job>("/jobs", { method: "POST", json: body });
       setJobId(job.id); refreshRecent();
+      // Same keywords across the other sources, when the plan includes them. Runs alongside the YouTube job.
+      const q = (f.keywords[0] ?? f.niches[0] ?? "").trim();
+      setOthers(null);
+      if (multiSource && q.length >= 3) {
+        setOthersBusy(true);
+        api<OtherSearch>("/search-everywhere", { method: "POST", json: { query: [...f.keywords, ...f.niches].join(" ").slice(0, 300) || q } })
+          .then(setOthers).catch((err: ApiError) => toast("error", `Other sources: ${err.message}`)).finally(() => setOthersBusy(false));
+      }
       toast("success", f.mode === "scheduled" ? `Discovery started and scheduled ${f.schedule}` : "Discovery started — watch live progress on the right");
     } catch (e) {
       const err = e as ApiError;
@@ -319,6 +334,29 @@ export default function LeadGenerator() {
 
         <div className="space-y-6 xl:sticky xl:top-24 xl:self-start">
           {live && live.id === jobId && <ResultsCard job={live} />}
+          <Panel>
+            <PanelHeader title="Other sources" sub={multiSource ? "The same keywords, searched across the other sources" : "Included from the Pro plan"} icon={multiSource ? <Layers size={16} /> : <Lock size={16} />} />
+            {!multiSource ? (
+              <div className="px-5 pb-5 text-sm text-mute"><p>Multi-source search covers {OTHER_SOURCES}. It is included from the Pro plan.</p>
+                <Link href="/billing" className="mt-3 inline-flex text-xs font-semibold text-forest hover:underline">See plans →</Link></div>
+            ) : othersBusy ? (
+              <p className="px-5 pb-5 text-sm text-mute">Searching the other sources…</p>
+            ) : !others ? (
+              <p className="px-5 pb-5 text-sm text-mute">Press Generate Leads to search the other sources too.</p>
+            ) : (
+              <div className="px-5 pb-5">
+                <ul className="mb-3 space-y-1 text-xs text-mute">{others.providers.map((p) => <li key={p.provider}><span className="font-semibold text-ink">{p.provider}:</span> {p.message}</li>)}</ul>
+                {others.leads.length === 0 ? <p className="text-sm text-mute">No results from the connected sources yet.</p> : (
+                  <ul className="divide-y divide-line">{others.leads.slice(0, 12).map((l, i) => (
+                    <li key={`${l.creator_name}-${i}`} className="py-2.5 text-sm">
+                      <div className="flex items-center justify-between gap-3"><span className="font-medium">{l.creator_name}</span><span className="text-xs text-mute">{l.sources.join(", ")}</span></div>
+                      {l.snippet && <p className="mt-0.5 line-clamp-1 text-xs text-mute">{l.snippet}</p>}
+                      {l.source_url && <a href={l.source_url} target="_blank" rel="noopener noreferrer" className="mt-0.5 inline-flex items-center gap-1 text-xs text-forest underline">Open <ExternalLink size={10} /></a>}
+                    </li>))}</ul>
+                )}
+              </div>
+            )}
+          </Panel>
           <Panel glow={!!jobId}>
             <PanelHeader title="Discovery progress" sub="Real job state, refreshed every 1.5 s" icon={<Layers size={16} />} />
             {jobId ? <JobMonitor jobId={jobId} compact /> : <EmptyState title="No job running" body="Press Generate Leads to start a background discovery. Counters here come straight from the job record." />}

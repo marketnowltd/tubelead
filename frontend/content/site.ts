@@ -29,7 +29,13 @@ export const INDUSTRIES: { name: string; example: string }[] = [
 
 /** Where TubeLead finds creators. Only sources that are live are listed as live. */
 export const SEARCH_SOURCES: { name: string; status: "live" | "planned"; detail: string }[] = [
-  { name: "YouTube Data API v3", status: "live", detail: "Public channels, videos and channel descriptions" },
+  { name: "YouTube", status: "live", detail: "Public channels, videos and channel descriptions" },
+  { name: "Google Search", status: "planned", detail: "Public web pages that mention a creator" },
+  { name: "Reddit", status: "planned", detail: "Public posts and communities" },
+  { name: "Twitch", status: "planned", detail: "Public streamer channels" },
+  { name: "Spotify", status: "planned", detail: "Music artist profiles" },
+  { name: "Last.fm", status: "planned", detail: "Music artist pages" },
+  { name: "MusicBrainz", status: "planned", detail: "Open music artist records" },
 ];
 
 /** Product strengths shown when there are no awards yet. These describe what the product really does. */
