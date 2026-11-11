@@ -73,7 +73,7 @@ export default function SettingsPage() {
                 <div className="md:col-span-2"><button className="btn-primary !px-5 !py-2.5 !text-xs" disabled={saving || emailBad || !name.trim()}>{saving ? "Saving…" : "Save profile"}</button></div>
               </form>)}</Panel>
 
-          <Panel><PanelHeader title="Plan" icon={<Crown size={16} />} sub="Plans are managed in Billing & Subscription. Paid features unlock only after Stripe confirms your payment." />
+          <Panel><PanelHeader title="Plan" icon={<Crown size={16} />} sub="Plans are managed in Billing & Subscription. Paid features unlock as soon as your payment is confirmed." />
             <div className="flex flex-wrap items-center justify-between gap-4 px-5 pb-5">
               {st ? <div className="min-w-0 flex-1"><div className="mb-1.5 flex justify-between text-xs text-mute"><span><strong className="text-ink">{st.plan.label}</strong> · leads {st.plan.lead_period === "lifetime" ? "in trial" : "this month"}</span><span className="data">{st.plan.leads_used.toLocaleString()} / {st.plan.leads.toLocaleString()}</span></div><Progress label="Leads used" value={(st.plan.leads_used / st.plan.leads) * 100} /></div> : <Skeleton className="h-10 flex-1" />}
               <Link href="/billing" className="btn-primary btn-sm">Manage billing <ArrowRight size={13} /></Link>

@@ -271,7 +271,7 @@ def test_checkout_uses_stripe_and_never_unlocks(client, stripe_cfg):
 
 def test_billing_not_configured_is_explicit(client):
     get_settings().plan_override = ""
-    assert client.get("/api/billing").json()["stripe_configured"] is False or get_settings().stripe_secret_key
+    assert client.get("/api/billing").json()["payments_configured"] is False or get_settings().stripe_secret_key
     st = get_settings()
     old = st.stripe_secret_key
     st.stripe_secret_key = ""

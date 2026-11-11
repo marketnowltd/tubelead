@@ -23,7 +23,7 @@ export function PaywallHost() {
         <div className="space-y-2 text-sm">
           <p>{d?.message}</p>
           {d?.required_plan && <p className="text-mute">Available from the <strong className="text-ink">{d.required_plan}</strong> plan. Your current plan: <span className="capitalize">{d.current_plan}</span>.</p>}
-          <p className="text-xs text-dim">Nothing is charged until you confirm in Stripe Checkout, and paid features unlock only after Stripe confirms the payment.</p>
+          <p className="text-xs text-dim">Nothing is charged until you confirm at our secure checkout, and paid features unlock as soon as the payment is confirmed.</p>
         </div>
       </div>
     </Modal>

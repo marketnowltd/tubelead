@@ -39,15 +39,18 @@ def _configured() -> bool:
 async def _stripe(method: str, path: str, data: dict | None = None) -> dict:
     s = get_settings()
     if not s.stripe_secret_key:
-        raise HTTPException(503, {"code": "stripe_not_configured", "message": "Stripe is not configured on this server. Set STRIPE_SECRET_KEY and the price IDs (see docs/DEPLOY.md)."})
+        # Setup details for the owner are in Admin > System; customers only see a neutral message.
+        raise HTTPException(503, {"code": "payments_not_configured", "message": "Upgrades aren't available yet. Please try again later."})
     try:
         async with httpx.AsyncClient(timeout=20, base_url=s.stripe_api_base) as c:
             r = await c.request(method, path, data=data, headers={"Authorization": f"Bearer {s.stripe_secret_key}"})
     except httpx.HTTPError as exc:
-        raise HTTPException(502, {"code": "stripe_unreachable", "message": f"Could not reach Stripe: {type(exc).__name__}"}) from exc
+        log_error("payments", f"Payment provider unreachable on {method} {path}: {type(exc).__name__}", path)
+        raise HTTPException(502, {"code": "payments_unreachable", "message": "We couldn't reach the payment service. Please try again in a moment."}) from exc
     if r.status_code >= 400:
         msg = r.json().get("error", {}).get("message", r.text[:200]) if r.headers.get("content-type", "").startswith("application/json") else r.text[:200]
-        raise HTTPException(502, {"code": "stripe_error", "message": f"Stripe: {msg}"})
+        log_error("payments", f"Payment provider error on {method} {path}: {msg}", path)
+        raise HTTPException(502, {"code": "payments_error", "message": "The payment service couldn't complete that. Please try again, or contact support."})
     return r.json()
 
 
@@ -76,8 +79,7 @@ def overview(owner: str = Depends(get_owner), db: Session = Depends(get_db)):
     for pid, p in purchasable_plans().items():
         plans.append({"id": pid, **p, "feature_labels": {k: FEATURE_LABELS[k] for k in FEATURE_LABELS},
                       "purchasable": pid != "free" and bool(price_id(pid, "monthly")) and _configured()})
-    return {"stripe_configured": _configured(), "publishable_key": s.stripe_publishable_key or None,
-            "webhook_configured": bool(s.stripe_webhook_secret),
+    return {"payments_configured": _configured(),
             "plan_override": s.plan_override if (s.auth_mode == "dev" and s.plan_override) else None, "current_plan": ent.current_plan_id(db, owner),
             "subscription": sub_out(row), "usage": ent.usage(db, owner), "plans": plans}
 
@@ -88,7 +90,7 @@ async def checkout(body: CheckoutIn, owner: str = Depends(get_owner), db: Sessio
         raise HTTPException(422, "Choose a paid plan and a monthly or annual interval")
     pr = price_id(body.plan, body.interval)
     if not pr:
-        raise HTTPException(503, {"code": "price_not_configured", "message": f"No Stripe price ID is set for {body.plan}/{body.interval} (STRIPE_PRICE_{body.plan.upper()}_{body.interval.upper()})."})
+        raise HTTPException(503, {"code": "price_not_configured", "message": "That plan isn't available to buy yet."})
     row = _sub_row(db, owner)
     if row.stripe_subscription_id and row.status in ("active", "trialing", "past_due"):
         raise HTTPException(409, {"code": "already_subscribed", "message": "You already have a subscription. Use change plan or the billing portal."})
@@ -126,12 +128,12 @@ async def change_plan(body: CheckoutIn, owner: str = Depends(get_owner), db: Ses
         return await cancel(owner, db)
     pr = price_id(body.plan, body.interval)
     if body.plan not in purchasable_plans() or not pr:
-        raise HTTPException(503, {"code": "price_not_configured", "message": "No Stripe price ID configured for that plan/interval."})
+        raise HTTPException(503, {"code": "price_not_configured", "message": "That plan isn't available to buy yet."})
     sub = await _stripe("GET", f"/v1/subscriptions/{row.stripe_subscription_id}")
     item = sub["items"]["data"][0]["id"]
     await _stripe("POST", f"/v1/subscriptions/{row.stripe_subscription_id}", {"items[0][id]": item, "items[0][price]": pr, "proration_behavior": "create_prorations",
                                                                               "cancel_at_period_end": "false", "metadata[plan]": body.plan})
-    return {"ok": True, "message": "Plan change requested. It takes effect when Stripe confirms."}
+    return {"ok": True, "message": "Plan change requested. It takes effect as soon as the payment is confirmed."}
 
 
 @router.post("/cancel")

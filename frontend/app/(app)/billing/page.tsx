@@ -21,7 +21,7 @@ function BillingInner() {
   const [waiting, setWaiting] = useState(params.get("checkout") === "success");
   const startPlan = useRef(b?.current_plan);
 
-  // After Stripe Checkout the plan only changes when Stripe's verified webhook arrives — poll for it, never assume.
+  // After checkout the plan only changes when the verified payment confirmation reaches the server — poll for it, never assume.
   useEffect(() => {
     if (!waiting) return;
     let n = 0; const t = setInterval(async () => { n++; const fresh = await mutate(); if (fresh && fresh.current_plan !== "free") { setWaiting(false); toast("success", `You're on ${fresh.current_plan}. Thanks!`); clearInterval(t); } if (n > 20) { setWaiting(false); clearInterval(t); } }, 2500);
@@ -51,17 +51,17 @@ function BillingInner() {
 
   return (
     <div>
-      <PageHeader eyebrow="Workspace" title="Billing & Subscription" sub="Plans, usage and payment. Paid features unlock only after Stripe confirms your payment to our server." />
+      <PageHeader eyebrow="Workspace" title="Billing & Subscription" sub="Plans, usage and payment. Paid features unlock as soon as your payment is confirmed." />
       {error ? <Panel><ErrorState error={error} onRetry={() => mutate()} /></Panel> : !b ? <Skeleton className="h-64" /> : (
         <div className="space-y-6">
           {b.current_plan === "operator" && <div role="status" className="flex gap-3 rounded-2xl border border-forest/30 bg-forest/5 p-4 text-sm"><Info size={18} className="mt-0.5 shrink-0 text-forest" /><p><strong>Operator account.</strong> Unlimited leads and every feature, with no billing. Customers are charged only through their own plans.</p></div>}
-          {b.plan_override && <div role="status" className="flex gap-3 rounded-2xl border border-gold/50 bg-gold/15 p-4 text-sm text-gold-text"><Info size={18} className="mt-0.5 shrink-0" /><p><strong>Local evaluation mode.</strong> This server forces the <span className="capitalize">{b.plan_override}</span> plan (<code className="data rounded bg-ink/10 px-1">PLAN_OVERRIDE</code>) so you can try paid features without Stripe. Remove it in production — real plans come only from verified Stripe payments.</p></div>}
-          {waiting && <div role="status" className="flex items-center gap-3 rounded-2xl border border-forest/30 bg-forest/5 p-4 text-sm"><span className="h-4 w-4 animate-spin rounded-full border-2 border-forest border-t-transparent" />Payment received by Stripe — waiting for their confirmation to reach TubeLead. This usually takes a few seconds. Your plan updates automatically.</div>}
+          {b.plan_override && <div role="status" className="flex gap-3 rounded-2xl border border-gold/50 bg-gold/15 p-4 text-sm text-gold-text"><Info size={18} className="mt-0.5 shrink-0" /><p><strong>Local evaluation mode.</strong> This server forces the <span className="capitalize">{b.plan_override}</span> plan (<code className="data rounded bg-ink/10 px-1">PLAN_OVERRIDE</code>) so you can try paid features without paying. Remove it in production — real plans come only from verified payments.</p></div>}
+          {waiting && <div role="status" className="flex items-center gap-3 rounded-2xl border border-forest/30 bg-forest/5 p-4 text-sm"><span className="h-4 w-4 animate-spin rounded-full border-2 border-forest border-t-transparent" />Payment received — waiting for confirmation. This usually takes a few seconds. Your plan updates automatically.</div>}
           {params.get("checkout") === "cancelled" && <div role="status" className="flex items-center gap-3 rounded-2xl border border-line bg-panel p-4 text-sm"><Info size={16} /> Checkout was cancelled. You haven’t been charged.</div>}
-          {!b.stripe_configured && (
+          {!b.payments_configured && (
             <div role="alert" className="flex gap-3 rounded-2xl border border-gold/50 bg-gold/15 p-4 text-sm text-gold-text"><AlertTriangle size={18} className="mt-0.5 shrink-0" />
-              <div><p className="font-semibold">Payments aren’t set up on this server yet.</p><p className="mt-1">The plan comparison below is live, but upgrading needs Stripe. Set <code className="data rounded bg-ink/10 px-1">STRIPE_SECRET_KEY</code>, <code className="data rounded bg-ink/10 px-1">STRIPE_WEBHOOK_SECRET</code> and the six <code className="data rounded bg-ink/10 px-1">STRIPE_PRICE_*</code> IDs, and point a Stripe webhook at <code className="data rounded bg-ink/10 px-1">/api/billing/webhook</code> (see docs/DEPLOY.md).</p></div></div>)}
-          {sub?.status === "past_due" && <div role="alert" className="flex gap-3 rounded-2xl border border-[#B5493A]/40 bg-[#B5493A]/10 p-4 text-sm text-[#A33A2A]"><AlertTriangle size={18} className="mt-0.5 shrink-0" /><div><p className="font-semibold">Your last payment failed.</p><p className="mt-1">Your plan stays active while Stripe retries. Update your card in the billing portal to avoid losing access.</p></div><button className="btn-primary btn-sm pill-terracotta ml-auto self-center" onClick={portal} disabled={busy === "portal"}>Fix payment</button></div>}
+              <div><p className="font-semibold">Upgrades aren’t available just yet.</p><p className="mt-1">You can compare plans below. Paid plans will be available to buy soon.</p></div></div>)}
+          {sub?.status === "past_due" && <div role="alert" className="flex gap-3 rounded-2xl border border-[#B5493A]/40 bg-[#B5493A]/10 p-4 text-sm text-[#A33A2A]"><AlertTriangle size={18} className="mt-0.5 shrink-0" /><div><p className="font-semibold">Your last payment failed.</p><p className="mt-1">Your plan stays active while the payment is retried. Update your card in the billing portal to avoid losing access.</p></div><button className="btn-primary btn-sm pill-terracotta ml-auto self-center" onClick={portal} disabled={busy === "portal"}>Fix payment</button></div>}
           {sub?.cancel_at_period_end && <div role="status" className="flex flex-wrap items-center gap-3 rounded-2xl border border-gold/50 bg-gold/15 p-4 text-sm text-gold-text"><Info size={16} /> Your subscription ends on {sub.current_period_end ? dateLong(sub.current_period_end) : "the period end"}. You keep full access until then.<button className="btn-ghost btn-sm ml-auto" onClick={resume} disabled={busy === "resume"}>Keep my plan</button></div>}
 
           <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
@@ -77,7 +77,7 @@ function BillingInner() {
                   <button className="btn-ghost btn-sm" onClick={portal} disabled={!sub?.has_customer || busy === "portal"} title={!sub?.has_customer ? "Available after your first purchase" : undefined}><ExternalLink size={13} /> Billing portal</button>
                   {subscribed && !sub!.cancel_at_period_end && <button className="btn-ghost btn-sm !border-[#B5493A]/40 !text-[#A33A2A]" onClick={() => setConfirm({ ...(cur as BillingPlan), id: "cancel" })}>Cancel subscription</button>}
                 </div>
-                <p className="mt-3 text-[11.5px] text-dim">Invoices, receipts, payment methods and refund requests live in the Stripe billing portal. Refunds show up here as “refunded” once Stripe confirms.</p>
+                <p className="mt-3 text-[11.5px] text-dim">Invoices, receipts and payment methods are in the billing portal. For a refund, contact support from the chat button or Help & Support.</p>
               </div></Panel>
 
             <Panel><PanelHeader title="What your plan includes" icon={<ShieldCheck size={16} />} />
@@ -98,11 +98,11 @@ function BillingInner() {
                     <p className="h-4 text-[11px] text-dim">{annual && p.price_annual_gbp ? `£${p.price_annual_gbp} billed yearly` : ""}</p>
                     <p className="mt-2 rounded-lg bg-bg2 px-3 py-1.5 text-[12.5px] font-semibold"><span className="data">{p.leads.toLocaleString()}</span> leads {p.lead_period === "lifetime" ? "to try" : "/ month"}</p>
                     <ul className="mt-3 flex-1 space-y-1.5 text-[12.5px]">{Object.entries(p.feature_labels).map(([k, l]) => <li key={k} className={cn("flex items-center gap-2", !p.features[k] && "text-dim line-through")}>{p.features[k] ? <Check size={13} className="text-moss" /> : <Minus size={13} />}{l}</li>)}</ul>
-                    <button disabled={here || busy === p.id || (p.id !== "free" && !b.stripe_configured) || (p.id !== "free" && !p.purchasable && b.stripe_configured)}
+                    <button disabled={here || busy === p.id || (p.id !== "free" && !b.payments_configured) || (p.id !== "free" && !p.purchasable && b.payments_configured)}
                       onClick={() => (p.id === "free" ? setConfirm({ ...p, id: "cancel" }) : subscribed && !up ? setConfirm(p) : checkout(p))}
-                      className={cn("mt-4 w-full", here ? "btn-ghost btn-sm" : up ? "btn-primary" : "btn-ghost")} title={p.id !== "free" && !b.stripe_configured ? "Stripe isn’t configured on this server" : undefined}>
+                      className={cn("mt-4 w-full", here ? "btn-ghost btn-sm" : up ? "btn-primary" : "btn-ghost")} title={p.id !== "free" && !b.payments_configured ? "Upgrades aren’t available yet" : undefined}>
                       {here ? "Current plan" : busy === p.id ? "Working…" : p.id === "free" ? "Downgrade to Free" : up ? `Upgrade to ${p.label}` : `Switch to ${p.label}`} {!here && <ArrowRight size={14} />}</button>
-                    {p.id !== "free" && b.stripe_configured && !p.purchasable && <p className="mt-1.5 text-[11px] text-dim">Price ID not configured.</p>}
+                    {p.id !== "free" && b.payments_configured && !p.purchasable && <p className="mt-1.5 text-[11px] text-dim">Not available to buy yet.</p>}
                   </div>);
               })}
             </div>
@@ -111,7 +111,7 @@ function BillingInner() {
       )}
 
       <Modal open={!!confirm} onOpenChange={(o) => !o && setConfirm(null)} title={confirm?.id === "cancel" ? "Cancel your subscription?" : `Switch to ${confirm?.label}?`}
-        description={confirm?.id === "cancel" ? "You keep your current plan until the end of the billing period, then move to Free." : "Stripe prorates the difference. The change applies once Stripe confirms it."}
+        description={confirm?.id === "cancel" ? "You keep your current plan until the end of the billing period, then move to Free." : "You’re charged or credited the difference for the rest of this period. The change applies once the payment is confirmed."}
         footer={<><button className="btn-ghost btn-sm" onClick={() => setConfirm(null)}>Keep current plan</button>{confirm?.id === "cancel" ? <button className="btn-primary btn-sm pill-terracotta" onClick={cancel} disabled={busy === "cancel"}>Cancel at period end</button> : <button className="btn-primary btn-sm" onClick={() => confirm && checkout(confirm)} disabled={!!busy}>Confirm change</button>}</>}>
         <p className="text-sm text-mute">{confirm?.id !== "cancel" && confirm && `${confirm.label}: ${confirm.leads.toLocaleString()} leads ${confirm.lead_period === "lifetime" ? "to try" : "per month"}. Features not included in the new plan are locked immediately after the change.`}</p>
       </Modal>

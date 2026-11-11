@@ -80,7 +80,7 @@ const signed = (ev) => { const p = JSON.stringify(ev), t = Math.floor(Date.now()
 
   // ================= BILLING =================
   await go('/billing'); ok(await page.getByRole('heading', { name: 'Billing & Subscription' }).isVisible() && await page.getByText('Free').first().isVisible(), 'billing page shows the Free plan');
-  ok(await page.getByText(/Price ID not configured/).count() >= 1, 'plans without a Stripe price ID say so instead of failing silently');
+  ok(await page.getByText(/Not available to buy yet/).count() >= 1, 'plans without a price ID say so instead of failing silently');
   let posted = null; await page.route('**/api/billing/checkout', async r => { posted = r.request().postDataJSON(); await r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: B + '/billing?checkout=cancelled', id: 'cs_fake' }) }); });
   await page.getByRole('button', { name: /Annual/ }).click(); await page.getByRole('button', { name: 'Upgrade to Pro' }).click(); await page.waitForURL(/checkout=cancelled/, { timeout: 8000 }); ok(posted && posted.plan === 'pro' && posted.interval === 'annual', 'Upgrade → POST /billing/checkout with plan + interval (then redirects to Stripe)', JSON.stringify(posted)); await page.unroute('**/api/billing/checkout');
   ok(await page.getByText(/You haven’t been charged/).waitFor({ timeout: 20000 }).then(() => true), 'returning from a cancelled checkout shows a clear message');
@@ -139,6 +139,13 @@ const signed = (ev) => { const p = JSON.stringify(ev), t = Math.floor(Date.now()
   await page.getByText('Happy to send a bank statement.').waitFor({ timeout: 8000 }); ok(true, 'customer can reply on their request');
   await go('/admin'); await page.getByText('Staff only').waitFor({ timeout: 8000 }); ok(true, 'admin area refuses a customer');
   ok((await api('/admin/refunds')).s === 403 && (await api('/admin/customers')).s === 403, 'admin API refuses a customer');
+
+  // The payment provider is never named to customers: check every public and customer page's visible text and HTML.
+  const named = [];
+  for (const p of ['/', '/terms', '/privacy', '/login', '/signup', '/billing', '/settings', '/integrations', '/support', '/dashboard']) {
+    await go(p); const html = await page.content(); if (/stripe/i.test(html)) named.push(p);
+  }
+  ok(named.length === 0, 'no customer-facing page mentions the payment provider', named.join(', '));
 
   ok(errs.length === 0, 'no page errors / console errors across the whole run', errs.slice(0, 4).join(' | '));
   console.log(`\n${pass} passed, ${fail} failed`); if (fail) console.log('FAILED:\n - ' + failed.join('\n - ')); await browser.close(); process.exit(fail ? 1 : 0);

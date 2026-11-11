@@ -55,7 +55,7 @@ export interface AITask { task: string; label: string; blurb: string; enabled: b
 export interface AIUsage { days: number; requests: number; errors: number; tokens: number; cost_usd_estimate: number; cost_note: string; by_provider: Record<string, { requests: number; errors: number; tokens: number; cost_usd: number }>; by_task: Record<string, { requests: number; errors: number; tokens: number; cost_usd: number }>; recent: { id: string; task: string; provider: string; model: string; ok: boolean; error: string | null; tokens: number; cost_usd: number | null; latency_ms: number; attempts: number; created_at: string }[] }
 export interface BillingPlan { id: string; label: string; tagline: string; price_monthly_gbp: number; price_annual_gbp: number; leads: number; lead_period: "month" | "lifetime"; max_jobs_per_day: number; team_seats: number; features: Record<string, boolean>; feature_labels: Record<string, string>; purchasable: boolean }
 export interface Billing {
-  stripe_configured: boolean; webhook_configured: boolean; plan_override: string | null; publishable_key: string | null; current_plan: string;
+  payments_configured: boolean; plan_override: string | null; current_plan: string;
   subscription: { status: string; plan: string; interval: string; cancel_at_period_end: boolean; current_period_end: string | null; last_payment_status: string | null; has_customer: boolean };
   usage: { plan: string; leads_allowance: number; leads_used: number; leads_remaining: number; period: string; at_limit: boolean };
   plans: BillingPlan[];

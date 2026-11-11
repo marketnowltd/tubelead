@@ -10,7 +10,7 @@ const FRIENDLY: Record<string, { name: string; ready: string; waiting: string }>
   supabase: { name: "Your data", ready: "Saved securely to your account.", waiting: "Saving is temporarily unavailable." },
   auth: { name: "Sign-in", ready: "You're signed in securely.", waiting: "Sign-in is being set up." },
   ai: { name: "AI suggestions", ready: "Smart suggestions are on.", waiting: "Optional — basic search works without them." },
-  stripe: { name: "Plans and billing", ready: "Upgrades are available.", waiting: "Upgrades are coming soon." },
+  payments: { name: "Plans and billing", ready: "Upgrades are available.", waiting: "Upgrades are coming soon." },
 };
 
 export default function Integrations() {

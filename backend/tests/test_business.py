@@ -438,3 +438,47 @@ def test_old_conversations_are_purged_unless_linked_to_a_ticket():
     assert purge_old_chats() == 1
     with SessionLocal() as db:
         assert db.get(ChatConversation, aid) is None and db.get(ChatConversation, bid) is not None
+
+
+# ---------- the payment provider is never named to customers ----------
+def test_customer_facing_responses_never_name_the_payment_provider(client, monkeypatch):
+    """Stripe is a backend detail for the owner. Customers' API responses, errors, help articles and emails must not name it."""
+    cust = user(email="n@example.com")
+    bodies = [client.get(p, headers=H(cust)).text for p in ("/api/billing", "/api/integrations", "/api/me", "/api/support/tickets")]
+    monkeypatch.setattr(get_settings(), "plan_override", "")
+    bodies.append(client.post("/api/billing/checkout", json={"plan": "pro", "interval": "monthly"}, headers=H(cust)).text)  # not configured
+    bodies.append(client.post("/api/billing/checkout", json={"plan": "pro", "interval": "monthly"}, headers=H(cust)).text)
+    for q in ("how do I cancel", "billing renewals", "refunds"):
+        bodies.append(client.post("/api/support/chat", json={"message": q}).text)
+    with SessionLocal() as db:
+        bodies += [a.body + a.title for a in db.query(KnowledgeArticle).all()]
+        from app.services import email as m
+        for tpl, ctx in [("welcome", {}), ("payment_failed", {}), ("payment_confirmed", {"amount": "£49"}), ("cancellation_confirmed", {}),
+                         ("subscription_confirmed", {"plan": "Pro"}), ("refund_decision", {"ref": "TL-X", "decision": "approved"}),
+                         ("refund_issued", {"ref": "TL-X", "amount": "£49"})]:
+            bodies.append("".join(m.render(tpl, ctx)))
+    leaks = [b[:120] for b in bodies if "stripe" in b.lower()]
+    assert leaks == [], leaks
+
+
+def test_payment_provider_errors_are_generic_for_customers_and_logged_for_the_owner(client, monkeypatch):
+    from app.models import ErrorLog
+    from app.routers import billing
+    monkeypatch.setattr(get_settings(), "stripe_secret_key", "sk_test_x")
+
+    class R:
+        status_code = 402
+        headers = {"content-type": "application/json"}
+        text = ""
+        def json(self):
+            return {"error": {"message": "Your card was declined (Stripe internal detail)"}}
+
+    async def fake_request(self, method, path, **kw):
+        return R()
+    monkeypatch.setattr(httpx.AsyncClient, "request", fake_request)
+    import asyncio
+    with pytest.raises(Exception) as e:
+        asyncio.run(billing._stripe("POST", "/v1/checkout/sessions", {}))
+    assert "stripe" not in str(e.value.detail).lower()
+    with SessionLocal() as db:
+        assert db.query(ErrorLog).filter(ErrorLog.source == "payments").count() == 1

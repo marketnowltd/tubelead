@@ -39,9 +39,8 @@ def integrations(owner: str = Depends(get_owner), db: Session = Depends(get_db))
          "detail": "JWT verification active" if s.auth_mode == "supabase" else "AUTH_MODE=dev: single local user, no login", "configurable": False},
         {"id": "redis", "name": "Redis (shared rate limiting)", "category": "Infrastructure", "connected": bool(s.redis_url),
          "detail": "Rate limits shared across workers" if s.redis_url else "Set REDIS_URL; falls back to in-process limiter", "configurable": False},
-        {"id": "stripe", "name": "Stripe Billing", "category": "Billing", "connected": bool(s.stripe_secret_key and s.stripe_webhook_secret),
-         "detail": "Checkout, portal and verified webhooks active" if (s.stripe_secret_key and s.stripe_webhook_secret) else
-         ("Secret key set but STRIPE_WEBHOOK_SECRET missing: purchases cannot unlock plans" if s.stripe_secret_key else "Set STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET and the STRIPE_PRICE_* IDs"), "configurable": False},
+        {"id": "payments", "name": "Plans and billing", "category": "Billing", "connected": bool(s.stripe_secret_key and s.stripe_webhook_secret),
+         "detail": "Upgrades are available" if (s.stripe_secret_key and s.stripe_webhook_secret) else "Upgrades are coming soon", "configurable": False},
         {"id": "ai", "name": "AI providers (bring your own key)", "category": "Intelligence", "connected": ai_connected,
          "detail": f"{ai_count} provider(s) connected — manage in AI Connect" if ai_count else "None connected yet. Add one in AI Connect (optional).", "configurable": False},
         {"id": "n8n", "name": "n8n Webhook", "category": "Automation", "connected": bool(us.n8n_webhook_url or s.n8n_webhook_url),

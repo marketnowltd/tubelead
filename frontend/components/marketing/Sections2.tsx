@@ -169,7 +169,7 @@ export function Pricing() {
               </Reveal>);
           })}
         </div>
-        <p className="mt-8 text-center text-[12.5px] text-dim">Prices in GBP. Allowances and prices are configurable by the operator. Paid features unlock only after Stripe confirms your payment.</p>
+        <p className="mt-8 text-center text-[12.5px] text-dim">Prices in GBP. Allowances and prices are configurable by the operator. Paid features unlock as soon as your payment is confirmed.</p>
       </div>
     </section>
   );
@@ -183,7 +183,7 @@ const FAQ: [string, string][] = [
   ["Is my ChatGPT / Claude / Gemini subscription enough for AI Connect?", "No. Consumer chat subscriptions don’t include API access. Create an API key in the provider’s developer console (or run a local model with Ollama) and paste it into AI Connect. Keys are stored encrypted and never shown again."],
   ["Will TubeLead send emails for me?", "TubeLead is for discovery and organisation. It has no unsolicited mass-email feature. Export your leads and use your own tools, following the rules that apply to you and the recipient."],
   ["What happens when I hit my lead allowance?", "Runs are capped so you never exceed the plan, and you’ll see exactly which limit you reached with the option to upgrade. You can still view, filter and export (on paid plans) everything you already have."],
-  ["Can I cancel or change plan?", "Yes — upgrade, downgrade or cancel from Billing & Subscription or the Stripe customer portal. Changes take effect when Stripe confirms them."],
+  ["Can I cancel or change plan?", "Yes — upgrade, downgrade or cancel any time from Billing & Subscription. Changes take effect as soon as the payment is confirmed."],
 ];
 export function FAQSection() {
   const [open, setOpen] = useState<number | null>(0);
