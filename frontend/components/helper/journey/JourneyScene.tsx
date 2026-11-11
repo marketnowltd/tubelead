@@ -38,7 +38,7 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 /** Camera, craft and stage position at a frame (world units: screen height = 1). */
 function rig(f: number) {
   const ph = ((f % HOLD) / HOLD) * TAU;
-  const hold = (k: number) => ({ cx: PL[k][0] - .2, cy: PL[k][1], z: 1.02 + .025 * Math.sin(ph), sx: PL[k][0] - .62, sy: PL[k][1] + .17 + .018 * Math.sin(ph * 2) });
+  const hold = (k: number) => ({ cx: PL[k][0] - .32, cy: PL[k][1] + .02, z: 1.32 + .025 * Math.sin(ph), sx: PL[k][0] - .78, sy: PL[k][1] + .02 + .018 * Math.sin(ph * 2) });
   if (f < H0) {
     const t = interpolate(f, [0, H0], [0, 1], { ...C, easing: out });
     const h = hold(0);
@@ -85,142 +85,201 @@ function Space({ r, lit, fail, done }: { r: ReturnType<typeof rig>; lit: [number
   );
 }
 
-function Craft({ helperSrc, f, thrust, dim }: { helperSrc: string; f: number; thrust: number; dim: boolean }) {
+/** Storyboard spacecraft: a sleek violet-and-white jet with a long engine light trail. */
+function Jet({ f, thrust, dim }: { f: number; thrust: number; dim: boolean }) {
+  const trail = 140 + thrust * 260;
   return (
-    <svg width={150} height={70} viewBox="0 0 150 70" style={{ overflow: "visible" }}>
+    <svg width={170} height={60} viewBox="0 0 170 60" style={{ overflow: "visible" }}>
       <defs>
-        <linearGradient id="hull" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#FFFFFF" /><stop offset=".45" stopColor="#E7DDFB" /><stop offset="1" stopColor="#8E7BC4" /></linearGradient>
-        <linearGradient id="trim" x1="0" x2="1"><stop offset="0" stopColor="#7A2DFF" /><stop offset="1" stopColor="#E81F76" /></linearGradient>
-        <radialGradient id="glass" cx=".35" cy=".3" r=".8"><stop offset="0" stopColor="#5B3BA8" stopOpacity=".2" /><stop offset="1" stopColor="#120726" stopOpacity=".75" /></radialGradient>
-        <radialGradient id="fire" cx="1" cy=".5" r="1"><stop offset="0" stopColor="#FFF4C8" /><stop offset=".35" stopColor="#FFC300" /><stop offset=".7" stopColor="#FF7A00" stopOpacity=".6" /><stop offset="1" stopColor="#E81F76" stopOpacity="0" /></radialGradient>
+        <linearGradient id="jt" x1="1" x2="0"><stop offset="0" stopColor="#FFE7B0" /><stop offset=".25" stopColor="#FF7A00" /><stop offset=".7" stopColor="#E81F76" stopOpacity=".5" /><stop offset="1" stopColor="#7A2DFF" stopOpacity="0" /></linearGradient>
+        <linearGradient id="jh" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#FFFFFF" /><stop offset=".5" stopColor="#DCD0F7" /><stop offset="1" stopColor="#6E58A8" /></linearGradient>
+        <linearGradient id="jv" x1="0" x2="1"><stop offset="0" stopColor="#7A2DFF" /><stop offset="1" stopColor="#E81F76" /></linearGradient>
+        <radialGradient id="jc" cx=".4" cy=".35" r=".8"><stop offset="0" stopColor="#B9E6FF" /><stop offset=".55" stopColor="#3B2A8C" /><stop offset="1" stopColor="#120726" /></radialGradient>
       </defs>
-      {/* engine plume and particles */}
-      <ellipse cx={8 - thrust * 18} cy={38} rx={24 + thrust * 26 + Math.sin(f * 1.3) * 2} ry={7 + thrust * 3} fill="url(#fire)" opacity={dim ? .35 : .95} />
-      {Array.from({ length: 10 }).map((_, i) => {
-        const age = ((f + i * 3) % 30) / 30;
-        return <circle key={i} cx={10 - age * (40 + thrust * 70)} cy={38 + (random(`e${i}`) - .5) * 14 * age} r={2.6 * (1 - age)} fill={i % 2 ? "#FFC300" : "#FF7A00"} opacity={(1 - age) * (dim ? .3 : .8)} />;
-      })}
-      {/* hull */}
-      <path d="M18 30 C40 16 92 14 132 30 C142 34 142 42 132 46 C92 60 40 58 18 46 Z" fill="url(#hull)" stroke="#2A1650" strokeWidth="1.5" />
-      <path d="M30 47 L14 64 L50 52 Z" fill="url(#trim)" /><path d="M30 29 L16 10 L50 24 Z" fill="url(#trim)" />
-      <path d="M26 41 C60 47 104 46 134 40" stroke="url(#trim)" strokeWidth="3" fill="none" />
-      <rect x="10" y="32" width="12" height="12" rx="3" fill="#2A1650" /><rect x="12" y="34" width="8" height="8" rx="2" fill="#FFB347" opacity={dim ? .3 : .9} />
-      {/* cockpit with the TubeLead Helper */}
-      <ellipse cx="92" cy="30" rx="22" ry="14" fill="#160A2C" />
-      <foreignObject x="72" y="14" width="40" height="32"><Img src={helperSrc} style={{ width: 40, height: 32, objectFit: "contain" }} /></foreignObject>
-      <ellipse cx="92" cy="30" rx="22" ry="14" fill="url(#glass)" stroke="#C9B6FF" strokeWidth="1.2" />
-      <path d="M78 23 C84 18 94 17 101 19" stroke="#fff" strokeOpacity=".7" strokeWidth="2" fill="none" strokeLinecap="round" />
-      <circle cx="132" cy="37" r="2" fill="#E81F76" opacity={.5 + .5 * Math.sin(f / 4.77)} />
+      <path d={`M20 30 L${20 - trail} ${24 - thrust * 3} L${20 - trail} ${36 + thrust * 3} Z`} fill="url(#jt)" opacity={dim ? .25 : .9} />
+      <ellipse cx={18} cy={30} rx={9 + Math.sin(f * 1.7) * 1.5} ry={5} fill="#FFE7B0" opacity={dim ? .3 : 1} />
+      <path d="M22 24 C60 14 120 16 166 30 C120 44 60 46 22 36 Z" fill="url(#jh)" stroke="#2A1650" strokeWidth="1.2" />
+      <path d="M58 22 L34 4 L78 20 Z" fill="url(#jv)" /><path d="M58 38 L34 56 L78 40 Z" fill="url(#jv)" />
+      <path d="M40 32 C80 37 120 36 160 31" stroke="url(#jv)" strokeWidth="2.4" fill="none" />
+      <path d="M96 22 C110 18 132 20 146 27 C132 27 112 27 96 26 Z" fill="url(#jc)" stroke="#C9B6FF" strokeWidth=".8" />
+      <circle cx="164" cy="30" r="1.8" fill="#FF5FA8" opacity={.5 + .5 * Math.sin(f / 4.77)} />
     </svg>
   );
 }
 
-const Chip = ({ label, value, tone = "#C9B6FF" }: { label: string; value: string; tone?: string }) => (
-  <div style={{ display: "flex", justifyContent: "space-between", gap: 18, padding: "7px 12px", borderRadius: 12, background: "rgba(26,13,46,.55)",
-    border: "1px solid rgba(201,182,255,.22)", backdropFilter: "blur(6px)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: "#fff", minWidth: 190 }}>
-    <span style={{ color: "rgba(255,255,255,.6)", letterSpacing: 1 }}>{label}</span><span style={{ color: tone, fontWeight: 600 }}>{value}</span>
-  </div>
-);
+const glass: React.CSSProperties = { background: "linear-gradient(135deg, rgba(40,18,80,.78), rgba(22,10,46,.72))", border: "1px solid rgba(201,182,255,.28)",
+  borderRadius: 16, backdropFilter: "blur(8px)", boxShadow: "0 18px 40px -18px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.08)", color: "#fff" };
+const mono = "'IBM Plex Mono', monospace";
+
+function Card({ o, x, y, icon, title, sub, w = 300 }: { o: number; x: number; y: number; icon: React.ReactNode; title: string; sub: string; w?: number }) {
+  return o > .01 ? (
+    <div style={{ ...glass, position: "absolute", left: x, top: y, width: w, padding: "12px 16px", display: "flex", gap: 12, alignItems: "center", opacity: o, translate: `${(1 - o) * -14}px 0` }}>
+      <div style={{ width: 38, height: 38, borderRadius: 19, border: "1.5px solid rgba(255,179,217,.7)", display: "grid", placeItems: "center", fontSize: 18 }}>{icon}</div>
+      <div><div style={{ fontSize: 18, fontWeight: 800 }}>{title}</div><div style={{ fontSize: 12.5, color: "rgba(255,255,255,.7)" }}>{sub}</div></div>
+    </div>
+  ) : null;
+}
+
+function Checklist({ o, x, y, items, done }: { o: number; x: number; y: number; items: string[]; done: number }) {
+  return o > .01 ? (
+    <div style={{ position: "absolute", left: x, top: y, display: "flex", flexDirection: "column", gap: 7, opacity: o }}>
+      {items.map((it, i) => (
+        <div key={it} style={{ ...glass, borderRadius: 10, width: 176, padding: "7px 12px", display: "flex", justifyContent: "space-between", fontSize: 13.5, fontWeight: 700 }}>
+          <span>{it}</span><span style={{ color: i < done ? "#7CF0B4" : "rgba(255,255,255,.45)" }}>{i < done ? "✓" : "•••"}</span>
+        </div>
+      ))}
+    </div>
+  ) : null;
+}
+
+function BigStat({ o, x, y, top, value, label }: { o: number; x: number; y: number; top: string; value: string; label: string }) {
+  return o > .01 ? (
+    <div style={{ ...glass, position: "absolute", left: x, top: y, width: 168, padding: "14px 10px", textAlign: "center", opacity: o, scale: `${.94 + .06 * o}` }}>
+      <div style={{ width: 30, height: 30, margin: "0 auto", borderRadius: 15, border: "2px solid #7CF0B4", color: "#7CF0B4", display: "grid", placeItems: "center", fontWeight: 900 }}>✓</div>
+      <div style={{ fontSize: 13, fontWeight: 700, marginTop: 6 }}>{top}</div>
+      <div style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.1 }}>{value}</div>
+      <div style={{ fontSize: 12, color: "rgba(255,255,255,.72)" }}>{label}</div>
+    </div>
+  ) : null;
+}
 
 export function JourneyScene({ data, helperSrc }: JourneyProps) {
   const f = useCurrentFrame();
   const r = rig(f);
+  const d = data;
   const toScreen = (x: number, y: number) => [WIDTH / 2 + (x - r.cx) * r.z * HEIGHT, HEIGHT / 2 - (y - r.cy) * r.z * HEIGHT] as const;
   const P = PL.map((p) => { const [x, y] = toScreen(p[0], p[1]); return { x, y, rad: p[2] * r.z * HEIGHT }; });
   const [sx, sy] = toScreen(r.sx, r.sy);
-  const behind = r.orbit >= 0 && Math.sin(r.orbit) > 0;          // far side of the orbit: behind the planet
+  const behind = r.orbit >= 0 && Math.sin(r.orbit) > 0;
   const done = interpolate(f, [F, H3], [0, 1], C);
-  const lit: [number, number, number] = [Math.min(1, Math.max(.15, 1 - Math.abs(r.pos - 0) * .6)), interpolate(r.pos, [.4, 1], [.1, 1], C), interpolate(r.pos, [1.4, 2], [.1, 1], C)];
-  const vis = (k: number) => interpolate(r.pos, [k - .5, k - .15, k + .35, k + .7], [0, 1, 1, 0], C);   // overlay strength per stage
-  const stageIdx = Math.min(3, Math.round(r.pos));
-  const ph = r.ph, d = data;
-  const nFound = Math.min(42, Math.ceil(Math.sqrt(d.found) * 4));
-  const nUnique = Math.min(42, Math.ceil(Math.sqrt(d.qualified + d.rejected) * 4));
-  const rejFrac = d.qualified + d.rejected ? d.rejected / (d.qualified + d.rejected) : 0;
-  const nContact = Math.min(28, Math.ceil(Math.sqrt(d.contacts) * 4));
-  const thrust = Math.abs(r.bank) / 10 + (r.orbit >= 0 ? .3 : 0);
+  const lit: [number, number, number] = [interpolate(r.pos, [-.6, 0], [.2, 1], C), interpolate(r.pos, [.4, 1], [.1, 1], C), interpolate(r.pos, [1.4, 2], [.1, 1], C)];
+  const at = (k: number) => interpolate(r.pos, [k - .35, k - .05, k + .1, k + .35], [0, 1, 1, 0], C);       // overlays for a stage hold
+  const leaving = (a: number) => interpolate(f, [a, a + 12, a + TRAVEL * .6, a + TRAVEL * .85], [0, 1, 1, 0], C); // "complete" cards on departure
+  const intro = interpolate(f, [0, 15, 60, 82], [0, 1, 1, 0], C);
+  const ph = r.ph;
+  const analysed = d.qualified + d.rejected;
+  const rate = analysed ? Math.round((d.qualified / analysed) * 100) : 0;
+  const nFound = Math.min(18, Math.ceil(Math.sqrt(d.found) * 2.5));
+  const nFilter = Math.min(14, Math.ceil(Math.sqrt(analysed) * 2.5));
+  const rejCount = Math.round(nFilter * (analysed ? d.rejected / analysed : 0));
+  const nContact = Math.min(16, Math.ceil(Math.sqrt(d.contacts) * 3));
+  const thrust = Math.min(1, Math.abs(r.bank) / 10 + (r.orbit >= 0 ? .25 : 0));
+  const initialising = d.queriesDone === 0 && d.found === 0;
+  const node = (k: number, i: number, spread = .85) => {
+    const a = random(`n${k}-${i}`) * TAU, rr = P[k].rad * Math.sqrt(random(`r${k}-${i}`)) * spread;
+    return [P[k].x + Math.cos(a) * rr, P[k].y + Math.sin(a) * rr * .9] as const;
+  };
 
   return (
     <AbsoluteFill style={{ overflow: "hidden", fontFamily: "'Manrope Variable', system-ui, sans-serif" }}>
       <Space r={r} lit={lit} fail={d.failed} done={done} />
+
       <svg width={WIDTH} height={HEIGHT} style={{ position: "absolute", inset: 0 }}>
-        {/* 01 search: orbital scanner sweep, discovered creators appear as points of light */}
-        <g opacity={vis(0)}>
-          <circle cx={P[0].x} cy={P[0].y} r={P[0].rad * 1.32} fill="none" stroke="rgba(255,180,230,.35)" strokeWidth={1} strokeDasharray="2 7" />
-          <g style={{ rotate: `${(ph * 180) / Math.PI * 2}deg`, transformOrigin: `${P[0].x}px ${P[0].y}px` }}>
-            <path d={`M${P[0].x} ${P[0].y} L${P[0].x + P[0].rad * 1.32} ${P[0].y} A${P[0].rad * 1.32} ${P[0].rad * 1.32} 0 0 0 ${P[0].x + P[0].rad * 1.32 * Math.cos(.7)} ${P[0].y - P[0].rad * 1.32 * Math.sin(.7)} Z`}
-              fill="rgba(232,31,118,.16)" />
-            <line x1={P[0].x} y1={P[0].y} x2={P[0].x + P[0].rad * 1.32} y2={P[0].y} stroke="rgba(255,200,235,.8)" strokeWidth={1.2} />
-          </g>
+        {/* search: scanning rings and a growing network of discovered creators */}
+        <g opacity={Math.max(at(0), leaving(T01))}>
+          {[1.18, 1.34].map((k, i) => <ellipse key={k} cx={P[0].x} cy={P[0].y} rx={P[0].rad * k * 1.25} ry={P[0].rad * k * .34} fill="none" stroke={i ? "rgba(255,255,255,.18)" : "rgba(255,120,200,.55)"} strokeWidth={1.4}
+            style={{ rotate: "-12deg", transformOrigin: `${P[0].x}px ${P[0].y}px` }} strokeDasharray={i ? "2 8" : undefined} strokeDashoffset={-ph * 40} />)}
           {Array.from({ length: nFound }).map((_, i) => {
-            const a = random(`s${i}`) * TAU, rr = P[0].rad * (1.08 + random(`sr${i}`) * .55);
-            return <circle key={i} cx={P[0].x + Math.cos(a) * rr} cy={P[0].y + Math.sin(a) * rr * .8} r={2.2} fill="#FFE1F1" opacity={.55 + .45 * Math.sin(ph * 2 + i)} />;
+            const [x, y] = node(0, i), [x2, y2] = node(0, (i * 7 + 3) % Math.max(1, nFound));
+            return <g key={i}><line x1={x} y1={y} x2={x2} y2={y2} stroke="rgba(255,150,210,.35)" strokeWidth={1} />
+              <circle cx={x} cy={y} r={7} fill="rgba(232,31,118,.35)" stroke="#FFB3D9" strokeWidth={1.4} /><circle cx={x} cy={y} r={2.4} fill="#fff" opacity={.6 + .4 * Math.sin(ph * 3 + i)} /></g>;
           })}
         </g>
-        {/* 02 filter: scanning ring with orbiting creator signals; unsuitable ones fade, qualified ones stay lit */}
-        <g opacity={vis(1)}>
-          <ellipse cx={P[1].x} cy={P[1].y} rx={P[1].rad * 1.45} ry={P[1].rad * .42} fill="none" stroke="rgba(255,195,0,.45)" strokeWidth={1.4} />
-          <ellipse cx={P[1].x} cy={P[1].y} rx={P[1].rad * 1.62} ry={P[1].rad * .5} fill="none" stroke="rgba(255,255,255,.12)" strokeDasharray="1 9" />
-          {Array.from({ length: nUnique }).map((_, i) => {
-            const a = (i / Math.max(1, nUnique)) * TAU + ph, rejected = i < Math.round(nUnique * rejFrac);
-            const x = P[1].x + Math.cos(a) * P[1].rad * 1.45, y = P[1].y + Math.sin(a) * P[1].rad * .42;
-            const front = Math.sin(a) > 0 || Math.abs(x - P[1].x) > P[1].rad;
-            return front && <circle key={i} cx={x} cy={y} r={rejected ? 2 : 3.2} fill={rejected ? "#8C7FA8" : "#FFD27A"} opacity={rejected ? .25 : .95} />;
+        {/* filter: creator markers on the orange planet; unsuitable ones are crossed out and fade */}
+        <g opacity={Math.max(at(1), leaving(T12))}>
+          <ellipse cx={P[1].x} cy={P[1].y} rx={P[1].rad * 1.5} ry={P[1].rad * .4} fill="none" stroke="rgba(255,195,0,.5)" strokeWidth={1.6} style={{ rotate: "-10deg", transformOrigin: `${P[1].x}px ${P[1].y}px` }} />
+          {Array.from({ length: nFilter }).map((_, i) => {
+            const [x, y] = node(1, i), rej = i < rejCount;
+            return <g key={i} opacity={rej ? .5 : 1}><circle cx={x} cy={y} r={11} fill={rej ? "rgba(60,30,40,.5)" : "rgba(255,122,0,.3)"} stroke={rej ? "#C77" : "#FFD27A"} strokeWidth={1.6} />
+              {rej ? <path d={`M${x - 4} ${y - 4} L${x + 4} ${y + 4} M${x + 4} ${y - 4} L${x - 4} ${y + 4}`} stroke="#F99" strokeWidth={1.6} />
+                : <circle cx={x} cy={y - 2} r={3} fill="#FFE7B0" />}</g>;
           })}
         </g>
-        {/* 03 contact: a beam from the craft, contact signals light up on the planet */}
-        <g opacity={vis(2)}>
-          <defs><linearGradient id="beam" x1="0" x2="1"><stop offset="0" stopColor="#7A2DFF" stopOpacity=".1" /><stop offset="1" stopColor="#8FF5D2" stopOpacity=".85" /></linearGradient></defs>
-          {d.enrichTotal > 0 && <>
-            <line x1={sx + 130} y1={sy + 38} x2={P[2].x - P[2].rad * .7} y2={P[2].y} stroke="url(#beam)" strokeWidth={3} />
-            <circle cx={lerp(sx + 130, P[2].x - P[2].rad * .7, ((f % 60) / 60))} cy={lerp(sy + 38, P[2].y, ((f % 60) / 60))} r={4} fill="#CFFFEF" />
-          </>}
+        {/* contact: signals and connection lines from the ship */}
+        <g opacity={Math.max(at(2), interpolate(f, [F, F + 60], [1, 0], C))}>
           {Array.from({ length: nContact }).map((_, i) => {
-            const a = random(`c${i}`) * TAU, rr = P[2].rad * (.35 + random(`cr${i}`) * .55);
-            const x = P[2].x + Math.cos(a) * rr, y = P[2].y + Math.sin(a) * rr;
-            return <g key={i}><circle cx={x} cy={y} r={2.6} fill="#9CFFD9" /><circle cx={x} cy={y} r={2.6 + 7 * ((f / 40 + random(`cp${i}`)) % 1)} fill="none" stroke="#9CFFD9" opacity={1 - ((f / 40 + random(`cp${i}`)) % 1)} /></g>;
+            const [x, y] = node(2, i, .9), pulse = (f / 45 + random(`cp${i}`)) % 1;
+            return <g key={i}><line x1={sx + 150} y1={sy + 30} x2={x} y2={y} stroke="rgba(124,240,180,.18)" strokeWidth={1} />
+              <circle cx={x} cy={y} r={4} fill="#9CFFD9" /><circle cx={x} cy={y} r={4 + 10 * pulse} fill="none" stroke="#9CFFD9" opacity={1 - pulse} /></g>;
           })}
         </g>
       </svg>
 
-      {/* the spacecraft (behind the planet on the far side of its orbit) */}
-      <div style={{ position: "absolute", left: sx, top: sy, rotate: `${r.bank}deg`, scale: `${Math.max(.75, r.z) * (behind ? .82 : 1)}`, opacity: behind ? .35 : 1,
-        filter: "drop-shadow(0 10px 18px rgba(0,0,0,.45)) drop-shadow(0 0 14px rgba(232,31,118,.25))" }}>
-        <Craft helperSrc={helperSrc} f={f} thrust={Math.min(1, thrust)} dim={d.failed} />
+      {/* the jet (on the far side of its final orbit it passes behind the planet) */}
+      <div style={{ position: "absolute", left: sx, top: sy, rotate: `${r.bank}deg`, scale: `${Math.max(.75, r.z) * (behind ? .8 : 1)}`, opacity: behind ? .3 : interpolate(f, [8, 30], [0, 1], C),
+        filter: "drop-shadow(0 8px 14px rgba(0,0,0,.45))" }}>
+        <Jet f={f} thrust={thrust} dim={d.failed} />
       </div>
 
-      {/* stage typography */}
-      {STAGES.map(([n, t, s], k) => {
-        const o = stageIdx === k ? interpolate(Math.abs(r.pos - k), [0, .35], [1, 0], C) : 0;
-        return o > 0 && (
-          <div key={t} style={{ position: "absolute", left: 34, top: 28, opacity: o, translate: `0 ${(1 - o) * 10}px` }}>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: "#FFB3D9", letterSpacing: 3 }}>{n} / 03</div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: "#fff", letterSpacing: 4, marginTop: 4 }}>{d.failed ? "SEARCH INTERRUPTED" : t}</div>
-            <div style={{ fontSize: 15, color: "rgba(255,255,255,.72)", marginTop: 4 }}>{d.failed ? "Nothing was marked complete. You can run the search again." : s}</div>
+      {/* 01 launch intro: brand reveal */}
+      {intro > .01 && (
+        <AbsoluteFill style={{ display: "grid", placeItems: "center", opacity: intro, scale: `${interpolate(f, [0, 82], [.94, 1.04], C)}` }}>
+          <div style={{ textAlign: "center", color: "#fff" }}>
+            <div style={{ fontSize: 56, fontWeight: 800, letterSpacing: -1 }}>Tube<span style={{ background: "linear-gradient(90deg,#FF5FA8,#FF7A00)", WebkitBackgroundClip: "text", color: "transparent" }}>Lead</span></div>
+            <div style={{ fontSize: 13, letterSpacing: 5, marginTop: 6, color: "rgba(255,255,255,.8)" }}>LEAD GENERATOR · DISCOVERY SYSTEM</div>
           </div>
-        );
-      })}
+        </AbsoluteFill>
+      )}
 
-      {/* live readouts, beside the active planet */}
-      <div style={{ position: "absolute", right: 30, bottom: 30, display: "flex", flexDirection: "column", gap: 8 }}>
-        {stageIdx === 0 && <><Chip label="SEARCHES" value={`${d.queriesDone} / ${d.queriesTotal || "…"}`} /><Chip label="CREATORS SEEN" value={String(d.found)} tone="#FFB3D9" /></>}
-        {stageIdx === 1 && <><Chip label="QUALIFIED" value={`${d.qualified} / ${d.limit}`} tone="#FFD27A" /><Chip label="FILTERED OUT" value={String(d.rejected)} tone="#B9AED0" />
-          <Chip label="DUPLICATES" value={String(d.duplicates)} /><Chip label="MATCH RATE" value={`${d.qualified + d.rejected ? Math.round((d.qualified / (d.qualified + d.rejected)) * 100) : 0}%`} tone="#FFD27A" /></>}
-        {stageIdx === 2 && <><Chip label="READING" value={`${d.enriched} / ${d.enrichTotal}`} tone="#9CFFD9" /><Chip label="CONTACT ROUTES" value={String(d.contacts)} tone="#9CFFD9" /></>}
-        {stageIdx === 3 && <><Chip label="LEADS" value={`${d.qualified} / ${d.limit}`} tone="#FFD27A" /><Chip label="CONTACT ROUTES" value={String(d.contacts)} tone="#9CFFD9" /></>}
-      </div>
-
-      {/* completion: a light sweep and a check */}
-      {f >= F && (
-        <div style={{ position: "absolute", left: 34, bottom: 34, display: "flex", alignItems: "center", gap: 12, opacity: interpolate(f, [F + 40, F + 80], [0, 1], C) }}>
-          <div style={{ width: 40, height: 40, borderRadius: 20, display: "grid", placeItems: "center", color: "#fff", fontWeight: 900, fontSize: 20,
-            background: d.qualified ? "linear-gradient(135deg,#7A2DFF,#E81F76 60%,#FF7A00)" : "linear-gradient(135deg,#8C6A2E,#C6A46B)",
-            scale: `${interpolate(f, [F + 40, F + 70], [.6, 1], { ...C, easing: Easing.bezier(.34, 1.56, .64, 1) })}` }}>{d.qualified ? "✓" : "!"}</div>
-          <div style={{ color: "#fff", fontSize: 15, fontWeight: 700 }}>{d.qualified ? `${d.qualified} leads with contact routes` : "No creators matched these filters"}</div>
+      {/* 02 mission initiation / 03 planet search */}
+      {initialising && f > 60 && !d.failed && (
+        <div style={{ ...glass, position: "absolute", left: WIDTH / 2 - 170, top: 40, width: 340, padding: "14px 18px", display: "flex", gap: 14, alignItems: "center", opacity: at(0) }}>
+          <Img src={helperSrc} style={{ width: 40, height: 40, objectFit: "contain" }} />
+          <div style={{ flex: 1 }}><div style={{ fontWeight: 800, fontSize: 16 }}>Initialising Discovery…</div>
+            <div style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,.15)", marginTop: 8, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${d.queriesTotal ? (d.queriesDone / d.queriesTotal) * 100 : 6}%`, background: "linear-gradient(90deg,#7A2DFF,#E81F76)" }} /></div></div>
         </div>
       )}
-      <AbsoluteFill style={{ pointerEvents: "none", opacity: f >= F ? interpolate(f, [F + 20, F + 70, F + 110], [0, .35, 0], C) : 0,
-        background: "linear-gradient(105deg, transparent 30%, rgba(255,240,220,.5) 50%, transparent 70%)", translate: `${interpolate(f, [F + 20, F + 110], [-60, 60], C)}% 0` }} />
+      <Card o={initialising ? 0 : at(0)} x={26} y={24} icon="◎" title={d.failed ? "Search interrupted" : "Planet Search"} sub={d.failed ? "Nothing was marked complete. Run it again." : "Discovering potential creators…"} />
+      {!initialising && at(0) > .01 && (
+        <div style={{ ...glass, position: "absolute", right: 26, bottom: 26, width: 150, padding: "12px", textAlign: "center", opacity: at(0) }}>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,.75)" }}>Scanning…</div>
+          <div style={{ fontSize: 30, fontWeight: 800 }}>{d.found.toLocaleString()}</div><div style={{ fontSize: 12, color: "rgba(255,255,255,.75)" }}>Channels</div>
+        </div>
+      )}
+      {/* 04 search complete */}
+      <BigStat o={leaving(T01)} x={WIDTH - 200} y={HEIGHT / 2 - 90} top="Search Complete" value={d.found.toLocaleString()} label="Creators Found" />
+
+      {/* 06–07 planet filter */}
+      <Card o={at(1)} x={26} y={24} icon="⦿" title={d.failed ? "Search interrupted" : "Planet Filter"} sub="Analysing and qualifying creators…" />
+      <Checklist o={at(1)} x={WIDTH - 202} y={30} items={["Activity", "Audience", "Niche Match", "Public Email", "Duplicates"]} done={Math.floor((d.found ? analysed / d.found : 0) * 5)} />
+      {at(1) > .01 && (
+        <svg width={170} height={170} style={{ position: "absolute", left: 30, top: HEIGHT - 196, opacity: at(1) }}>
+          <circle cx={85} cy={85} r={66} fill="rgba(26,13,46,.55)" stroke="rgba(255,255,255,.12)" strokeWidth={10} />
+          <circle cx={85} cy={85} r={66} fill="none" stroke="url(#rg)" strokeWidth={10} strokeLinecap="round" strokeDasharray={`${(rate / 100) * 414.7} 414.7`} style={{ rotate: "-90deg", transformOrigin: "85px 85px" }} />
+          <defs><linearGradient id="rg"><stop offset="0" stopColor="#E81F76" /><stop offset="1" stopColor="#7A2DFF" /></linearGradient></defs>
+          <text x={85} y={88} textAnchor="middle" fill="#fff" fontSize={36} fontWeight={800}>{rate}%</text>
+          <text x={85} y={112} textAnchor="middle" fill="rgba(255,255,255,.75)" fontSize={14} fontWeight={600}>Qualified</text>
+        </svg>
+      )}
+      {/* 08 filter complete */}
+      <BigStat o={leaving(T12)} x={WIDTH - 200} y={HEIGHT / 2 - 90} top="Filter Complete" value={String(d.qualified)} label="Qualified Leads" />
+
+      {/* 10 planet contact */}
+      <Card o={at(2)} x={26} y={24} icon="◉" title={d.failed ? "Search interrupted" : "Planet Contact"} sub="Finding verified contact information…" />
+      <Checklist o={at(2)} x={WIDTH - 202} y={HEIGHT - 190} items={["Email", "Website", "Social Links", "Contact Pages"]} done={Math.floor((d.enrichTotal ? d.enriched / d.enrichTotal : 0) * 4)} />
+
+      {/* 11 finalising results */}
+      {f >= F && f < H3 + 30 && (
+        <div style={{ position: "absolute", right: 26, top: 40, display: "flex", flexDirection: "column", gap: 8, opacity: interpolate(f, [F, F + 25, H3, H3 + 30], [0, 1, 1, 0], C) }}>
+          {[[d.qualified, "Qualified Leads"], [d.contacts, "Contact Routes"], [d.duplicates, "Duplicates"]].map(([v, l]) => (
+            <div key={l} style={{ ...glass, borderRadius: 10, width: 170, padding: "8px 12px" }}><div style={{ fontSize: 20, fontWeight: 800, fontFamily: mono }}>{v}</div><div style={{ fontSize: 12, color: "rgba(255,255,255,.72)" }}>{l}</div></div>
+          ))}
+        </div>
+      )}
+      {/* 12 discovery complete, with the mascot */}
+      {f >= H3 && (
+        <>
+          <div style={{ ...glass, position: "absolute", left: WIDTH / 2 - 210, top: HEIGHT / 2 - 64, width: 300, padding: "16px", textAlign: "center",
+            opacity: interpolate(f, [H3, H3 + 25], [0, 1], C), scale: `${interpolate(f, [H3, H3 + 25], [.94, 1], { ...C, easing: out })}` }}>
+            <div style={{ width: 40, height: 40, margin: "0 auto", borderRadius: 20, border: "2px solid #7CF0B4", color: "#7CF0B4", display: "grid", placeItems: "center", fontWeight: 900, fontSize: 20 }}>{d.qualified ? "✓" : "!"}</div>
+            <div style={{ fontSize: 24, fontWeight: 800, marginTop: 6 }}>{d.qualified ? "Discovery Complete" : "No Matches Yet"}</div>
+            <div style={{ fontSize: 16, color: "rgba(255,255,255,.85)" }}>{d.qualified ? <><b>{d.qualified}</b> Qualified Leads</> : "Try broader keywords"}</div>
+          </div>
+          {d.qualified > 0 && <Img src={helperSrc.replace("e_happy", "thumbsup")} style={{ position: "absolute", right: 40, bottom: 10, height: 210,
+            opacity: interpolate(f, [H3 + 10, H3 + 35], [0, 1], C), translate: `0 ${interpolate(f, [H3 + 10, H3 + 40], [30, 0], { ...C, easing: out })}px` }} />}
+        </>
+      )}
     </AbsoluteFill>
   );
 }

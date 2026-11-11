@@ -124,7 +124,7 @@ class JobCancelled(Exception):
 class DiscoveryRun:
     def __init__(self, session_factory: Callable[[], Session], job_id: str, yt: YouTubeClient,
                  fetcher: ct.PageFetcher | None, *, quota_spend: Callable[[int], None] | None = None,
-                 enrich_concurrency: int = 4):
+                 enrich_concurrency: int = 32):
         self.sf, self.job_id, self.yt, self.fetcher = session_factory, job_id, yt, fetcher
         self.sem = asyncio.Semaphore(enrich_concurrency)
         self.t0 = time.monotonic()
@@ -292,6 +292,10 @@ class DiscoveryRun:
                 self._update(rejected=lambda v: v + 1)
         if not candidates:
             return 0
+        extra = candidates[max(room * 2, 8):]          # only enrich what could still be needed (speed)
+        candidates = candidates[:max(room * 2, 8)]
+        for ch in extra:
+            rejected_ids.discard(ch["id"])              # not judged: may be picked up by a later search
         self._update(enrich_total=lambda v: v + len(candidates), current_operation=f"Enriching {len(candidates)} candidates")
         results = await asyncio.gather(*[self._enrich(ch, p, query) for ch in candidates])
         saved = 0

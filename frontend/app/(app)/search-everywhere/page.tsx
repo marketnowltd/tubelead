@@ -21,13 +21,17 @@ const statusLabel = { ok: "Returned results", not_configured: "Awaiting configur
 
 const csvCell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
 /** Results as a CSV file, built in the browser from what the search returned. */
-function downloadCsv(r: SearchResult, label: (n: string) => string) {
-  const rows = [["Name", "Email", "Email found on", "Found on", "Followers", "Website", "Profile"]];
-  for (const l of r.leads) rows.push([l.creator_name, (l.emails ?? []).map((e) => e.email).join("; "), (l.emails ?? []).map((e) => e.source).join("; "),
-    l.sources.map(label).join("; "), l.audience_size ?? "", l.website ?? "", l.source_url ?? ""].map(String));
-  const blob = new Blob([rows.map((row) => row.map(csvCell).join(",")).join("\n")], { type: "text/csv;charset=utf-8" });
+function downloadCsv(r: SearchResult) {
+  const seen = new Set<string>();
+  const rows = [["Lead", "Email"]];
+  for (const l of r.leads) {
+    const e = l.emails?.[0]?.email?.toLowerCase();
+    if (e && !seen.has(e)) { seen.add(e); rows.push([l.creator_name.replace(/\s+/g, " ").trim(), e]); }
+  }
+  const safe = (v: string) => (/^[=+\-@]/.test(v) ? `'${v}` : v);  // no spreadsheet formulas
+  const blob = new Blob(["\ufeff" + rows.map((row) => row.map((v) => csvCell(safe(v))).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob); a.download = `tubelead-${r.query.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.csv`;
+  a.href = URL.createObjectURL(blob); a.download = `tubelead-leads-${r.query.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.csv`;
   a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
@@ -99,7 +103,7 @@ export default function SearchEverywhere() {
             </ul>
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <p className="text-[12px] text-mute"><strong className="text-ink">{result.leads.length} people with a published email</strong>{result.requested ? ` of ${result.requested} requested` : ""} · {result.checked ?? 0} profiles checked · {result.duplicates_merged} duplicates merged</p>
-              <button type="button" className="btn-ghost btn-sm" onClick={() => downloadCsv(result, label)} disabled={!result.leads.length}><Download size={13} /> Download CSV</button>
+              <button type="button" className="btn-ghost btn-sm" onClick={() => downloadCsv(result)} disabled={!result.leads.length}><Download size={13} /> Download CSV</button>
             </div>
             {result.short_reason && <p className="mt-2 rounded-lg bg-[#C6A46B]/[0.1] px-3 py-2 text-xs text-[#6E5420]">{result.short_reason}</p>}
           </Panel>

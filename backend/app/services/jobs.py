@@ -64,7 +64,7 @@ async def _run_job_async(job_id: str, *, yt_transport=None, fetcher: PageFetcher
 
     yt = YouTubeClient(s.youtube_api_key, base_url=s.youtube_api_base, transport=yt_transport, budget_check=budget_check, on_spend=spend)
     own_fetcher = fetcher is None and s.fetch_websites
-    fetcher = fetcher or (PageFetcher() if s.fetch_websites else None)
+    fetcher = fetcher or (PageFetcher(timeout=4.0, max_bytes=600_000) if s.fetch_websites else None)
     run = DiscoveryRun(SessionLocal, job_id, yt, fetcher)
     try:
         await run.run()

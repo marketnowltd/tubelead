@@ -57,11 +57,17 @@ def test_csv_export_neutralises_formula_injection(client):
     from app.models import Creator
     from app.auth import DEV_OWNER
     with SessionLocal() as db:
-        db.add(Creator(owner_id=DEV_OWNER, youtube_channel_id="UCx", title="=HYPERLINK(\"http://evil\")", channel_url="https://y/x"))
+        from app.models import ContactRoute
+        c = Creator(owner_id=DEV_OWNER, youtube_channel_id="UCx", title="=HYPERLINK(\"http://evil\")", channel_url="https://y/x")
+        db.add(c); db.flush()
+        db.add(ContactRoute(owner_id=DEV_OWNER, creator_id=c.id, kind="email", value="biz@x.example", source="channel_description", status="published"))
+        db.add(Creator(owner_id=DEV_OWNER, youtube_channel_id="UCy", title="No Email", channel_url="https://y/y"))
         db.commit()
     body = client.get("/api/creators/export.csv")
     assert body.headers["content-type"].startswith("text/csv")
     assert "'=HYPERLINK" in body.text and "\n=HYPERLINK" not in body.text
+    lines = body.text.lstrip("\ufeff").strip().splitlines()
+    assert lines[0] == "Lead,Email" and len(lines) == 2 and lines[1].endswith(",biz@x.example")  # only leads with an email
 
 
 def test_job_create_validation(client):
