@@ -152,14 +152,17 @@ The existing variables (`DATABASE_URL`, `SUPABASE_URL`, `STRIPE_*`, `YOUTUBE_API
 - [x] Stripe webhook signature verification (existing) and idempotency; failed events can now be retried
 - [x] Email de-duplication: the same notification can never be sent twice
 - [x] Visitors' conversations are protected by a private token; customers cannot read each other's data (tested)
-- [x] Rate limiting (existing middleware) applies to all new routes; conversations are capped at 60 messages
+- [x] Rate limiting: the existing global limit, plus chat (30 messages / 10 min per visitor IP, 60 per customer),
+  tickets (5 / hour per visitor IP, 10 per customer, 3 / day per email address) and 60 messages per conversation
+- [x] The payment provider is never named to customers (pages, API responses, errors, help articles, emails);
+  its details appear only in the backend and the private admin panel. Tested in the backend and the browser.
 - [x] Audit log for suspensions, role changes, ticket changes, refund decisions and refunds, help-article edits, assistant blocks
 - [x] Chat retention policy (180 days by default)
 
 ## 8. Test results
 
-- Backend: **106 passed** (32 new), on SQLite and on PostgreSQL 16 with all four migrations applied.
-- Browser (Playwright, the full existing suite plus 7 new checks): **103 passed**, no page or console errors,
+- Backend: **113 passed** (39 new), on SQLite and on PostgreSQL 16 with all four migrations applied.
+- Browser (Playwright, the full existing suite plus 8 new checks): **104 passed**, no page or console errors,
   no server errors in the API log.
 - Design check: the homepage was screenshotted before and after at 1536 px and 390 px wide. The only changed
   pixels are the chat button (56 × 56 px); page height and everything else are identical.

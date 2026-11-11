@@ -6,11 +6,13 @@ from __future__ import annotations
 
 import html as _html
 import logging
-from datetime import datetime, timezone
+import uuid
+from datetime import datetime, timedelta, timezone
 
 import httpx
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import or_, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 from ..config import get_settings
@@ -81,15 +83,18 @@ def queue(db: Session, *, to: str, template: str, ctx: dict, dedupe_key: str) ->
     if db.scalar(select(EmailOutbox.id).where(EmailOutbox.dedupe_key == dedupe_key)):
         return None
     subject, body = render(template, ctx)
-    row = EmailOutbox(dedupe_key=dedupe_key[:160], to_email=to, template=template, subject=subject, html=body,
-                      status="queued" if get_settings().resend_api_key else "not_configured")
-    db.add(row)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
+    key = dedupe_key[:160]
+    values = dict(id=str(uuid.uuid4()), dedupe_key=key, to_email=to, template=template, subject=subject, html=body,
+                  status="queued" if get_settings().resend_api_key else "not_configured", attempts=0, error="",
+                  created_at=datetime.now(timezone.utc))
+    # INSERT ... ON CONFLICT DO NOTHING: a duplicate (e.g. two webhook deliveries at once) is skipped without an
+    # exception, so the caller's own pending changes are never rolled back.
+    ins = (pg_insert if db.get_bind().dialect.name == "postgresql" else sqlite_insert)(EmailOutbox).values(**values)
+    res = db.execute(ins.on_conflict_do_nothing(index_elements=["dedupe_key"]))
+    db.commit()
+    if not res.rowcount:
         return None
-    return row
+    return db.get(EmailOutbox, values["id"])
 
 
 def alert_admin(db: Session, title: str, lines: list[str], dedupe_key: str) -> None:
@@ -106,8 +111,12 @@ def deliver_pending(transport: httpx.BaseTransport | None = None) -> int:
         return 0
     sent = 0
     with SessionLocal() as db:
-        rows = db.scalars(select(EmailOutbox).where(EmailOutbox.status.in_(["queued", "failed", "not_configured"]),
-                                                    EmailOutbox.attempts < MAX_ATTEMPTS).order_by(EmailOutbox.created_at).limit(50)).all()
+        # Emails stored while email was not configured are sent only if recent (24h), so adding RESEND_API_KEY later
+        # does not deliver a backlog of stale welcome or payment emails.
+        recent = datetime.now(timezone.utc) - timedelta(hours=24)
+        rows = db.scalars(select(EmailOutbox).where(
+            or_(EmailOutbox.status.in_(["queued", "failed"]), (EmailOutbox.status == "not_configured") & (EmailOutbox.created_at >= recent)),
+            EmailOutbox.attempts < MAX_ATTEMPTS).order_by(EmailOutbox.created_at).limit(50)).all()
         if not rows:
             return 0
         with httpx.Client(base_url=s.resend_api_base, timeout=15, transport=transport) as c:

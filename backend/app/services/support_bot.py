@@ -29,10 +29,13 @@ HISTORY = 12
 FINANCIAL_PATTERNS: list[tuple[str, re.Pattern]] = [
     ("refund", re.compile(r"\b(refund|money back|reimburse|charge ?back|dispute (a|the|my) (charge|payment)|revers(e|al) (of )?(the |a |my )?(payment|charge|transaction))", re.I)),
     ("cancellation", re.compile(r"\b(cancel|unsubscribe|stop (my )?(subscription|plan|billing|payments?))\b", re.I)),
-    ("billing", re.compile(r"\b(downgrade|upgrade|change (my )?(plan|card|payment|billing|renewal)|update (my )?(card|payment( method)?|billing)|renewal date)\b", re.I)),
+    # Change requests only: questions such as "when is my renewal date?" go to the model and its read-only billing tool.
+    ("billing", re.compile(r"\b(downgrade|upgrade|change (my )?(plan|card|payment|billing|renewal( date)?)|update (my )?(card|payment( method)?|billing))\b", re.I)),
     ("account", re.compile(r"\b(delete|remove|close) (my )?account\b", re.I)),
 ]
-HUMAN = re.compile(r"\b(human|real person|a person|someone|agent|staff|speak to|talk to) ?(support|team)?\b", re.I)
+# An explicit ask for a person. Bare words like "someone" or "agent" are common in lead-search questions, so they need a verb.
+HUMAN = re.compile(r"\b(human|real person|live (agent|chat|person)|(speak|talk|chat) (to|with) (a |an |the |your |some)?"
+                   r"(one|body|person|human|agent|staff|support|team|someone|somebody))\b", re.I)
 APPROVAL_CLAIM = re.compile(
     r"(\b(refund|cancellation|subscription|plan|payment|downgrade|upgrade|account)\b[^.!?]{0,60}\b(has|have|was|were|is now|will be)\b[^.!?]{0,20}\b"
     r"(approved|processed|issued|completed|cancell?ed|refunded|reversed|changed|upgraded|downgraded|deleted)\b)"

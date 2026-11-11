@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from ..config import get_settings
 from ..db import get_db
 from ..models import (AuditLog, ChatConversation, ChatMessage, DiscoveryJob, EmailOutbox, ErrorLog, KnowledgeArticle, Payment,
-                      RefundRequest, Subscription, SupportTicket, TicketMessage, UserAccount)
+                      RefundRequest, Subscription, SupportTicket, TicketMessage, UserAccount, is_uuid)
 from ..services import email as mail
 from ..services import support
 from ..services.accounts import LEVEL, require_role, role_of
@@ -113,14 +113,17 @@ def customers(q: str = "", status: str = "", me: str = Depends(ADMIN), db: Sessi
     stmt = select(UserAccount).order_by(UserAccount.created_at.desc()).limit(200)
     if q.strip():
         like = f"%{q.strip()}%"
-        stmt = stmt.where(or_(UserAccount.email.ilike(like), UserAccount.full_name.ilike(like), UserAccount.owner_id == q.strip()))
+        terms = [UserAccount.email.ilike(like), UserAccount.full_name.ilike(like)]
+        if is_uuid(q.strip()):  # comparing a uuid column with any other text is an error on Postgres
+            terms.append(UserAccount.owner_id == q.strip())
+        stmt = stmt.where(or_(*terms))
     if status in ("active", "suspended"):
         stmt = stmt.where(UserAccount.status == status)
     return [_customer_row(db, a) for a in db.scalars(stmt).all()]
 
 
 def _account(db: Session, cid: str) -> UserAccount:
-    a = db.get(UserAccount, cid)
+    a = db.get(UserAccount, cid) if is_uuid(cid) else None
     if not a:
         raise HTTPException(404, {"code": "not_found", "message": "Customer not found."})
     return a
@@ -284,7 +287,7 @@ def update_ticket(ref: str, body: TicketPatch, me: str = Depends(SUPPORT), db: S
         t.status = body.status
         t.resolved_at = _now() if body.status in ("resolved", "closed") else None
     if body.assigned_to is not None:
-        if body.assigned_to and LEVEL[role_of(db, body.assigned_to)] < LEVEL["support"]:
+        if body.assigned_to and (not is_uuid(body.assigned_to) or LEVEL[role_of(db, body.assigned_to)] < LEVEL["support"]):
             raise HTTPException(422, {"code": "not_staff", "message": "Tickets can only be assigned to support staff."})
         changes["assigned_to"] = [t.assigned_to, body.assigned_to or None]
         t.assigned_to = body.assigned_to or None
@@ -389,6 +392,10 @@ async def execute_refund(rid: str, body: ExecuteIn, background: BackgroundTasks,
     if not t or body.confirm.strip().upper() != f"REFUND {t.ref}":
         raise HTTPException(422, {"code": "confirm_required", "message": f"Type REFUND {t.ref if t else ''} to confirm."})
     pay = db.get(Payment, r.payment_id) if r.payment_id else None
+    if pay and not (pay.payment_intent_id or pay.charge_id) and get_settings().stripe_secret_key:
+        from .billing import resolve_invoice_payment
+        await resolve_invoice_payment(pay)  # newer Stripe API versions don't put the payment on the invoice event
+        db.commit()
     if not pay or not (pay.payment_intent_id or pay.charge_id):
         raise HTTPException(409, {"code": "no_payment", "message": "No Stripe payment is linked to this request. Refund it in the Stripe dashboard instead."})
     remaining = pay.amount - pay.refunded_amount
@@ -403,7 +410,7 @@ async def execute_refund(rid: str, body: ExecuteIn, background: BackgroundTasks,
     record(db, "refund.execute_attempt", actor_type="staff", actor_id=me, target_type="refund_request", target_id=r.id, detail={"amount": amount, "payment": pay.id})
     try:
         async with httpx.AsyncClient(timeout=20, base_url=s.stripe_api_base) as c:
-            resp = await c.post("/v1/refunds", data=data, headers={"Authorization": f"Bearer {s.stripe_secret_key}", "Idempotency-Key": f"tubelead-refund-{r.id}"})
+            resp = await c.post("/v1/refunds", data=data, headers={"Authorization": f"Bearer {s.stripe_secret_key}", "Idempotency-Key": f"tubelead-refund-{r.id}-{amount}"})
     except httpx.HTTPError as exc:
         raise HTTPException(502, {"code": "stripe_unreachable", "message": f"Could not reach Stripe: {type(exc).__name__}"}) from exc
     if resp.status_code >= 400:

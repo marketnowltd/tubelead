@@ -46,3 +46,10 @@ def elite_by_default():
 def client():
     with TestClient(app) as c:
         yield c
+
+
+@pytest.fixture(autouse=True)
+def reset_support_limits():
+    from app.services import limits
+    limits.reset()
+    yield

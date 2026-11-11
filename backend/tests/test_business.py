@@ -253,7 +253,7 @@ def test_refund_execution_rules(client, monkeypatch):
     r = client.post(f"/api/admin/refunds/{rid}/execute", json={"confirm": f"refund {ref}"}, headers=H(adm))
     assert r.status_code == 200 and r.json()["status"] == "refunded" and r.json()["refund_amount"] == 4900
     assert sent[0]["url"] == "/v1/refunds" and sent[0]["data"]["payment_intent"] == "pi_9"
-    assert sent[0]["headers"]["Idempotency-Key"] == f"tubelead-refund-{rid}"
+    assert sent[0]["headers"]["Idempotency-Key"] == f"tubelead-refund-{rid}-4900"
     # cannot refund twice
     assert client.post(f"/api/admin/refunds/{rid}/execute", json={"confirm": f"REFUND {ref}"}, headers=H(adm)).status_code == 409
     with SessionLocal() as db:
@@ -298,6 +298,10 @@ def test_suspended_customer_is_blocked_and_reactivated(client):
     assert client.post(f"/api/admin/customers/{cust['_id']}/status", json={"status": "suspended", "reason": "Abuse"}, headers=H(adm)).json()["status"] == "suspended"
     r = client.get("/api/me", headers=H(cust))
     assert r.status_code == 403 and r.json()["detail"]["code"] == "account_suspended"
+    # ...but can still reach support about it, as a visitor
+    assert client.post("/api/support/chat", json={"message": "why was I suspended?"}, headers=H(cust)).status_code == 200
+    assert client.post("/api/support/tickets", json={"subject": "Suspended", "description": "Please review my suspension.", "email": "s@example.com"},
+                       headers=H(cust)).status_code == 201
     assert client.post(f"/api/admin/customers/{adm['_id']}/status", json={"status": "suspended"}, headers=H(adm)).status_code == 409  # not yourself
     client.post(f"/api/admin/customers/{cust['_id']}/status", json={"status": "active"}, headers=H(adm))
     assert client.get("/api/me", headers=H(cust)).status_code == 200
@@ -482,3 +486,85 @@ def test_payment_provider_errors_are_generic_for_customers_and_logged_for_the_ow
     assert "stripe" not in str(e.value.detail).lower()
     with SessionLocal() as db:
         assert db.query(ErrorLog).filter(ErrorLog.source == "payments").count() == 1
+
+
+# ---------- review follow-ups ----------
+def test_duplicate_email_never_rolls_back_the_callers_changes():
+    with SessionLocal() as db:
+        mail.queue(db, to="a@example.com", template="welcome", ctx={}, dedupe_key="dup1")
+        db.add(Payment(id="in_keep", amount=100))  # caller's pending change
+        assert mail.queue(db, to="a@example.com", template="welcome", ctx={}, dedupe_key="dup1") is None
+        db.commit()
+    with SessionLocal() as db:
+        assert db.get(Payment, "in_keep") is not None
+
+
+def test_old_unconfigured_emails_are_not_sent_when_email_is_switched_on(monkeypatch):
+    from datetime import datetime, timedelta, timezone
+    with SessionLocal() as db:
+        mail.queue(db, to="old@example.com", template="welcome", ctx={}, dedupe_key="old1")
+        mail.queue(db, to="new@example.com", template="welcome", ctx={}, dedupe_key="new1")
+        db.query(EmailOutbox).filter(EmailOutbox.dedupe_key == "old1").update({"created_at": datetime.now(timezone.utc) - timedelta(days=10)})
+        db.commit()
+    monkeypatch.setattr(get_settings(), "resend_api_key", "re_test")
+    sent = []
+    mail.deliver_pending(httpx.MockTransport(lambda req: (sent.append(json.loads(req.content)["to"][0]), httpx.Response(200, json={"id": "x"}))[1]))
+    assert sent == ["new@example.com"]
+
+
+def test_newer_stripe_invoice_shape_and_refund_lookup(client, monkeypatch):
+    monkeypatch.setattr(get_settings(), "stripe_webhook_secret", "whsec_t")
+    cust, adm = user(email="basil@example.com"), user("admin")
+    with SessionLocal() as db:
+        db.add(Subscription(owner_id=cust["_id"], plan="pro", status="active", stripe_customer_id="cus_b"))
+        db.commit()
+    # 1) expanded payments on the invoice are understood
+    ev = {"id": "evt_b1", "type": "invoice.paid", "data": {"object": {"id": "in_b1", "customer": "cus_b", "amount_paid": 4900, "currency": "gbp",
+          "payments": {"data": [{"payment": {"type": "payment_intent", "payment_intent": "pi_b1"}}]}}}}
+    _signed(client, ev)
+    with SessionLocal() as db:
+        assert db.get(Payment, "in_b1").payment_intent_id == "pi_b1"
+    # 2) an invoice event with no payment details: the refund looks the payment up first
+    ev2 = {"id": "evt_b2", "type": "invoice.paid", "data": {"object": {"id": "in_b2", "customer": "cus_b", "amount_paid": 4900, "currency": "gbp", "created": 1900000000}}}
+    _signed(client, ev2)
+    ref = client.post("/api/support/tickets", json={"category": "refund", "subject": "Refund", "description": "Please refund my last month"}, headers=H(cust)).json()["ref"]
+    rid = client.get("/api/admin/refunds", headers=H(adm)).json()[0]["id"]
+    with SessionLocal() as db:
+        db.get(RefundRequest, rid).payment_id = "in_b2"
+        db.commit()
+    client.post(f"/api/admin/refunds/{rid}/decision", json={"decision": "approved"}, headers=H(adm))
+    monkeypatch.setattr(get_settings(), "stripe_secret_key", "sk_test_x")
+    calls = []
+
+    async def fake_request(self, method, path, **kw):
+        calls.append((method, path))
+        return httpx.Response(200, json={"id": "in_b2", "payments": {"data": [{"payment": {"payment_intent": "pi_b2"}}]}}, request=httpx.Request(method, "https://x" + path))
+
+    async def fake_post(self, url, data=None, headers=None, **kw):
+        calls.append(("POST", url, data.get("payment_intent")))
+        return httpx.Response(200, json={"id": "re_b"}, request=httpx.Request("POST", "https://x" + url))
+    monkeypatch.setattr(httpx.AsyncClient, "request", fake_request)
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+    r = client.post(f"/api/admin/refunds/{rid}/execute", json={"confirm": f"REFUND {ref}"}, headers=H(adm))
+    assert r.status_code == 200, r.text
+    assert calls[0] == ("GET", "/v1/invoices/in_b2?expand[]=payments") and calls[1] == ("POST", "/v1/refunds", "pi_b2")
+    # 3) charge.refunded matches by payment intent too
+    _signed(client, {"id": "evt_b3", "type": "charge.refunded", "data": {"object": {"id": "ch_new", "customer": "cus_b", "payment_intent": "pi_b1", "amount_refunded": 1000}}})
+    with SessionLocal() as db:
+        assert db.get(Payment, "in_b1").refunded_amount == 1000
+
+
+def test_visitor_ticket_limits_per_email_and_ip(client, monkeypatch):
+    monkeypatch.setattr(get_settings(), "auth_mode", "supabase")
+    body = lambda e: {"subject": "Help", "description": "Something is not working", "email": e}  # noqa: E731
+    for _ in range(3):
+        assert client.post("/api/support/tickets", json=body("victim@example.com")).status_code == 201
+    assert client.post("/api/support/tickets", json=body("Victim@Example.com")).status_code == 429  # 3 per address per day
+    assert client.post("/api/support/tickets", json=body("other@example.com")).status_code == 201
+    assert client.post("/api/support/tickets", json=body("third@example.com")).status_code == 429  # 5 per IP per hour
+
+
+def test_visitor_chat_is_rate_limited_per_ip(client, monkeypatch):
+    monkeypatch.setattr(get_settings(), "auth_mode", "supabase")
+    codes = [client.post("/api/support/chat", json={"message": "what is tubelead"}).status_code for _ in range(31)]
+    assert codes[:30] == [200] * 30 and codes[30] == 429

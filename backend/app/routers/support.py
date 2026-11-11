@@ -3,16 +3,18 @@ is tied to a random token only their browser holds. Signed-in customers' convers
 import hashlib
 import secrets
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
-from sqlalchemy import select
+from datetime import datetime, timedelta, timezone
+
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..auth import get_optional_owner, get_owner
 from ..db import get_db
-from ..models import ChatConversation, ChatMessage, SupportTicket, TicketMessage
+from ..models import ChatConversation, ChatMessage, SupportTicket, TicketMessage, is_uuid, now
 from ..services import email as mail
-from ..services import support, support_bot
+from ..services import limits, support, support_bot
 
 router = APIRouter(prefix="/api/support", tags=["support"])
 MAX_MESSAGES = 60
@@ -44,7 +46,7 @@ class ReplyIn(BaseModel):
 
 
 def _conversation(db: Session, cid: str, owner: str | None, token: str | None) -> ChatConversation:
-    conv = db.get(ChatConversation, cid)
+    conv = db.get(ChatConversation, cid) if is_uuid(cid) else None
     ok = conv is not None and ((owner and conv.owner_id == owner) or (conv.visitor_token_hash and token and secrets.compare_digest(conv.visitor_token_hash, _h(token))))
     if not ok:
         raise HTTPException(404, {"code": "not_found", "message": "Conversation not found."})
@@ -57,7 +59,10 @@ def _msg_out(m: ChatMessage) -> dict:
 
 
 @router.post("/chat")
-async def chat(body: ChatIn, background: BackgroundTasks, owner: str | None = Depends(get_optional_owner), db: Session = Depends(get_db)):
+async def chat(body: ChatIn, background: BackgroundTasks, request: Request, owner: str | None = Depends(get_optional_owner), db: Session = Depends(get_db)):
+    # Caps AI cost and abuse: visitors per IP, customers per account.
+    limits.check(f"chat:{owner or 'ip:' + limits.client_ip(request)}", 60 if owner else 30, 600,
+                 "You're sending messages quickly. Please wait a few minutes, or send your question to the team.")
     token = None
     if body.conversation_id:
         conv = _conversation(db, body.conversation_id, owner, body.token)
@@ -66,7 +71,7 @@ async def chat(body: ChatIn, background: BackgroundTasks, owner: str | None = De
         conv = ChatConversation(owner_id=owner, visitor_token_hash=_h(token) if token else None)
         db.add(conv)
         db.commit()
-    count = len(db.scalars(select(ChatMessage.id).where(ChatMessage.conversation_id == conv.id)).all())
+    count = db.scalar(select(func.count()).select_from(ChatMessage).where(ChatMessage.conversation_id == conv.id)) or 0
     if count >= MAX_MESSAGES:
         raise HTTPException(429, {"code": "conversation_full", "message": "This conversation is full. Start a new one, or send your question to the team."})
     text = body.message.strip()
@@ -76,6 +81,7 @@ async def chat(body: ChatIn, background: BackgroundTasks, owner: str | None = De
     meta = {**out.get("meta", {}), "action": out.get("action"), "category": out.get("category"), "mode": out.get("mode")}
     reply = ChatMessage(conversation_id=conv.id, role="assistant", content=out["reply"], meta=meta)
     db.add(reply)
+    conv.updated_at = now()  # new messages keep the conversation active (admin ordering and the retention purge use this)
     db.commit()
     background.add_task(mail.deliver_pending)
     return {"conversation_id": conv.id, "token": token, "message": _msg_out(reply), "ticket_ref": out.get("ticket_ref")}
@@ -89,9 +95,18 @@ def history(cid: str, token: str | None = None, owner: str | None = Depends(get_
 
 
 @router.post("/tickets", status_code=201)
-def open_ticket(body: TicketIn, background: BackgroundTasks, owner: str | None = Depends(get_optional_owner), db: Session = Depends(get_db)):
+def open_ticket(body: TicketIn, background: BackgroundTasks, request: Request, owner: str | None = Depends(get_optional_owner), db: Session = Depends(get_db)):
     if not owner and not body.email:
         raise HTTPException(422, {"code": "email_required", "message": "Add your email so the team can reply."})
+    busy = "You've sent several requests recently. The team will reply to those first; please try again later."
+    limits.check(f"ticket:{owner or 'ip:' + limits.client_ip(request)}", 10 if owner else 5, 3600, busy)
+    if not owner:
+        # Stops anyone using the form to send confirmation emails to someone else's address: 3 per address per day.
+        since = datetime.now(timezone.utc) - timedelta(days=1)
+        recent = db.scalar(select(func.count()).select_from(SupportTicket).where(
+            func.lower(SupportTicket.email) == str(body.email).lower(), SupportTicket.owner_id.is_(None), SupportTicket.created_at >= since)) or 0
+        if recent >= 3:
+            raise HTTPException(429, {"code": "too_many_requests", "message": busy})
     conv_id = None
     if body.conversation_id:
         conv_id = _conversation(db, body.conversation_id, owner, body.token).id

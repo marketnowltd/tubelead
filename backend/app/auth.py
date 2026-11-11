@@ -88,9 +88,15 @@ def get_optional_owner(
     x_api_key: str | None = Header(default=None),
     db: Session = Depends(get_db),
 ) -> str | None:
-    """Like get_owner, but visitors without credentials get None instead of 401 (used by the public chat)."""
+    """Like get_owner, but visitors without credentials get None instead of 401 (used by the public chat).
+    A suspended customer is treated as a visitor here, so they can still contact support about the suspension."""
     if not authorization and not x_api_key and get_settings().auth_mode != "dev":
         return None
     owner, claims = _resolve(authorization, x_api_key, db)
-    _check_account(db, owner, claims)
+    try:
+        _check_account(db, owner, claims)
+    except HTTPException as exc:
+        if exc.status_code == 403:
+            return None
+        raise
     return owner

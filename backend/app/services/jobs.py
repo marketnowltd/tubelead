@@ -130,6 +130,7 @@ class Scheduler(threading.Thread):
                 log.exception("scheduler tick failed")
 
     _last_maintenance = 0.0
+    _last_purge = 0.0
 
     @classmethod
     def maintenance(cls) -> None:
@@ -139,7 +140,9 @@ class Scheduler(threading.Thread):
         cls._last_maintenance = time.time()
         from . import email as mail
         mail.deliver_pending()
-        purge_old_chats()
+        if time.time() - cls._last_purge >= 86400:
+            cls._last_purge = time.time()
+            purge_old_chats()
 
     @staticmethod
     def tick() -> int:

@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from ..auth import get_owner
@@ -204,6 +204,27 @@ def _money(amount: int, currency: str) -> str:
     return f"{sym}{amount / 100:,.2f}" if sym else f"{amount / 100:,.2f} {currency.upper()}"
 
 
+def invoice_payment_ids(inv: dict) -> tuple[str | None, str | None]:
+    """(payment_intent, charge) for an invoice. Older Stripe API versions put them on the invoice; newer ones
+    (2025-03-31 and later) list them under `payments` (present when expanded)."""
+    pi, ch = inv.get("payment_intent"), inv.get("charge")
+    for item in ((inv.get("payments") or {}).get("data") or []):
+        pay = item.get("payment") or {}
+        pi = pi or pay.get("payment_intent")
+        ch = ch or pay.get("charge")
+    pi = pi.get("id") if isinstance(pi, dict) else pi
+    ch = ch.get("id") if isinstance(ch, dict) else ch
+    return pi, ch
+
+
+async def resolve_invoice_payment(pay: Payment) -> None:
+    """Fill in a payment's intent/charge from Stripe when the webhook didn't include them (newer API versions)."""
+    if pay.payment_intent_id or pay.charge_id:
+        return
+    inv = await _stripe("GET", f"/v1/invoices/{pay.id}?expand[]=payments")
+    pay.payment_intent_id, pay.charge_id = invoice_payment_ids(inv)
+
+
 def _side_effects(db: Session, owner: str, t: str, obj: dict, row: Subscription) -> None:
     """Payments ledger and customer emails. Every email has a dedupe key, so Stripe retries never send twice."""
     acc = db.get(UserAccount, owner)
@@ -214,8 +235,9 @@ def _side_effects(db: Session, owner: str, t: str, obj: dict, row: Subscription)
         mail.queue(db, to=to, template="subscription_confirmed", ctx={"name": name, "plan": label}, dedupe_key=f"subscription_confirmed:{obj.get('subscription') or obj.get('id')}")
     elif t in ("invoice.paid", "invoice.payment_succeeded") and obj.get("id"):
         if not db.get(Payment, obj["id"]):
+            pi, ch = invoice_payment_ids(obj)
             db.add(Payment(id=obj["id"], owner_id=owner, amount=int(obj.get("amount_paid") or 0), currency=obj.get("currency") or "gbp",
-                           charge_id=obj.get("charge"), payment_intent_id=obj.get("payment_intent"), created_at=_ts(obj.get("created")) or datetime.now(timezone.utc)))
+                           charge_id=ch, payment_intent_id=pi, created_at=_ts(obj.get("created")) or datetime.now(timezone.utc)))
         if int(obj.get("amount_paid") or 0) > 0:
             mail.queue(db, to=to, template="payment_confirmed", ctx={"name": name, "amount": _money(int(obj["amount_paid"]), obj.get("currency") or "gbp")}, dedupe_key=f"payment_confirmed:{obj['id']}")
     elif t == "invoice.payment_failed":
@@ -224,7 +246,8 @@ def _side_effects(db: Session, owner: str, t: str, obj: dict, row: Subscription)
     elif t == "customer.subscription.deleted" or (t == "customer.subscription.updated" and obj.get("cancel_at_period_end")):
         mail.queue(db, to=to, template="cancellation_confirmed", ctx={"name": name}, dedupe_key=f"cancellation:{obj.get('id')}")
     elif t == "charge.refunded" and obj.get("id"):
-        pay = db.scalar(select(Payment).where(Payment.charge_id == obj["id"]))
+        conds = [Payment.charge_id == obj["id"]] + ([Payment.payment_intent_id == obj["payment_intent"]] if obj.get("payment_intent") else [])
+        pay = db.scalar(select(Payment).where(or_(*conds)))
         if pay:
             pay.refunded_amount = int(obj.get("amount_refunded") or 0)
 

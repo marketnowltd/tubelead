@@ -13,6 +13,15 @@ def uid() -> str:
     return str(uuid.uuid4())
 
 
+def is_uuid(value: str | None) -> bool:
+    """True if value can be compared with a UUID column (Postgres rejects anything else with an error)."""
+    try:
+        uuid.UUID(str(value))
+        return True
+    except ValueError:
+        return False
+
+
 def now() -> datetime:
     return datetime.now(timezone.utc)
 
