@@ -128,3 +128,30 @@
   .helper-ring, .helper-pulse { animation: none; }
   .helper-cta, .helper-art { transition: none; }
 }
+
+/* ---------------- Dashboard: Lead Generator, the main action ---------------- */
+.lg-hero {
+  background: radial-gradient(120% 140% at 100% 0%, rgba(255,122,0,.16), transparent 55%),
+              radial-gradient(120% 140% at 0% 100%, rgba(232,31,118,.12), transparent 55%),
+              linear-gradient(135deg, #F7F1FF 0%, #F3E9FF 100%);
+  border: 1px solid rgba(122,45,255,.18);
+  box-shadow: 0 24px 60px -32px rgba(122,45,255,.55);
+}
+.lg-launch {
+  position: relative; overflow: hidden; display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 52px; padding: 0 28px; border-radius: 999px; color: #fff; font-weight: 800; font-size: 15px; letter-spacing: .02em; white-space: nowrap;
+  background: linear-gradient(110deg, #7A2DFF, #E81F76 35%, #FF7A00 65%, #7A2DFF);
+  background-size: 250% 100%; animation: lg-flow 5s linear infinite, lg-glow 2.6s ease-in-out infinite;
+  box-shadow: 0 12px 30px -10px rgba(232,31,118,.65), inset 0 1px 0 rgba(255,255,255,.35);
+  transition: transform .2s cubic-bezier(.22,1,.36,1);
+}
+.lg-launch:hover { transform: translateY(-2px); }
+.lg-launch:focus-visible { outline: none; box-shadow: 0 0 0 3px #fff, 0 0 0 6px #7A2DFF; }
+.lg-launch-shine { position: absolute; inset: 0; background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,.55) 50%, transparent 65%);
+  transform: translateX(-120%); animation: lg-shine 3.2s ease-in-out infinite; }
+.lg-launch-rocket { transition: transform .35s cubic-bezier(.22,1,.36,1); }
+.lg-launch:hover .lg-launch-rocket { transform: translate(3px,-4px) rotate(-12deg); }
+@keyframes lg-flow { to { background-position: -250% 0; } }
+@keyframes lg-glow { 50% { box-shadow: 0 16px 40px -8px rgba(122,45,255,.75), inset 0 1px 0 rgba(255,255,255,.35); } }
+@keyframes lg-shine { 0%, 55% { transform: translateX(-120%); } 85%, 100% { transform: translateX(120%); } }
+@media (prefers-reduced-motion: reduce) { .lg-launch, .lg-launch-shine { animation: none; } .lg-launch-shine { display: none; } }

@@ -3,6 +3,7 @@ import { Download, ExternalLink, Globe, Search } from "lucide-react";
 import { useState } from "react";
 import { Badge, EmptyState, ErrorState, PageHeader, Panel, Skeleton } from "@/components/ui/core";
 import { useToast } from "@/components/ui/overlay";
+import { SourceIcon } from "@/components/ui/SourceIcon";
 import { api, useApi } from "@/lib/api";
 
 interface ProviderInfo { name: string; label: string; configured: boolean; requires: string[] }
@@ -12,7 +13,8 @@ interface Lead {
   snippet: string | null; verification_status: "verified" | "unverified"; evidence: string[];
   website?: string | null; audience_size?: number | null; emails?: { email: string; source: string; source_url: string | null }[];
 }
-interface SearchResult { query: string; providers: ProviderSummary[]; leads: Lead[]; duplicates_merged: number; verified_count: number; with_email?: number }
+interface SearchResult { query: string; providers: ProviderSummary[]; leads: Lead[]; duplicates_merged: number; verified_count: number; with_email?: number;
+  requested?: number; checked?: number; short_reason?: string | null }
 
 const statusTone = { ok: "green", not_configured: "neutral", failed: "red" } as const;
 const statusLabel = { ok: "Returned results", not_configured: "Awaiting configuration", failed: "Did not respond" } as const;
@@ -35,7 +37,7 @@ export default function SearchEverywhere() {
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<SearchResult | null>(null);
-  const [onlyEmail, setOnlyEmail] = useState(false);
+  const [howMany, setHowMany] = useState(25);
   const label = (n: string) => providers.data?.find((p) => p.name === n)?.label ?? n;
 
   const run = async (e: React.FormEvent) => {
@@ -44,7 +46,7 @@ export default function SearchEverywhere() {
     if (query.length < 3) { toast("error", "Enter at least 3 characters."); return; }
     setBusy(true);
     try {
-      setResult(await api<SearchResult>("/search-everywhere", { method: "POST", json: { query } }));
+      setResult(await api<SearchResult>("/search-everywhere", { method: "POST", json: { query, limit: howMany } }));
     } catch (err: any) {
       toast("error", err.message);
     } finally {
@@ -61,7 +63,9 @@ export default function SearchEverywhere() {
       <form onSubmit={run} className="mb-5 flex flex-col gap-2 sm:flex-row">
         <label className="sr-only" htmlFor="se-query">Search query</label>
         <input id="se-query" className="field flex-1" placeholder="e.g. home workout coach for busy parents" value={q} onChange={(e) => setQ(e.target.value)} maxLength={300} />
-        <button className="btn-primary pill-green" disabled={busy || !anyConfigured}><Search size={15} /> {busy ? "Searching…" : "Search everywhere"}</button>
+        <select aria-label="How many people with an email" className="field sm:!w-[150px]" value={howMany} onChange={(e) => setHowMany(Number(e.target.value))}>
+          {[10, 25, 50, 100].map((n) => <option key={n} value={n}>{n} with email</option>)}</select>
+        <button className="btn-primary pill-green" disabled={busy || !anyConfigured}><Search size={15} /> {busy ? "Searching… (up to a minute)" : "Search everywhere"}</button>
       </form>
 
       <Panel className="mb-5 p-5">
@@ -94,10 +98,10 @@ export default function SearchEverywhere() {
               ))}
             </ul>
             <div className="mt-3 flex flex-wrap items-center gap-3">
-              <p className="text-[12px] text-mute">{result.leads.length} people found · <strong className="text-ink">{result.with_email ?? 0} with a published email</strong> · {result.verified_count} confirmed by their platform · {result.duplicates_merged} duplicates merged</p>
-              <label className="ml-auto flex items-center gap-2 text-[12px] font-semibold"><input type="checkbox" className="accent-[#7B3FF2]" checked={onlyEmail} onChange={(e) => setOnlyEmail(e.target.checked)} /> Only with an email</label>
+              <p className="text-[12px] text-mute"><strong className="text-ink">{result.leads.length} people with a published email</strong>{result.requested ? ` of ${result.requested} requested` : ""} · {result.checked ?? 0} profiles checked · {result.duplicates_merged} duplicates merged</p>
               <button type="button" className="btn-ghost btn-sm" onClick={() => downloadCsv(result, label)} disabled={!result.leads.length}><Download size={13} /> Download CSV</button>
             </div>
+            {result.short_reason && <p className="mt-2 rounded-lg bg-[#C6A46B]/[0.1] px-3 py-2 text-xs text-[#6E5420]">{result.short_reason}</p>}
           </Panel>
 
           {result.leads.length === 0 ? (
@@ -107,14 +111,14 @@ export default function SearchEverywhere() {
               <table className="w-full min-w-[640px] text-left text-[13px]">
                 <thead className="text-[11px] uppercase tracking-wide text-mute"><tr><th className="px-4 py-3">Name</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Found on</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Links</th></tr></thead>
                 <tbody>
-                  {result.leads.filter((l) => !onlyEmail || l.emails?.length).map((l, i) => (
+                  {result.leads.map((l, i) => (
                     <tr key={`${l.creator_name}-${i}`} className="border-t border-forest/10 align-top">
                       <td className="px-4 py-3"><div className="font-medium">{l.creator_name}</div>{l.snippet && <p className="mt-0.5 line-clamp-2 text-mute">{l.snippet}</p>}</td>
                       <td className="px-4 py-3">{l.emails?.length ? <ul className="space-y-1">{l.emails.slice(0, 3).map((e) => (
                         <li key={e.email}><a className="font-medium text-forest underline" href={`mailto:${e.email}`}>{e.email}</a>
                           <span className="block text-[11px] text-dim">{e.source_url ? <a className="underline" href={e.source_url} target="_blank" rel="noopener noreferrer">{e.source}</a> : e.source}</span></li>))}</ul>
                         : <span className="text-[12px] text-dim">None published</span>}</td>
-                      <td className="px-4 py-3">{l.sources.map(label).join(", ")}{l.audience_size ? <span className="block text-[11px] text-dim">{l.audience_size.toLocaleString()} followers</span> : null}</td>
+                      <td className="px-4 py-3"><span className="flex items-center gap-1.5">{l.sources.map((src) => <SourceIcon key={src} source={src} size={16} />)}</span>{l.audience_size ? <span className="block text-[11px] text-dim">{l.audience_size.toLocaleString()} followers</span> : null}</td>
                       <td className="px-4 py-3"><Badge tone={l.verification_status === "verified" ? "green" : "neutral"} dot>{l.verification_status === "verified" ? "Confirmed by platform API" : "Unverified web result"}</Badge></td>
                       <td className="px-4 py-3">
                         <div className="flex flex-col gap-1">

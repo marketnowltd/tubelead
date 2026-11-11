@@ -59,10 +59,14 @@ def test_end_to_end_filters_dedupe_and_contacts():
         assert a.qualification_score > 60
         used = db.scalar(select(QuotaUsage.units))
     # two regions (GB, US) => two searches returning the same 5 channels: 10 found, 5 unique, 5 duplicates removed
-    assert job.channels_found == 10 and job.unique_found == 5 and job.duplicates_removed == 5
+    # the job tops up with wider searches when short, so totals grow, but each channel is still counted once
+    assert job.unique_found == 5 and job.channels_found == job.unique_found + job.duplicates_removed and job.channels_found >= 10
     assert job.qualified == 1 and job.rejected == 4 and job.enriched == job.enrich_total >= 1
     # 2 searches (200) + 1 channels call (1) + per enriched channel: playlistItems (1) + videos (1)
-    assert job.quota_used == used == 200 + 1 + 2 * job.enrich_total
+    # planned: 2 searches (200 units) + reads; then at most DRY_LIMIT wider searches that found nothing new
+    from app.services.discovery import DRY_LIMIT
+    base = 200 + 1 + 2 * job.enrich_total
+    assert job.quota_used == used and base <= used <= base + DRY_LIMIT * 100
 
     # Second run: everything already known (A saved; others re-appear only if not rejected before -> they are new rejects again)
     job2, _ = run_job(dict(keywords=["tech"], min_subscribers=10_000, limit=10))
@@ -144,3 +148,14 @@ def test_n8n_webhook_receives_job_event():
         srv.shutdown()
     assert len(got) == 1
     assert got[0]["event"] == "discovery.completed" and got[0]["job_id"] == jid and got[0]["qualified"] == 1
+
+
+def test_top_up_searches_wider_when_short():
+    from app.services.discovery import MAX_TOP_UP, JobParams, expand_queries, top_up_queries
+    p = JobParams(keywords=["fitness"], countries=["GB"], limit=50)
+    planned = expand_queries(p)
+    extra = top_up_queries(p, planned)
+    assert 0 < len(extra) <= MAX_TOP_UP
+    assert {q.order for q in extra} >= {"viewCount", "date", "rating"}  # other sort orders of the same search
+    assert all(q.region == "GB" for q in extra) and all(q.pages == 3 for q in extra)
+    assert not ({(q.q, q.region, q.order) for q in extra} & {(q.q, q.region, q.order) for q in planned})  # nothing repeated

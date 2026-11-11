@@ -9,6 +9,8 @@ import { Modal } from "@/components/ui/overlay";
 import { Field, MultiSelect, Segmented, Switch, TagInput } from "@/components/ui/inputs";
 import { useToast } from "@/components/ui/overlay";
 import { cn } from "@/components/ui/cn";
+import { SourceIcon } from "@/components/ui/SourceIcon";
+import { DiscoveryJourney } from "@/components/helper/DiscoveryJourney";
 import { ApiError, api, downloadFile, useApi } from "@/lib/api";
 import { COUNTRIES, NICHES, REGIONS, flag, regionCodes } from "@/lib/countries";
 import type { Job, Status } from "@/lib/types";
@@ -74,8 +76,10 @@ const USES: { name: string; how: string }[] = [
 const fmtK = (n: number) => (n >= 1_000_000 ? `${n / 1_000_000}M` : `${n / 1000}K`);
 const Err = ({ m }: { m?: string }) => (m ? <p role="alert" className="mt-1 text-[11px] text-[#A33A2A]">{m}</p> : null);
 
-interface OtherLead { creator_name: string; sources: string[]; source_url: string | null; youtube_url: string | null; snippet: string | null; verification_status: string }
-interface OtherSearch { providers: { provider: string; status: string; message: string; count: number }[]; leads: OtherLead[] }
+interface OtherLead { creator_name: string; sources: string[]; source_url: string | null; youtube_url: string | null; snippet: string | null; verification_status: string;
+  emails?: { email: string; source: string; source_url: string | null }[] }
+interface OtherSearch { providers: { provider: string; status: string; message: string; count: number; with_email?: number }[]; leads: OtherLead[];
+  requested?: number; checked?: number; short_reason?: string | null }
 const OTHER_SOURCES = "YouTube, Google Search, Brave Search, Apple Podcasts, Reddit, Twitch, Bluesky, Mastodon, Dailymotion, Vimeo, Spotify, Last.fm and MusicBrainz";
 
 export default function LeadGenerator() {
@@ -110,7 +114,8 @@ export default function LeadGenerator() {
   useEffect(() => {
     // The homepage search passes its text as ?q=… so the search starts with it.
     const q = new URLSearchParams(window.location.search).get("q");
-    if (q && q.trim()) setF((x) => ({ ...x, keywords: [q.trim()] }));
+    const n = Number(new URLSearchParams(window.location.search).get("n"));
+    if (q && q.trim()) setF((x) => ({ ...x, keywords: [q.trim()], ...([10, 25, 50, 100].includes(n) ? { limit: n } : {}) }));
   }, []);
   const [proposal, setProposal] = useState<{ source: string; criteria: Record<string, any>; dropped: string[]; note: string | null } | null>(null);
   const [parsing, setParsing] = useState(false);
@@ -178,7 +183,7 @@ export default function LeadGenerator() {
       setOthers(null);
       if (multiSource && q.length >= 3) {
         setOthersBusy(true);
-        api<OtherSearch>("/search-everywhere", { method: "POST", json: { query: [...f.keywords, ...f.niches].join(" ").slice(0, 300) || q } })
+        api<OtherSearch>("/search-everywhere", { method: "POST", json: { query: [...f.keywords, ...f.niches].join(" ").slice(0, 300) || q, limit: Math.min(100, f.limit) } })
           .then(setOthers).catch((err: ApiError) => toast("error", `Other sources: ${err.message}`)).finally(() => setOthersBusy(false));
       }
       toast("success", f.mode === "scheduled" ? `Discovery started and scheduled ${f.schedule}` : "Discovery started — watch live progress on the right");
@@ -333,6 +338,7 @@ export default function LeadGenerator() {
         </div>
 
         <div className="space-y-6 xl:sticky xl:top-24 xl:self-start">
+          {jobId && <DiscoveryJourney jobId={jobId} othersBusy={othersBusy} multiSource={multiSource} />}
           {live && live.id === jobId && <ResultsCard job={live} />}
           <Panel>
             <PanelHeader title="Other sources" sub={multiSource ? "The same keywords, searched across the other sources" : "Included from the Pro plan"} icon={multiSource ? <Layers size={16} /> : <Lock size={16} />} />
@@ -340,18 +346,27 @@ export default function LeadGenerator() {
               <div className="px-5 pb-5 text-sm text-mute"><p>Multi-source search covers {OTHER_SOURCES}, and finds the emails they publish. It is included from the Pro plan.</p>
                 <Link href="/billing" className="mt-3 inline-flex text-xs font-semibold text-forest hover:underline">See plans →</Link></div>
             ) : othersBusy ? (
-              <p className="px-5 pb-5 text-sm text-mute">Searching the other sources…</p>
+              <p className="px-5 pb-5 text-sm text-mute">Searching the other sources and reading profiles, feeds and websites for published emails. This can take up to a minute.</p>
             ) : !others ? (
               <p className="px-5 pb-5 text-sm text-mute">Press Generate Leads to search the other sources too.</p>
             ) : (
               <div className="px-5 pb-5">
-                <ul className="mb-3 space-y-1 text-xs text-mute">{others.providers.map((p) => <li key={p.provider}><span className="font-semibold text-ink">{p.provider}:</span> {p.message}</li>)}</ul>
-                {others.leads.length === 0 ? <p className="text-sm text-mute">No results from the connected sources yet.</p> : (
-                  <ul className="divide-y divide-line">{others.leads.slice(0, 12).map((l, i) => (
-                    <li key={`${l.creator_name}-${i}`} className="py-2.5 text-sm">
-                      <div className="flex items-center justify-between gap-3"><span className="font-medium">{l.creator_name}</span><span className="text-xs text-mute">{l.sources.join(", ")}</span></div>
-                      {l.snippet && <p className="mt-0.5 line-clamp-1 text-xs text-mute">{l.snippet}</p>}
-                      {l.source_url && <a href={l.source_url} target="_blank" rel="noopener noreferrer" className="mt-0.5 inline-flex items-center gap-1 text-xs text-forest underline">Open <ExternalLink size={10} /></a>}
+                <p className="mb-2 text-sm"><strong>{others.leads.length}</strong> {others.leads.length === 1 ? "person" : "people"} with a published email
+                  {others.requested ? <span className="text-mute"> · {others.requested} requested · {others.checked ?? 0} profiles checked</span> : null}</p>
+                {others.short_reason && <p className="mb-2 rounded-lg bg-[#C6A46B]/[0.1] px-3 py-2 text-xs text-[#6E5420]">{others.short_reason}</p>}
+                <ul className="mb-3 flex flex-wrap gap-1.5">{others.providers.map((p) => (
+                  <li key={p.provider} title={p.message} className={cn("flex items-center gap-1.5 rounded-full border px-2 py-1 text-[11px]", p.status === "ok" ? "border-line" : "border-dashed border-line opacity-60")}>
+                    <SourceIcon source={p.provider} size={13} />{p.status === "ok" ? <span>{p.count} checked · <strong>{p.with_email ?? 0}</strong> with email</span> : <span>{p.status === "not_configured" ? "Not connected" : "Unavailable"}</span>}
+                  </li>))}</ul>
+                {others.leads.length === 0 ? <p className="text-sm text-mute">No one found on these sources publishes an email for this search yet.</p> : (
+                  <ul className="max-h-[520px] divide-y divide-line overflow-y-auto">{others.leads.map((l, i) => (
+                    <li key={`${l.creator_name}-${i}`} className="flex items-start gap-3 py-2.5 text-sm">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">{l.creator_name}</p>
+                        {(l.emails ?? []).slice(0, 2).map((e) => <p key={e.email} className="truncate text-xs"><a className="font-semibold text-forest underline" href={`mailto:${e.email}`}>{e.email}</a> <span className="text-dim">· {e.source}</span></p>)}
+                        {l.source_url && <a href={l.source_url} target="_blank" rel="noopener noreferrer" className="mt-0.5 inline-flex items-center gap-1 text-xs text-mute underline">Profile <ExternalLink size={10} /></a>}
+                      </div>
+                      <span className="mt-0.5 flex shrink-0 gap-1">{l.sources.map((src) => <SourceIcon key={src} source={src} size={15} />)}</span>
                     </li>))}</ul>
                 )}
               </div>

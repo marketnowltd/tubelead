@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, BookmarkPlus, Download, ExternalLink, 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { CreatorDrawer, verificationLabel } from "@/components/pages/CreatorDrawer";
+import { SourceIcon } from "@/components/ui/SourceIcon";
 import { Avatar, Badge, DemoBanner, DemoTag, EmptyState, ErrorState, PageHeader, Panel, ScoreRing, Skeleton, statusTone } from "@/components/ui/core";
 import { cn } from "@/components/ui/cn";
 import { MultiSelect } from "@/components/ui/inputs";
@@ -139,6 +140,7 @@ function Database() {
                   <th scope="col" className="label px-3 py-3 text-left">Activity</th><th scope="col" className="label px-3 py-3 text-left">Public email</th>
                   <SortHead label="Score" k="score" {...{ sort, order, onSort }} /><th scope="col" className="label px-3 py-3 text-left">Verification</th><th scope="col" className="label px-3 py-3 text-left">Campaign</th>
                   <SortHead label="Discovered" k="discovered_at" {...{ sort, order, onSort }} />
+                  <th scope="col" className="label px-3 py-3 text-left"><span className="sr-only">Source</span></th>
                 </tr></thead>
                 <tbody className="divide-y divide-line">
                   {isLoading && !data && Array.from({ length: 8 }).map((_, i) => <tr key={i}><td colSpan={13} className="px-3 py-3"><Skeleton className="h-9 w-full" /></td></tr>)}
@@ -157,6 +159,7 @@ function Database() {
                       <td className="px-3"><Badge tone={statusTone[c.verification_status]} dot>{verificationLabel[c.verification_status]}</Badge></td>
                       <td className="px-3 text-xs text-mute"><span className="block max-w-[130px] truncate">{c.campaign_name ?? "—"}</span></td>
                       <td className="whitespace-nowrap px-3 text-xs text-mute">{ago(c.discovered_at)}</td>
+                      <td className="px-3"><SourceIcon source="youtube" size={15} /></td>
                     </tr>))}
                 </tbody>
               </table>
@@ -174,7 +177,7 @@ function Database() {
                       <div className="min-w-0 flex-1"><p className="truncate font-semibold">{c.title.replace(/ \(demo\)$/i, "")} {c.is_demo && <DemoTag />}</p><p className="truncate text-xs text-dim">{c.handle} · {flag(c.country)} {c.country ?? "—"} · {c.niche}</p>
                         <div className="mt-2 flex flex-wrap items-center gap-1.5"><Badge tone="neutral">{compact(c.subscriber_count)} subs</Badge><Badge tone="neutral">{pct(c.engagement_rate)} eng.</Badge><Badge tone={statusTone[c.activity]} dot>{titleCase(c.activity)}</Badge><Badge tone={statusTone[c.verification_status]} dot>{verificationLabel[c.verification_status]}</Badge></div>
                         {c.public_email && <p className="data mt-2 flex items-center gap-1.5 truncate text-xs text-mute"><Mail size={12} />{c.public_email}</p>}</div>
-                      <ScoreRing score={c.qualification_score} size={40} />
+                      <span className="flex flex-col items-center gap-2"><ScoreRing score={c.qualification_score} size={40} /><SourceIcon source="youtube" size={14} /></span>
                     </button>
                   </div>
                 </li>))}

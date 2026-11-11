@@ -11,8 +11,8 @@ import re
 from .contacts import PageFetcher, extract_emails, is_public_url, scan_website
 
 WEB_PROVIDERS = ("google", "brave")  # their results are web pages: the page itself is the site to read
-CONCURRENCY = 6
-TIME_BUDGET = 25.0  # seconds for the whole step; results not finished in time are returned without emails
+CONCURRENCY = 10
+TIME_BUDGET = 30.0  # seconds for the whole step; results not finished in time are returned without emails
 TRANSPORT = None    # tests inject a mock transport
 URL_GUARD = None    # tests replace the public-address check (made-up test hosts don't resolve)
 FEED_EMAIL = re.compile(r"<itunes:email>\s*([^<\s]+)\s*</itunes:email>|<managingEditor>\s*([^<]+?)\s*</managingEditor>", re.I)

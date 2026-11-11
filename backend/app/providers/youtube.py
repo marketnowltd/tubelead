@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from ..config import get_settings
+from ..services.contacts import HUB_HOSTS, classify_links, extract_emails
 from ..services.youtube import QuotaBudgetExceeded, YouTubeClient, YouTubeError
 from .base import FAILED, NOT_CONFIGURED, OK, Lead, ProviderResult
 
@@ -32,9 +33,14 @@ class YouTubeProvider:
                 title = ch.get("snippet", {}).get("title", "").strip()
                 if not title:
                     continue
-                leads.append(Lead(provider=self.name, creator_name=title, source_url=f"https://www.youtube.com/channel/{cid}",
-                                  youtube_url=f"https://www.youtube.com/channel/{cid}", youtube_channel_id=cid,
-                                  snippet=(ch.get("snippet", {}).get("description") or "")[:240] or None,
+                desc = ch.get("snippet", {}).get("description") or ""
+                _, sites = classify_links(desc)
+                url = f"https://www.youtube.com/channel/{cid}"
+                leads.append(Lead(provider=self.name, creator_name=title, source_url=url,
+                                  youtube_url=url, youtube_channel_id=cid,
+                                  snippet=desc[:240] or None,
+                                  emails=[{"email": e, "source": "YouTube channel description", "source_url": url} for e in extract_emails(desc)],
+                                  website=next((u for u in sites if not any(h in u for h in HUB_HOSTS)), sites[0] if sites else None),
                                   verification_status="verified",
                                   audience_size=int(ch["statistics"]["subscriberCount"]) if str((ch.get("statistics") or {}).get("subscriberCount", "")).isdigit() and not (ch.get("statistics") or {}).get("hiddenSubscriberCount") else None,
                                   evidence=[f"YouTube Data API channel record {cid}"]))

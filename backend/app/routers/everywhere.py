@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api", tags=["search"])
 
 class SearchIn(BaseModel):
     query: str = Field(min_length=3, max_length=300)
-    limit: int = Field(20, ge=1, le=25)
+    limit: int = Field(20, ge=1, le=100)  # how many people with an email to return
 
 
 @router.get("/search-everywhere/providers")

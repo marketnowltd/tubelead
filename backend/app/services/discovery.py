@@ -26,6 +26,28 @@ WORLD_REGIONS = ["US", "GB", "IN", "BR", "DE", "FR", "JP", "KR", "MX", "CA", "AU
 DEEP_SUFFIXES = ["channel", "creator", "review", "tutorial", "vlog"]
 TOPIC_MODIFIERS = ["tips", "how to", "explained", "for beginners", "review"]
 REPEAT_ORDERS = ["relevance", "viewCount", "date", "rating"]
+MAX_TOP_UP = 24  # extra searches when the planned ones found fewer creators than requested
+DRY_LIMIT = 6    # the top-up stops after this many searches in a row that find no new channel (nothing left to find)
+
+
+def top_up_queries(p: JobParams, planned: list[Query]) -> list[Query]:
+    """When the planned searches come up short: more result pages, the other sort orders and related wording for the
+    same keywords and countries, so the job keeps going until it reaches the number asked for (or the quota budget)."""
+    base = list(dict.fromkeys([k for k in p.keywords] + [n for n in p.niches]))
+    regions: list[str | None] = p.countries or [None]
+    done = {(q.q.lower(), q.region, q.order) for q in planned}
+    out: list[Query] = []
+    for suffix in [""] + TOPIC_MODIFIERS[:2] + DEEP_SUFFIXES:
+        for order in REPEAT_ORDERS:
+            for region in regions:
+                for term in base:
+                    q = f"{term} {suffix}".strip()
+                    if (q.lower(), region, order) not in done:
+                        done.add((q.lower(), region, order))
+                        out.append(Query(q, region, None, order, 3, "video" if p.source == "videos" else "channel"))
+                    if len(out) >= MAX_TOP_UP:
+                        return out
+    return out
 
 
 @dataclass(frozen=True)
@@ -163,9 +185,28 @@ class DiscoveryRun:
         qualified = 0
         seen_kw: set[str] = set()
         try:
-            for qi, query in enumerate(queries):
+            qi = -1
+            topped_up = False
+            dry = 0
+            while True:
+                qi += 1
+                if qi >= len(queries):
+                    if qualified >= params.limit or topped_up:
+                        break
+                    topped_up = True
+                    extra = top_up_queries(params, queries)
+                    if not extra:
+                        break
+                    self._log(f"Found {qualified} of {params.limit} requested: searching wider ({len(extra)} more searches)")
+                    queries = queries + extra
+                    self._update(queries_total=len(queries))
+                query = queries[qi]
                 if qualified >= params.limit:
                     break
+                if topped_up and dry >= DRY_LIMIT:
+                    self._log(f"Stopped widening: the last {DRY_LIMIT} searches found no new channels")
+                    break
+                found_new = False
                 token = None
                 for page in range(query.pages):
                     await self._check_cancel()
@@ -197,9 +238,11 @@ class DiscoveryRun:
                     self._update(channels_found=lambda v: v + len(ids), unique_found=lambda v: v + len(new),
                                  duplicates_removed=lambda v: v + dups, quota_used=self.session_spent)
                     if new:
+                        found_new = True
                         qualified += await self._process(owner, params, query, new, existing, rejected_ids, params.limit - qualified)
                     if not token:
                         break
+                dry = 0 if found_new else dry + 1
                 seen_kw.add(query.q.lower())
                 self._update(queries_done=qi + 1, keywords_done=len(seen_kw), qualified=qualified, quota_used=self.session_spent)
             self._finish("completed", f"Completed: {qualified} qualified creators")

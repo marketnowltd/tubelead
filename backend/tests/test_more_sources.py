@@ -121,11 +121,44 @@ def test_search_finds_published_emails_from_feeds_sites_and_bios_and_respects_ro
     assert by["Chef Ana"]["emails"][0]["email"] == "bookings@ana.example" and by["Chef Ana"]["emails"][0]["source"] == "Contact page"
     assert by["Bo"]["emails"][0]["email"] == "bo@bo.example"
     assert by["Cafe"]["emails"][0]["email"] == "hello@cafe.example"
-    assert by["Blocked"]["emails"] == [] and by["Blocked"]["contact_status"] == "none_published"  # robots.txt said no
-    assert out["with_email"] == 4
+    assert "Blocked" not in by  # robots.txt said no, so no email, so it is not returned: results always have an email
+    assert out["with_email"] == 4 and out["checked"] == 5 and all(l["emails"] for l in out["leads"])
 
 
 def test_keyless_sources_are_on_by_default():
     names = {p.name for p in se.PROVIDERS if p.configured()}
     assert {"applepodcasts", "bluesky", "dailymotion", "mastodon", "musicbrainz"} <= names
     assert len(se.PROVIDERS) == 13
+
+
+class Pool:
+    """A source with 40 people; only every third publishes an email. Bigger requests and related wording reach more."""
+    name, label, required_settings = "bluesky", "Bluesky", ()
+
+    def __init__(self):
+        self.calls = []
+
+    def configured(self):
+        return True
+
+    async def search(self, q, limit):
+        self.calls.append((q, limit))
+        start = 0 if q == "fitness" else 20 + 5 * len(self.calls)
+        people = [Lead(provider="bluesky", creator_name=f"Person {n}", source_url=f"https://bsky.app/profile/p{n}",
+                       snippet=f"mail p{n}@fit.example" if n % 3 == 0 else "no contact here") for n in range(start, min(40, start + limit))]
+        return ProviderResult("bluesky", OK, f"{len(people)} profiles", people)
+
+
+def test_search_returns_exactly_the_number_requested(fake_web, monkeypatch):
+    pool = Pool()
+    monkeypatch.setattr(se, "PROVIDERS", [pool])
+    out = asyncio.run(se.search_everywhere("fitness", 10))
+    assert len(out["leads"]) == 10 and all(l["emails"] for l in out["leads"]) and out["short_reason"] is None
+    assert len(pool.calls) >= 2  # the first round (20 people, 7 with email) was not enough, so it searched wider
+    assert out["providers"][0]["count"] >= 20  # people checked across the rounds
+
+
+def test_search_says_why_when_sources_run_out(fake_web, monkeypatch):
+    monkeypatch.setattr(se, "PROVIDERS", [Pool()])
+    out = asyncio.run(se.search_everywhere("fitness", 100))
+    assert 0 < len(out["leads"]) < 100 and "no more people who publish an email" in out["short_reason"]

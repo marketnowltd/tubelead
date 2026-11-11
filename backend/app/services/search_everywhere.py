@@ -24,6 +24,7 @@ from . import lead_contacts
 PROVIDERS = [YouTubeProvider(), GoogleSearchProvider(), BraveProvider(), ApplePodcastsProvider(), RedditProvider(), TwitchProvider(), BlueskyProvider(),
              MastodonProvider(), DailymotionProvider(), VimeoProvider(), SpotifyProvider(), LastFmProvider(), MusicBrainzProvider()]
 FIND_EMAILS = True  # tests that only check merging switch the email step off
+EMAILS_ONLY = True  # only people who publish an email address are returned
 
 
 async def _safe(p, query: str, limit: int) -> ProviderResult:
@@ -81,15 +82,65 @@ def merge(results: list[ProviderResult]) -> tuple[list[dict], int]:
     return rows, duplicates
 
 
+VARIANTS = ("podcast", "creator", "official", "channel", "blog")  # related wording for later rounds
+TIME_BUDGET = 100.0  # seconds for all rounds together
+
+
 async def search_everywhere(query: str, limit: int = 20) -> dict:
-    results = await asyncio.gather(*[_safe(p, query, limit) for p in PROVIDERS])
-    leads, duplicates = merge(list(results))
-    with_email = await lead_contacts.find_emails(leads) if FIND_EMAILS else 0
+    """Returns `limit` people who publish an email address (exactly that many when the sources have them).
+    Rounds: the query with a normal result size, the query with each source's largest result size, then related
+    wording. Emails are looked up only for people not checked before; it stops as soon as there are enough."""
+    import time
+    start = time.monotonic()
+    rounds: list[tuple[str, int, bool]] = [(query, max(limit, 20), True), (query, 100, False)] + [(f"{query} {w}", 50, False) for w in VARIANTS]
+    all_results: list[ProviderResult] = []
+    checked: dict[str, dict] = {}   # first key -> row whose emails were looked up
+    totals: dict[str, dict] = {}    # provider -> summary across rounds
+    leads: list[dict] = []
+    duplicates = 0
+    for i, (q, size, with_youtube) in enumerate(rounds):
+        provs = [p for p in PROVIDERS if (i == 0 or p.configured()) and (with_youtube or p.name != "youtube")]
+        results = await asyncio.gather(*[_safe(p, q, size) for p in provs])
+        all_results += results
+        for r in results:
+            if r.provider not in totals:
+                totals[r.provider] = r.summary()
+            else:
+                totals[r.provider]["count"] += len(r.leads)
+                if r.status == "ok" and totals[r.provider]["status"] != "ok":
+                    totals[r.provider].update(status="ok", message=r.message)
+        leads, duplicates = merge(list(all_results))
+        if not FIND_EMAILS:
+            break
+        new = []
+        for row in leads:
+            k = _keys(Lead(provider=row["provider"], creator_name=row["creator_name"], source_url=None, youtube_channel_id=row.get("youtube_channel_id")))[0]
+            if k in checked:
+                row["emails"] = checked[k]["emails"] + [e for e in row["emails"] if e not in checked[k]["emails"]]
+                row["contact_status"] = "email_found" if row["emails"] else "none_published"
+            else:
+                new.append((k, row))
+        await lead_contacts.find_emails([row for _, row in new])
+        for k, row in new:
+            checked[k] = row
+        if sum(1 for row in leads if row["emails"]) >= limit or time.monotonic() - start > TIME_BUDGET:
+            break
+    providers = list(totals.values())
+    with_email_rows = [row for row in leads if row.get("emails")]
+    if FIND_EMAILS:
+        for p in providers:
+            p["with_email"] = sum(1 for row in with_email_rows if p["provider"] in row["sources"])
+    out_leads = with_email_rows[:limit] if (FIND_EMAILS and EMAILS_ONLY) else leads
+    short = FIND_EMAILS and EMAILS_ONLY and len(out_leads) < limit
     return {
         "query": query,
-        "providers": [r.summary() for r in results],
-        "leads": leads,
+        "requested": limit,
+        "providers": providers,
+        "leads": out_leads,
+        "checked": len(leads),
         "duplicates_merged": duplicates,
-        "verified_count": sum(1 for l in leads if l["verification_status"] == "verified"),
-        "with_email": with_email,
+        "verified_count": sum(1 for l in out_leads if l["verification_status"] == "verified"),
+        "with_email": len(with_email_rows),
+        "short_reason": ("The connected sources had no more people who publish an email for this search. Connect more sources "
+                         "or use broader keywords.") if short else None,
     }
