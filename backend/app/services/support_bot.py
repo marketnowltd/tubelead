@@ -179,6 +179,9 @@ def _tour(p: G.Page | None) -> dict | None:
 
 def _guide_answer(db: Session, text: str, page: G.Page | None) -> dict | None:
     """Answers about the website itself (this page, what to do next, show me how), from the helper's page guide."""
+    known = G.suggested_answer(text)
+    if known:
+        return {"reply": known[0], "tour": _tour(next((p for p in G.PAGES.values() if p.tour == known[1]), None))}
     if G.PAGE_INTENT.search(text) and page:
         return {"reply": G.describe(page), "tour": _tour(page)}
     if G.NEXT_INTENT.search(text):

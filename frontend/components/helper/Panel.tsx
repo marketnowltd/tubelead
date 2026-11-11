@@ -49,7 +49,7 @@ export function HelperPanel({ open, onClose, page, path, journey, signedIn, tips
       else onPose("explaining", 2600);
     } catch (e: any) {
       setErr(e.status === 429 ? "You're sending messages quickly. Please wait a moment." : e.message);
-      setMsgs((m) => m.filter((x) => x.id !== temp.id)); setText(message); onPose("surprised", 1400);
+      setMsgs((m) => m.filter((x) => x.id !== temp.id)); setText(message); onPose(e.status === 429 ? "warning" : "error", 2200);
     } finally { setBusy(false); }
   }, [text, busy, conv, path, journey, onPose]);
 
@@ -113,14 +113,14 @@ export function HelperPanel({ open, onClose, page, path, journey, signedIn, tips
             {busy && (
               <div className="flex items-end gap-2" aria-label="The helper is thinking">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={frameSrc("laptop")} alt="" className="h-12 w-auto" />
+                <img src={frameSrc("chatting")} alt="" className="h-14 w-auto" />
                 <span className="flex gap-1 rounded-2xl rounded-bl-md bg-[#F3E9FF] px-4 py-3.5">
                   {[0, 1, 2].map((i) => <motion.i key={i} className="h-1.5 w-1.5 rounded-full bg-[#7A2DFF]" animate={reduced ? undefined : { opacity: [0.3, 1, 0.3], y: [0, -2, 0] }} transition={{ duration: 0.9, repeat: Infinity, delay: i * 0.15 }} />)}
                 </span>
               </div>
             )}
             {form && <RequestForm category={form} conv={conv} signedIn={signedIn} onCancel={() => setForm(null)}
-              onDone={(ref, reply) => { setForm(null); setMsgs((m) => [...m, { id: `t-${ref}`, role: "assistant", content: reply }]); onPose("success", 2200); }} />}
+              onDone={(ref, reply) => { setForm(null); setMsgs((m) => [...m, { id: `t-${ref}`, role: "assistant", content: reply }]); onPose("done", 2200); }} />}
           </div>
 
           {err && <p role="alert" className="mx-4 mb-2 rounded-lg bg-[#E81F76]/10 px-3 py-2 text-[12.5px] text-[#A3134F]">{err}</p>}

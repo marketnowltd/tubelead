@@ -81,7 +81,7 @@ def test_ai_mode_gets_page_context_and_only_real_pages(client, monkeypatch):
     monkeypatch.setattr(get_settings(), "openai_api_key", "sk-test")
     calls = []
     support_router.BOT_TRANSPORT = fake_openai([{"content": "Type a niche, choose how many leads and press Find Leads."}], calls)
-    m = chat(client, "How do I use the lead generator?", "/lead-generator")
+    m = chat(client, "How can I search for gaming creators with lots of views?", "/lead-generator")
     system = calls[0]["messages"][0]["content"]
     assert "The customer is on: Lead Generator" in system and "never mention any other feature" in system and "Contact Finder (/contact-finder)" in system
     assert "Pages visited recently: Dashboard → Lead Generator" in system
@@ -116,3 +116,40 @@ def test_settings_row_creation_survives_a_concurrent_insert():
         db.get = first_miss
         us = get_user_settings(db, "00000000-0000-0000-0000-0000000000aa")
         assert us.display_name == "winner" and len(calls) == 2
+
+
+# Suggested questions not in helper_guide.ANSWERS, and the help article (or rule) each must be answered by.
+COVERED_ELSEWHERE = {
+    "What do the plans cost?": "Plans and prices",
+    "Where do contact details come from?": "Where do the contact details come from?",
+    "How do I find YouTubers?": "How do I find leads?",
+    "How do I delete my account?": "rule:account",
+    "Do I need my own AI key?": "Do I need my own AI key for AI Connect?",
+    "I can't sign in": "I can't sign in",
+    "How do I cancel?": "rule:cancellation",
+    "Can you explain this page?": "rule:page",
+    "What should I do next?": "rule:next",
+}
+
+
+def test_every_suggested_question_gets_its_own_answer(client):
+    """The helper suggests these questions itself, so none may fall through to a loosely matching article."""
+    for key, page in G.PAGES.items():
+        for q in page.suggestions:
+            m = chat(client, q, key)
+            if G.suggested_answer(q):
+                assert m["mode"] == "guide" and m["content"] == G.suggested_answer(q)[0], (key, q)
+                continue
+            want = COVERED_ELSEWHERE.get(q)
+            assert want, f"{q!r} on {key} has no written answer"
+            if want in ("rule:cancellation", "rule:account"):
+                assert m["action"] == "offer_ticket" and m["category"] == want[5:] and "can't" in m["content"]
+            elif want.startswith("rule:"):
+                assert m["mode"] == "guide", (key, q)
+            else:
+                assert m["content"].startswith(want), (key, q, m["content"][:60])
+
+
+def test_connect_my_email_is_answered_about_email_not_ai_keys(client):
+    m = chat(client, "How do I connect my email?", "/settings")
+    assert "Your email service" in m["content"] and "AI" not in m["content"] and m["tour"]["id"] == "settings"

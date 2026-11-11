@@ -1,11 +1,12 @@
 /** The TubeLead Helper's animation states, built from frames cut from the official character sheet
- * (docs/brand/tubelead-helper-character-sheet.png → scripts/helper_assets.py → public/helper/*.webp). */
+ * (docs/brand/tubelead-helper-*.png → scripts/helper_assets.py → public/helper/*.webp). */
 import meta from "./sprites.json";
 
 export type Frame = keyof typeof meta;
 export type Pose =
-  | "idle" | "flying" | "greeting" | "thinking" | "curious" | "excited" | "pointing" | "explaining" | "helpful"
-  | "celebrating" | "success" | "sleeping" | "loading" | "surprised" | "winking" | "confident" | "happy";
+  | "idle" | "flying" | "rising" | "hovering" | "greeting" | "thinking" | "searching" | "curious" | "excited" | "idea" | "pointing"
+  | "explaining" | "helpful" | "celebrating" | "success" | "done" | "love" | "sleeping" | "loading" | "surprised" | "winking"
+  | "confident" | "happy" | "error" | "warning";
 export type Facing = "left" | "right";
 
 export const frameSrc = (f: Frame) => `/helper/${f}.webp`;
@@ -16,21 +17,29 @@ interface Seq { frames: Frame[]; left?: Frame[]; every?: number }
 export const POSES: Record<Pose, Seq> = {
   idle: { frames: ["front"] },                                   // + blinking, see Astronaut
   happy: { frames: ["f_happy"] },
-  flying: { frames: ["side"], left: ["side_l"] },
+  flying: { frames: ["dash"], left: ["dash_l"] },               // speed lines trail behind him
+  rising: { frames: ["jetpack"], left: ["jetpack_l"] },         // jetpack flames for mostly upward flights
+  hovering: { frames: ["hover"], left: ["hover_l"] },
   greeting: { frames: ["wave"], left: ["wave_l"] },
-  thinking: { frames: ["f_thinking", "f_curious"], every: 1600 },
+  thinking: { frames: ["thinking", "f_search"], every: 1300 },
+  searching: { frames: ["magnifier", "f_search"], every: 900 },
   curious: { frames: ["f_curious"] },
   excited: { frames: ["f_excited"] },
+  idea: { frames: ["idea"] },
   pointing: { frames: ["point"], left: ["point_l"] },
-  explaining: { frames: ["present", "explain"], left: ["present_l", "explain_l"], every: 900 },
-  helpful: { frames: ["f_helpful"] },
-  celebrating: { frames: ["f_excited", "f_happy"], every: 260 },
-  success: { frames: ["hero"] },
+  explaining: { frames: ["present", "explain"], left: ["present_l", "explain_l"], every: 1000 },
+  helpful: { frames: ["sparkle"] },
+  celebrating: { frames: ["celebrate", "sparkle"], every: 450 },
+  success: { frames: ["thumbsup"], left: ["thumbsup_l"] },
+  done: { frames: ["f_check"] },
+  love: { frames: ["f_love"] },
   sleeping: { frames: ["sleeping"] },
   loading: { frames: ["f_loading"] },
   surprised: { frames: ["f_surprised"] },
   winking: { frames: ["f_winking"] },
-  confident: { frames: ["f_confident"] },
+  confident: { frames: ["crossed"] },
+  error: { frames: ["f_error"] },
+  warning: { frames: ["f_warning"] },
 };
 
 export const ALL_FRAMES = Object.keys(meta) as Frame[];

@@ -119,7 +119,7 @@ export function Helper() {
     }
     setFlying(true);
     setFacing(dx < 0 ? "left" : "right");
-    setPose("flying");
+    setPose(dy < -60 && -dy > Math.abs(dx) * 0.6 ? "rising" : "flying");  // the climbing pose for mostly upward flights
     const dur = Math.min(1.05, 0.42 + dist / 1500);
     const lift = Math.min(70, dist * 0.14);
     await Promise.all([
@@ -326,7 +326,7 @@ export function Helper() {
         if (progress.tips_off || !page.tour || progress.tours_done.includes(page.tour) || progress.tours_skipped.includes(page.tour)) return;
         lastTip.current = Date.now();
         say({ text: "First time here? Let me explain how this works.", ttl: 14000,
-          actions: [{ label: "Show me how", primary: true, run: () => startTour(page.tour!) }, { label: "No thanks" }] }, "curious");
+          actions: [{ label: "Show me how", primary: true, run: () => startTour(page.tour!) }, { label: "No thanks" }] }, "idea");
       }
     }, 1500);
     return () => clearTimeout(t);
@@ -347,15 +347,21 @@ export function Helper() {
     const onApi = (e: Event) => {
       const d = (e as CustomEvent).detail || {};
       if (tour || d.method !== "POST") return;
+      if (/^\/jobs\/?$/.test(d.path)) { setPose("searching", 4000); return; }  // a search was started
       if (/^\/campaigns\/?$/.test(d.path)) {
         setPose("success", 2400);
         if (!progress.tips_off && !open) say({ text: "Campaign created! Next, add creators to it from the Lead Database.", ttl: 12000,
           actions: [{ label: "Open Lead Database", primary: true, run: () => router.push("/lead-database") }, { label: "Later" }] }, "success");
       }
     };
+    const onPaywall = () => { if (!tour) setPose("warning", 2500); };  // the page's own paywall explains the limit
     window.addEventListener("tubelead:helper", onHelper);
     window.addEventListener("tubelead:api", onApi);
-    return () => { window.removeEventListener("tubelead:helper", onHelper); window.removeEventListener("tubelead:api", onApi); };
+    window.addEventListener("tubelead:paywall", onPaywall);
+    return () => {
+      window.removeEventListener("tubelead:helper", onHelper); window.removeEventListener("tubelead:api", onApi);
+      window.removeEventListener("tubelead:paywall", onPaywall);
+    };
   }, [tour, open, progress.tips_off, say, setPose, router]);
 
   // ---------------- dozing off when nobody is around

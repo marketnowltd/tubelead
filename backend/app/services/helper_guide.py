@@ -150,7 +150,7 @@ PAGES: dict[str, Page] = {p.key: p for p in [
          "Need a hand? You can see your requests to the team here.",
          "Your requests to the TubeLead team. Open a new request, read replies and answer them.",
          ("Open a new request", "Read and reply to the team"), (),
-         ("How long do replies take?",)),
+         ("How do I open a request?",)),
     Page("/search-everywhere", "Search Everywhere",
          "One search across every source. Let me show you how it works.",
          "Runs the same search across each connected source at once. Sources that aren't set up say so; nothing is made up.",
@@ -167,6 +167,81 @@ GENERAL = ("TubeLead finds YouTube creators (and, in the Growth Assistant, busin
            "Lead Generator, review results in the Lead Database, check contact routes in Contact Finder, group creators "
            "in the Campaign Manager. The Growth Assistant adds a guided flow that ends with an email you design, check, "
            "approve and send from your own email service.")
+
+# Written answers for the questions the helper suggests itself, checked against the pages, so a suggested question
+# never gets a loosely matching help article. Matched on the whole question (case and punctuation ignored).
+ANSWERS: dict[str, tuple[str, str | None]] = {  # question -> (answer, walkthrough id)
+    "how do i get started": ("Here's the usual way to get started:\n1. Run a search in the Lead Generator (or describe your business in the Growth Assistant).\n"
+                             "2. Review the creators you found in the Lead Database.\n3. Check their contact routes in Contact Finder.\n"
+                             "4. Group the best ones in the Campaign Manager.", "welcome"),
+    "how do i use the lead generator": ("Type a niche and press Enter after each keyword, choose how many leads you want, and press Find Leads. The search runs in "
+                                        "the background with live progress, and the creators land in the Lead Database. Advanced search adds plain-language "
+                                        "parsing, discovery modes, regional targeting and filters.", "lead-generator"),
+    "how do i organise my leads": ("In the Lead Database, search, filter (country, contact status, activity, outreach, campaign, subscribers, score) and sort the list. "
+                                   "Tick creators to assign them to a campaign, set their outreach status, export or delete them, and save your filters as a view.", "lead-database"),
+    "how do i contact a creator": ("Open the creator in the Lead Database to see their contact routes: only addresses and pages they publish themselves, each with "
+                                   "its source and trust level. TubeLead doesn't send email from the Lead Database or Campaign Manager. To send, use the "
+                                   "Growth Assistant, which sends an email you approve from your own email service.", "contact-finder"),
+    "what do the contact statuses mean": ("Verified: confirmed deliverable by a mailbox-level check. Email published: an address found on a public page, which "
+                                          "exists but isn't proven deliverable. Unverified route: entered by you, or a non-email route, with no evidence checked.", None),
+    "what do the trust levels mean": ("Publicly published: seen on a public page; it exists, but that doesn't prove it's deliverable. Unverified: entered by you, "
+                                      "or a non-email route, with no evidence checked. Verified deliverable: reserved for mailbox-level verification by a "
+                                      "provider, which isn't integrated yet, so nothing is marked verified automatically.", "contact-finder"),
+    "how do i create a campaign": ("In the Campaign Manager, press New campaign and give it a name. Then add creators to it from the Lead Database.", "campaigns"),
+    "how do i add creators to a campaign": ("In the Lead Database, tick the creators you want, then choose the campaign in “Assign to campaign”.", "lead-database"),
+    "does tubelead send the emails": ("Only through your own email service. The Lead Generator, Lead Database and Campaign Manager don't send email. In the Growth "
+                                      "Assistant you design, check and approve an email, then send it from your own mailbox (SMTP) or your own SendGrid, "
+                                      "Mailgun, Postmark or Resend account, or through your own Snov.io campaign.", None),
+    "how do i send my campaign": ("In the Growth Assistant's Launch step: run TubeLead Email Check, confirm the recipients, tick the approval checklist, then "
+                                  "choose “Your email service” (or a Snov.io campaign) and press Launch. Emails go out at your account's pace and every "
+                                  "one has an unsubscribe link.", "growth"),
+    "how does the growth assistant work": ("Five steps: describe what you sell and who you want to reach, review the prospects it discovers, find their business "
+                                           "contacts, create your email in Creative Studio, then check, approve and launch it. Your progress is saved.", "growth"),
+    "what is the opportunity score": ("A score out of 100 for each prospect: relevance to what you sell (30), suitability (25), activity (20), contact "
+                                      "availability (15) and other signals (10). “Why this lead?” shows the evidence and marks each part as a fact or an estimate.", None),
+    "how do i connect my email": ("In Account Settings, under “Your email service”, press “Connect your email service”. Choose SMTP (with Gmail, Outlook or Zoho "
+                                  "settings ready to use) or your own SendGrid, Mailgun, Postmark or Resend account. TubeLead checks the connection without "
+                                  "sending anything, and your password or key is encrypted.", "settings"),
+    "how do i compare countries": ("On the Creator Intelligence map, click up to four countries to compare them and see their top creators.", None),
+    "can i stop a search": ("Yes. While a search runs you can pause it, resume it, or cancel it from its progress panel in the Lead Generator or the Discovery Engine.", None),
+    "what do the job numbers mean": ("Each search shows how many search queries have run, how many creators qualified against the number you asked for, how "
+                                     "many were checked for contact details, and an estimate of the time left. The counts are read from the job record.", None),
+    "how do i save a search": ("In the Lead Generator, switch to Advanced search, set it up, and press Save search. It then appears under Saved Searches, "
+                               "where you can re-run it or schedule it.", None),
+    "how do i schedule a search": ("Open Saved Searches and set a search to run hourly, daily or weekly. Scheduled discovery is included from the Pro plan.", None),
+    "how do schedules work": ("A scheduled saved search runs by itself every hour, day or week and adds what it finds to your Lead Database. Scheduled "
+                              "discovery is included from the Pro plan.", None),
+    "what is the n8n webhook": ("In the Automation Centre you can add an n8n webhook address. When a job finishes, TubeLead sends an event to it so the rest of "
+                                "your workflow can run; the page shows the event's contents.", None),
+    "which providers can i connect": ("OpenAI, Anthropic (Claude), Google Gemini, OpenRouter, Ollama running on your own computer, or any OpenAI-compatible "
+                                      "service. You use your own API key, which is encrypted.", None),
+    "what happens if a provider fails": ("In AI Task Manager each task can have a fallback provider, which is used if the first one fails. A task can also follow "
+                                         "your default provider, or be switched off.", None),
+    "which sources are included": ("YouTube, Google Search, Brave Search, Reddit, Twitch, Spotify, Last.fm and MusicBrainz. Sources that aren't set up say so, "
+                                   "and nothing is filled in with made-up results. Searching several sources is included from the Pro plan.", None),
+    "what does big brands are left out mean": ("When it's on (the default), the search keeps independent creators and leaves out brand and media-company channels. "
+                                               "Turn it off to include them.", "lead-generator"),
+    "why is a service not configured": ("A service shows as not configured when the server is missing its setting, for example a provider's API key. "
+                                        "The site owner sets these on the server; there's nothing you need to change in your account.", None),
+    "how do i create an api key": ("In API Management, press Create key and name it. The full key is shown once, so copy it then. You can revoke a key at any time.", None),
+    "how do i open a request": ("On Help & Support, press New request, describe what you need and send it. You'll get a reference number, and the team's "
+                                "replies appear on that page.", None),
+    "what does tubelead do": ("TubeLead finds YouTube creators for your business through the official YouTube Data API, scores them against what you're "
+                              "looking for, and shows only the business contact routes they publish themselves. You can organise them into campaigns, "
+                              "and the Growth Assistant helps you find customers and send an approved email from your own email service.", None),
+    "is the demo data real": ("No. Everything in the demo is sample data, and nothing you do there is saved or sent.", None),
+    "whats included in the free trial": ("The free plan includes 25 leads in total, with no card needed. Paid plans add more leads each month and more features; "
+                                         "ask me “What do the plans cost?” for the details.", None),
+}
+
+
+def _norm(q: str) -> str:
+    return re.sub(r"[^a-z0-9 ]", "", q.lower().replace("’", "'").replace("'", "")).strip()
+
+
+def suggested_answer(text: str) -> tuple[str, str | None] | None:
+    return ANSWERS.get(_norm(text))
+
 
 PAGE_INTENT = re.compile(r"\b(this page|this screen|what (is|does) (this|here)|where am i|explain (this|the) page|what can i do here)\b", re.I)
 NEXT_INTENT = re.compile(r"\b(what (should|do|can) i do next|what now|next step|where (do|should) i (start|begin)|get(ting)? started|how do i start)\b", re.I)

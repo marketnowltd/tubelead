@@ -8,40 +8,56 @@ Rollback point before this work: commit `bb29444`.
 
 ## 1. Character artwork
 
-- Master reference: `docs/brand/tubelead-helper-character-sheet.png` (the official "TubeLead Helper – 2D Character &
-  Animation Guide").
-- Every frame is cut from that sheet by `frontend/scripts/helper_assets.py`. The backgrounds are removed with
-  anti-aliased edges. Nothing is redrawn, recoloured or stretched.
-- Output: 44 WebP frames in `frontend/public/helper/` (about 1.1 MB in total), plus `components/helper/sprites.json`.
-  The JSON holds each frame's size and a scale factor, so the character is the same height in every pose, even though
-  the sheet draws the turnaround, the key poses and the hero at different sizes.
-- Frames made from the same pixels:
-  - **Mirrored poses**, for flying and pointing to the left. The chest logo is copied back unmirrored, so the
-    TubeLead logo is never reversed.
-  - **Full-body expressions.** Each visor emote head from the sheet is placed on the front-view body, as separate
-    head and body layers.
+Three official sheets in `docs/brand/`. Every frame is cut from them by `frontend/scripts/helper_assets.py`; nothing
+is redrawn, recoloured or stretched.
+
+| Sheet | Background | Used for |
+|---|---|---|
+| `tubelead-helper-poses-sheet.png` | Transparent | Front view, wave, point, present, thinking, idea, celebrate, sparkle, crossed arms, clipboard, magnifier, thumbs-up |
+| `tubelead-helper-actions-sheet.png` | Transparent | Explain, flying (dash with speed lines), jetpack climb, hover, the "typing" picture, and the visor expressions and icon visors |
+| `tubelead-helper-character-sheet.png` (the original guide) | Lavender panels | The sleeping pose |
+
+- **The transparent sheets were cut from a dark background.** Their dark outlines are semi-transparent, and a magenta
+  haze surrounds each character. The script keeps near-opaque pixels, plus dark outline pixels at their own partial
+  alpha (so edges stay smooth), and drops the haze.
+- **Grouping.** Each character is kept together with the decorations in its cell (question mark, bulb, sparkles,
+  speed lines, jet flames, hover ring). Where two icon heads touch, they're split at the midpoint.
+- **Output.** 40 WebP frames in `frontend/public/helper/` (about 0.65 MB in total), plus
+  `components/helper/sprites.json`. The JSON holds each frame's size and a scale factor, so the character is the same
+  height in every pose, even though each sheet draws him at a different size. Only the frames the helper uses are
+  written.
+- **Frames made from the same pixels:**
+  - **Mirrored poses**, for flying and pointing to the left. The chest logo is copied back unmirrored, so the TubeLead
+    logo is never reversed.
+  - **Full-body expressions and icon visors.** A visor head from the actions sheet is placed on the front-view body,
+    as separate head and body layers.
   - **A blink frame.** The front view's eyes are replaced by a short closed-eye line.
-- Not done: no new poses were drawn. States the sheet doesn't show (for example a real flying pose) use the closest
-  sheet artwork: the side view, with a lean in the flight direction.
 
 To rebuild the frames: `PYTHONPATH=<folder with scipy> python3 frontend/scripts/helper_assets.py` (needs Pillow,
 numpy and scipy, which are only used at build time).
 
 ## 2. Animation states
 
-| State | Frames (from the sheet) | Movement |
+| State | Frames | When |
 |---|---|---|
-| Idle | Front view, blinking every 2.6–6 s (closed-eye frame) | Gentle hover |
-| Flying | Side view (mirrored when flying left) | Eased curve with a lift and a lean into the direction |
-| Greeting | Wave pose | — |
-| Thinking | Thinking ↔ curious visor, frame by frame | — |
-| Curious / Excited / Helpful / Surprised / Winking / Confident | The matching visor emote on the body | — |
-| Pointing | Point (Guide) pose, mirrored for targets on his left | Flies beside the element |
-| Explaining | Present ↔ Explain poses, frame by frame | — |
-| Celebrating | Excited ↔ happy, frame by frame, with a confetti burst in the brand colours | — |
-| Success | Thumbs-up hero | — |
-| Sleeping | Sleeping pose with the Z's, after 2 minutes without activity | Slow breathing hover; any click or key wakes him (surprised, then idle) |
-| Loading | Loading visor on the body | — |
+| Idle | Front view, blinking every 2.6–6 s (a real closed-eye frame), with a gentle hover | Resting in the corner |
+| Flying | Dash pose with speed lines (mirrored when flying left), on an eased curve with a lean | Moving across the screen |
+| Rising | Jetpack pose with flames | Mostly upward flights, such as flying up to the panel |
+| Greeting | Wave | Introducing himself, first-visit tip |
+| Thinking | Thinking pose ↔ search visor, frame by frame | Waiting for an answer |
+| Searching | Magnifier ↔ search visor | A search has just been started |
+| Pointing | Point (Guide) pose, mirrored for targets on his left | Walkthrough steps |
+| Explaining | Present ↔ Explain, frame by frame | After an answer, and in walkthrough steps without a target |
+| Idea | Idea pose with the bulb | "First time here? Let me explain how this works." |
+| Helpful | Sparkle pose | Resting next to the open panel |
+| Celebrating | Celebrate ↔ sparkle, plus a confetti burst in the brand colours | A search finished, a walkthrough finished |
+| Success | Thumbs-up | A campaign was created, the end of a walkthrough |
+| Done | Tick visor | A request was sent to the team |
+| Error / Warning | Error visor / warning visor | A message failed / too many messages or a paywall |
+| Curious, Excited, Surprised, Winking, Love | The matching visor on the body | Reactions (for example, excited when clicked) |
+| Confident | Crossed arms | Available, for example at the end of the Contact Finder walkthrough |
+| Loading | Loading visor on the body | Available for longer waits |
+| Sleeping | Sleeping pose with the Z's | After 2 minutes without activity; any click or key wakes him (surprised, then idle) |
 
 - Motion uses the `motion` library (Framer Motion), which the site already uses. GSAP and Lottie weren't added: the
   motion library covers the curves and springs, and frame-by-frame art covers the rest.
@@ -88,6 +104,9 @@ numpy and scipy, which are only used at build time).
 - The page knowledge has one source: `backend/app/services/helper_guide.py`. For each page it holds the greeting,
   what the page is for, what you can do there, next steps, suggested questions and its walkthrough. It's written
   from the pages themselves. Keep it up to date when a page changes.
+- **Suggested questions have written answers.** The questions the helper suggests on each page are answered from
+  `ANSWERS` in `helper_guide.py`, checked against the pages, so a suggestion never gets a loosely matching help article.
+  A few are answered by a specific help article or a safety rule instead; a test checks every suggestion on every page.
 - **Without an AI key:**
   - "Explain this page", "What should I do next?" and "Show me how…" are answered from the page guide.
   - Other questions are answered from the help articles, then the page guide.
@@ -128,7 +147,7 @@ costs no requests), `GET /api/helper/page?path=`, `GET|PUT /api/helper/progress`
 
 ## 6. Tests
 
-- Backend: 161 passed on SQLite and PostgreSQL 16, including 12 new helper tests:
+- Backend: 163 passed on SQLite and PostgreSQL 16, including 14 helper tests:
   - page matching
   - the whole guide in one request
   - progress per customer
@@ -139,6 +158,7 @@ costs no requests), `GET /api/helper/page?path=`, `GET|PUT /api/helper/progress`
   - AI-mode context listing only real pages
   - out-of-date articles corrected while edited ones are kept
   - the settings-row race
+  - every suggested question on every page getting its own answer
 - Browser: 149 passed, 0 failed, on two consecutive full runs. The 20 helper checks cover:
   - one launcher instead of two, and the frames being served
   - the first-visit greeting, and the introduction not repeating
@@ -159,3 +179,5 @@ costs no requests), `GET /api/helper/page?path=`, `GET|PUT /api/helper/progress`
   - Loading the page guide on every navigation used up the API rate limit during fast browsing. The guide is now
     loaded once per session.
   - A race when creating the settings row.
+  - The suggested question “How do I connect my email?” was answered with the AI Connect article. Suggested questions
+    now have written answers.

@@ -1,16 +1,25 @@
-"""Builds the TubeLead Helper animation assets from the official character sheet.
+"""Builds the TubeLead Helper animation assets from the official artwork. Every frame is cut from these sheets;
+nothing is redrawn.
 
-Source: docs/brand/tubelead-helper-character-sheet.png ("TubeLead Helper – Official 2D Character & Animation Guide").
-Every frame is cut from that artwork; nothing is redrawn. Backgrounds are removed by flood-filling the sheet's
-lavender panel from the crop edges (the character's outline stops the fill), with anti-aliased edges.
+Sources (docs/brand/):
+- tubelead-helper-character-sheet.png: the original guide (lavender panels). Only the sleeping pose comes from it now.
+  Its background is removed by flood-filling the panel colour from the crop edges.
+- tubelead-helper-poses-sheet.png: full-body poses (thinking, idea, celebrate, sparkle, crossed arms, laptop,
+  clipboard, magnifier, thumbs-up ...), supplied with a transparent background.
+- tubelead-helper-actions-sheet.png: turnaround, explain, flying (dash with speed lines, jetpack), hover, walking,
+  visor emotes (including hearts) and icon visors (loading, chat, search, tick, error, warning ...), transparent.
+
+The transparent sheets were cut out of a dark background, so their dark outlines are semi-transparent and a magenta
+haze surrounds each character. Kept: near-opaque pixels, plus dark (outline) pixels at their own partial alpha; the
+light haze is dropped. Each character is grouped with the decorations in its cell (question mark, bulb, speed lines).
 
 Derived frames (built from the same pixels):
 - poses mirrored for left-facing moves, with the chest logo copied back unmirrored so the logo is never reversed
-- full-body expressions: a visor emote head placed on the front-view body (head and body are separate layers)
+- full-body expressions: a visor head placed on the front-view body (head and body are separate layers)
 - a blink frame: the eyes of the front view replaced by a thin closed-eye line
 
 Run: PYTHONPATH=<dir with scipy> python3 frontend/scripts/helper_assets.py   (needs Pillow, numpy, scipy)
-Output: frontend/public/helper/*.webp and frontend/components/helper/sprites.json (sizes and anchors)."""
+Output: frontend/public/helper/*.webp and frontend/components/helper/sprites.json (sizes and scale factors)."""
 from __future__ import annotations
 
 import json
@@ -23,6 +32,21 @@ from scipy import ndimage as ndi
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SHEET = os.path.join(ROOT, "docs/brand/tubelead-helper-character-sheet.png")
+POSES_SHEET = os.path.join(ROOT, "docs/brand/tubelead-helper-poses-sheet.png")
+ACTIONS_SHEET = os.path.join(ROOT, "docs/brand/tubelead-helper-actions-sheet.png")
+POSES_ROWS = [  # reading order, row by row (None: not used)
+    ["thumbsup", "wave", "point", "present", "thinking", "idea", "celebrate"],
+    ["sparkle", "crossed", "laptop", "laptop_checklist", "clipboard", "magnifier", "fly_up"],
+    ["front", "front34", "side", "back34", "back", "fly", "run", "meditate"],
+    [None] * 12,
+]
+ACTIONS_ROWS = [
+    ["a_front", "a_front34", "a_side", "a_back34", "a_back", "a_wave", "a_point", "a_present", "explain"],
+    ["b_thinking", "b_idea", "b_celebrate", "b_success", "b_laptop", "chatting", "b_checklist", "b_typing"],
+    ["dash", "jetpack", "superfly", "hover", "walk", "run2", "stride", "float"],
+    ["h_happy", "h_excited", "h_thinking", "h_curious", "h_surprised", "h_winking", "h_confident", "h_helpful", "h_love", "h_sleepy"],
+    ["i_loading", "i_chat", "i_search", "i_check", "i_error", "i_warning", "i_info", "i_target", "i_chart", "i_settings"],
+]
 OUT = os.path.join(ROOT, "frontend/public/helper")
 META = os.path.join(ROOT, "frontend/components/helper/sprites.json")
 T = 20.0  # colour distance from the panel background that still counts as background
@@ -85,6 +109,57 @@ def cutout(im: Image.Image, box, name: str = "") -> Image.Image:
     rgba = np.dstack([np.clip(rgb, 0, 255), alpha * 255]).astype(np.uint8)
     img = Image.fromarray(rgba, "RGBA")
     return img.crop(img.getbbox())
+
+
+def cut_alpha_sheet(path: str, rows: list[list[str | None]]) -> dict[str, Image.Image]:
+    a = np.asarray(Image.open(path).convert("RGBA")).astype(np.float32)
+    rgb, al = a[..., :3], a[..., 3]
+    solid = al >= 245
+    keep = solid | ((al >= 40) & (rgb.mean(-1) < 95))  # opaque art, plus the semi-transparent dark outline
+    fl, n = ndi.label(keep)
+    objs = ndi.find_objects(fl)
+    sizes = ndi.sum(keep, fl, range(1, n + 1))
+    alpha = np.where(solid, 255.0, np.clip(al * 1.15, 0, 255))
+    mains = [(i + 1, o) for i, (o, sz) in enumerate(zip(objs, sizes)) if sz > 5000]
+    # group into rows by vertical centre
+    mains.sort(key=lambda m: (m[1][0].start + m[1][0].stop) / 2)
+    grouped: list[list] = []
+    for m in mains:
+        cy = (m[1][0].start + m[1][0].stop) / 2
+        if grouped and cy - (grouped[-1][-1][1][0].start + grouped[-1][-1][1][0].stop) / 2 < 70:
+            grouped[-1].append(m)
+        else:
+            grouped.append([m])
+    out: dict[str, Image.Image] = {}
+    assert len(grouped) == len(rows), f"{path}: expected {len(rows)} rows, found {len(grouped)}"
+    for row, names in zip(grouped, rows):
+        row.sort(key=lambda m: m[1][1].start)
+        cells = []  # (component id or None, y-slice, x-range): touching neighbours are split at their midpoint
+        width = float(np.median([m[1][1].stop - m[1][1].start for m in row]))
+        for lid, o in row:
+            w = o[1].stop - o[1].start
+            parts = round(w / width) if w / width > 1.85 else 1  # two touching heads, not one wide pose
+            for p in range(parts):
+                cells.append((lid, o, o[1].start + w * p // parts, o[1].start + w * (p + 1) // parts))
+        assert len(cells) == len(names), f"{path}: expected {len(names)} in a row, found {len(cells)}"
+        for i, (name, (lid, o, x0, x1)) in enumerate(zip(names, cells)):
+            if not name:
+                continue
+            left = (cells[i - 1][3] + x0) // 2 if i else 0
+            right = (x1 + cells[i + 1][2]) // 2 if i < len(cells) - 1 else a.shape[1]
+            top, bottom = max(0, o[0].start - 50), min(a.shape[0], o[0].stop + 45)
+            mask = (fl == lid)
+            mask[:, :max(left, x0 - 2) if (cells[i - 1][0] == lid if i else False) else 0] = False
+            if i < len(cells) - 1 and cells[i + 1][0] == lid:
+                mask[:, x1 + 2:] = False
+            for j, oj in enumerate(objs):  # decorations wholly inside this character's cell
+                if j + 1 != lid and sizes[j] <= 5000 and sizes[j] >= 30 and oj[1].start >= left and oj[1].stop <= right \
+                        and oj[0].start >= top and oj[0].stop <= bottom and oj[0].start <= o[0].stop + 12:  # not the next row's
+                    mask |= fl == j + 1
+            rgba = np.dstack([rgb, alpha * mask]).astype(np.uint8)
+            img = Image.fromarray(rgba[top:bottom, left:right], "RGBA")
+            out[name] = img.crop(img.getbbox())
+    return out
 
 
 def logo_box(img: Image.Image):
@@ -158,8 +233,6 @@ def blink(img: Image.Image) -> Image.Image:
 
 def head_on_body(head: Image.Image, body: Image.Image) -> tuple[Image.Image, dict]:
     """Place a visor emote head on the front-view body, scaled to the body's own helmet width."""
-    a = np.asarray(body)
-    rows = np.where(a[..., 3] > 128)[0]
     # helmet: the top ~42% of the front view
     hb = int(body.height * 0.43)
     top = body.crop((0, 0, body.width, hb))
@@ -181,8 +254,6 @@ def head_on_body(head: Image.Image, body: Image.Image) -> tuple[Image.Image, dic
     sh = hh_img.resize((max(1, round(hh_img.width * scale)), max(1, round(hh_img.height * scale))), Image.LANCZOS)
     hrows = np.where((np.asarray(hh_img)[..., 3] > 128)[:, l:r + 1].any(1))[0]
     helmet_top = int(hrows[0] * scale)
-    canvas_h = max(body.height, body.height + 0)
-    pad_top = max(0, helmet_top * 0 + (sh.height - hb) if False else 0)
     out = Image.new("RGBA", (max(body.width, sh.width + bb[0] * 2), body.height + 30), (0, 0, 0, 0))
     ox = (out.width - body.width) // 2
     out.paste(body, (ox, 30), body)
@@ -205,25 +276,27 @@ def save(img: Image.Image, name: str, meta: dict, scale: float, unit: float):
 def main():
     os.makedirs(OUT, exist_ok=True)
     sheet = Image.open(SHEET).convert("RGB")
-    cut = {k: cutout(sheet, b, k) for k, b in BOXES.items()}
+    cut = {k: cutout(sheet, BOXES[k], k) for k in ("sleeping", "point")}
     meta: dict = {}
-    h_front, h_key, h_hero = cut["front"].height, cut["point"].height, cut["hero"].height
-    for k in ("front", "front34", "side", "back34", "back"):
-        save(cut[k], k, meta, 2.0, h_front)
-    for k in ("wave", "point", "present", "explain", "thinking", "idea", "celebrate", "success", "sign", "laptop", "checklist", "typing", "sleeping"):
-        save(cut[k], k, meta, 2.0, h_key)
-    for k in ("point", "wave", "present", "explain"):
-        save(mirror_keep_logo(cut[k]), f"{k}_l", meta, 2.0, h_key)
-    for k in ("side", "front34"):
-        save(mirror_keep_logo(cut[k]), f"{k}_l", meta, 2.0, h_front)
-    save(cut["hero"], "hero", meta, 0.5, h_hero)
-    save(blink(cut["front"]), "front_blink", meta, 2.0, h_front)
-    heads = {k: cut[k] for k in cut if k.startswith("e_")}
-    heads["e_loading"] = cut["loading"]
-    for k, head in heads.items():
-        save(head, k, meta, 2.0, h_front)
-        body, _ = head_on_body(head, cut["front"])
-        save(body, f"f_{k[2:]}", meta, 2.0, h_front)
+    poses = cut_alpha_sheet(POSES_SHEET, POSES_ROWS)
+    acts = cut_alpha_sheet(ACTIONS_SHEET, ACTIONS_ROWS)
+    unit = poses["front"].height        # poses-sheet frames are scaled against its front view
+    a_unit = acts["a_front"].height     # actions-sheet frames against its own front view
+    for k in ("front", "wave", "point", "present", "thinking", "idea", "celebrate", "sparkle", "crossed", "clipboard", "magnifier", "thumbsup"):
+        save(poses[k], k, meta, 1.0, unit)
+    for k in ("point", "wave", "present", "clipboard", "thumbsup"):
+        save(mirror_keep_logo(poses[k]), f"{k}_l", meta, 1.0, unit)
+    save(blink(poses["front"]), "front_blink", meta, 1.0, unit)
+    for k in ("explain", "dash", "jetpack", "hover"):
+        save(acts[k], k, meta, 1.0, a_unit)
+        save(mirror_keep_logo(acts[k]), f"{k}_l", meta, 1.0, a_unit)
+    save(acts["chatting"], "chatting", meta, 1.0, a_unit)   # the panel's "typing" picture
+    save(acts["h_happy"], "e_happy", meta, 1.0, a_unit)     # the panel's avatar
+    # visor expressions and icon visors on the front-view body
+    for k in ("h_happy", "h_curious", "h_excited", "h_surprised", "h_winking", "h_love", "i_loading", "i_search", "i_check", "i_error", "i_warning"):
+        body, _ = head_on_body(acts[k], poses["front"])
+        save(body, "f_" + k[2:], meta, 1.0, unit)
+    save(cut["sleeping"], "sleeping", meta, 2.0, cut["point"].height)
     os.makedirs(os.path.dirname(META), exist_ok=True)
     with open(META, "w") as f:
         json.dump(meta, f, indent=1, sort_keys=True)

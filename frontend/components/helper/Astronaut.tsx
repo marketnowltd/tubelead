@@ -4,15 +4,15 @@ import { useEffect, useMemo, useState } from "react";
 import { ALL_FRAMES, type Facing, type Frame, frameMeta, frameSrc, type Pose, POSES } from "./sprites";
 
 let preloaded = false;
-const CORE: Frame[] = ["front", "front_blink", "side", "side_l", "wave", "wave_l", "f_excited", "f_helpful"];
+const CORE: Frame[] = ["front", "front_blink", "dash", "dash_l", "jetpack", "wave", "wave_l", "f_excited", "sparkle"];
 /** The frames he needs straight away load first; the rest load when the browser is idle, so the page itself is
- * never slowed down (all frames together are about 1.2 MB). */
+ * never slowed down (all frames together are about 0.65 MB). */
 function preload() {
   if (preloaded || typeof window === "undefined") return;
   preloaded = true;
   const get = (f: Frame) => { const i = new Image(); i.decoding = "async"; i.src = frameSrc(f); };
   CORE.forEach(get);
-  const rest = () => ALL_FRAMES.filter((f) => !CORE.includes(f) && !f.startsWith("e_")).forEach(get);
+  const rest = () => ALL_FRAMES.filter((f) => !CORE.includes(f)).forEach(get);
   const ric = (window as any).requestIdleCallback as undefined | ((cb: () => void, o?: { timeout: number }) => void);
   if (ric) ric(rest, { timeout: 8000 }); else setTimeout(rest, 4000);
 }
