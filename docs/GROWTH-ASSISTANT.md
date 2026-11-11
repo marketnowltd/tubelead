@@ -1,9 +1,8 @@
 # Growth Assistant, Creative Studio and outreach
 
-Added on top of the existing TubeLead platform. The public homepage is unchanged apart from the hero's
-"Explore the Platform" button, which now opens the interactive demo at `/demo` (it previously scrolled to
-"How it works"). In the app: a Growth Assistant widget on the dashboard, a "Growth Assistant" sidebar item, and a
-"Growth & plans" tab in Admin.
+Added on top of the existing TubeLead platform without changing the existing website. Additions only: a Growth
+Assistant widget on the dashboard, a "Growth Assistant" sidebar item, a "Growth & plans" tab in Admin, and new
+pages (`/growth`, and the public interactive demo at `/demo`, which is not linked from the homepage).
 
 Rollback point before this work: commit `becbc2c`.
 
