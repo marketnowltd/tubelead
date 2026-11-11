@@ -13,8 +13,8 @@ const signed = (ev) => { const p = JSON.stringify(ev), t = Math.floor(Date.now()
 
   // ================= LANDING =================
   await go('/');
-  ok(/Find Your Next\s*100\s*Customers/i.test((await page.locator('h1').first().innerText()).replace(/\n/g, ' ')), 'landing hero headline');
-  ok(await page.getByRole('button', { name: /Start Finding Leads/i }).count() >= 1 && await page.getByRole('link', { name: /Explore How It Works/i }).count() === 1, 'hero CTAs: Start Finding Leads + Explore How It Works');
+  ok(/Discover the\s*right\s*creators\.\s*Without the\s*endless searching\./i.test((await page.locator('h1').first().innerText()).replace(/\n/g, ' ')), 'landing hero headline');
+  ok(await page.getByRole('link', { name: /Start Discovering/i }).count() >= 1 && await page.getByRole('link', { name: /Explore the Platform/i }).count() === 1, 'hero CTAs: Start Discovering + Explore the Platform');
   const heads = await page.locator('main section h2').allInnerTexts(); ok(heads.length >= 8, `landing has ${heads.length} headed sections`);
   for (const id of ['dashboard', 'how', 'capabilities', 'trusted', 'reviews', 'stats', 'awards', 'pricing', 'faq']) ok(await page.locator('#' + id).count() === 1, `homepage section #${id} exists`);
   ok(await page.getByText('Sample data').count() >= 1, 'sample data on landing is labelled "Sample data"');
@@ -24,7 +24,7 @@ const signed = (ev) => { const p = JSON.stringify(ev), t = Math.floor(Date.now()
 
 
 
-  await page.locator('h1').first().scrollIntoViewIfNeeded(); await page.getByRole('search').getByRole('textbox').fill('UK fitness creators'); await page.getByRole('search').getByRole('button').click(); await page.waitForURL(/signup\?next=/, { timeout: 8000 }); ok(/q%3D|q=/.test(page.url()) || /lead-generator/.test(page.url()), 'hero search carries the query to the lead generator');
+  await page.locator('h1').first().scrollIntoViewIfNeeded(); await page.getByRole('link', { name: 'Fitness', exact: true }).click(); await page.waitForURL(/signup\?next=/, { timeout: 8000 }); ok(/q%3D|q=/.test(page.url()) || /lead-generator/.test(page.url()), 'category shortcut carries the query to the lead generator');
   await go('/'); 
   // pricing toggle + FAQ
   await page.locator('#pricing').getByRole('button', { name: /Annual/ }).click(); ok(await page.locator('#pricing').getByText('£16', { exact: false }).count() > 0, 'pricing: annual shows effective monthly price (£190/12 ≈ £16)');
