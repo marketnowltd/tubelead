@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { LogoMark, Wordmark } from "../shell/Logo";
 
-const LINKS = [["Product", "#dashboard"], ["How it works", "#how"], ["AI Tools", "#capabilities"], ["Reviews", "#reviews"], ["Pricing", "#pricing"], ["FAQ", "#faq"]] as const;
+const LINKS = [["Product", "#dashboard"], ["How it works", "#how"], ["AI Tools", "#capabilities"], ["Pricing", "#pricing"], ["FAQ", "#faq"]] as const;
 
 export function MarketingNav() {
   const [open, setOpen] = useState(false);
