@@ -28,7 +28,7 @@ DEEP_SUFFIXES = ["channel", "creator", "review", "tutorial", "vlog"]
 TOPIC_MODIFIERS = ["tips", "how to", "explained", "for beginners", "review"]
 REPEAT_ORDERS = ["relevance", "viewCount", "date", "rating"]
 MAX_TOP_UP = 24  # extra searches when the planned ones found fewer creators than requested
-YOUTUBE_BUDGET = 40.0     # seconds of YouTube searching; then the other sources fill what is still missing
+YOUTUBE_BUDGET = 35.0     # seconds of YouTube searching; then the other sources fill what is still missing
 TOTAL_BUDGET = 60.0       # the whole job aims to finish within a minute
 FILL_FROM_SOURCES = True  # tests switch this off (it reaches real websites)
 DRY_LIMIT = 6    # the top-up stops after this many searches in a row that find no new channel (nothing left to find)
@@ -185,6 +185,8 @@ class DiscoveryRun:
                      current_operation="Planning search queries")
         self._log(f"Planned {len(queries)} search operations in {params.mode} mode")
         t0 = time.monotonic()
+        # the other sources search at the same time as YouTube, so their leads are ready when YouTube stops
+        others = asyncio.create_task(self._others(params)) if FILL_FROM_SOURCES else None
         in_job: set[str] = set()
         rejected_ids: set[str] = set()
         qualified = 0
@@ -254,7 +256,9 @@ class DiscoveryRun:
                 seen_kw.add(query.q.lower())
                 self._update(queries_done=qi + 1, keywords_done=len(seen_kw), qualified=qualified, quota_used=self.session_spent)
             if FILL_FROM_SOURCES and qualified < params.limit:
-                qualified += await self._fill(owner, params, params.limit - qualified, max(10.0, TOTAL_BUDGET - (time.monotonic() - t0)))
+                qualified += await self._fill(owner, params, params.limit - qualified, others)
+            elif others:
+                others.cancel()
             self._finish("completed", f"Completed: {qualified} qualified creators")
         except JobCancelled:
             self._finish("cancelled", "Cancelled by user")
@@ -267,15 +271,20 @@ class DiscoveryRun:
             log.exception("job %s crashed", self.job_id)
             self._finish("failed", "Failed: unexpected error", error=f"{type(exc).__name__}: {exc}")
 
-    async def _fill(self, owner: str, p: JobParams, need: int, budget: float) -> int:
-        """Fills the rest of the request from the other connected sources: only people who publish an email."""
+    async def _others(self, p: JobParams) -> dict:
         from .search_everywhere import search_everywhere
         query = " ".join(list(p.keywords) + list(p.niches)).strip()[:300]
         if len(query) < 3:
+            return {"leads": []}
+        return await search_everywhere(query, p.limit, time_budget=TOTAL_BUDGET - 5, skip_youtube=True)
+
+    async def _fill(self, owner: str, p: JobParams, need: int, others: "asyncio.Task | None") -> int:
+        """Fills the rest of the request from the other connected sources: only people who publish an email."""
+        if others is None:
             return 0
-        self._update(current_operation=f"Finding {need} more leads with published emails on the other sources")
+        self._update(current_operation=f"Adding {need} more leads with published emails from the other sources")
         try:
-            out = await search_everywhere(query, need, time_budget=budget, skip_youtube=True)
+            out = await others
         except Exception as exc:  # noqa: BLE001 - YouTube results stand on their own
             self._log(f"Other sources unavailable: {type(exc).__name__}")
             return 0
