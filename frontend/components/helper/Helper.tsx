@@ -68,6 +68,7 @@ export function Helper() {
   const [rect, setRect] = useState<Box | null>(null);
   const [waiting, setWaiting] = useState(false);
   const [flying, setFlying] = useState(false);
+  const [focus, setFocus] = useState(false);  // dims the page around the lead results while a search starts
   const x = useMotionValue(-400), y = useMotionValue(-400), rot = useMotionValue(0);
   const flight = useRef(0);
   const poseTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -76,7 +77,7 @@ export function Helper() {
   const lastTip = useRef(0);
   const pendingTour = useRef<string | null>(null);
   const journey = useRef<string[]>([]);
-  const docked = !open && !tour;
+  const docked = !open && !tour && !focus;
 
   useEffect(() => setMounted(true), []);
   // the server decides who is signed in (Supabase session, or the single local user in dev mode): asked once, then again
@@ -338,6 +339,11 @@ export function Helper() {
     const onHelper = (e: Event) => {
       const d = (e as CustomEvent).detail || {};
       if (tour) return;
+      if (d.type === "almost_done") {
+        setBubble({ id: Date.now(), text: "We are almost done!", ttl: 4500 });
+        setPose("excited", 2000);
+        return;
+      }
       if (d.type === "search_completed") {
         setPose("celebrating", 2600);
         if (!progress.tips_off && !open) say({ text: `Great work! Your search found ${d.found ?? "new"} creator${d.found === 1 ? "" : "s"}. Here's what you can do next.`, ttl: 15000,
@@ -347,7 +353,20 @@ export function Helper() {
     const onApi = (e: Event) => {
       const d = (e as CustomEvent).detail || {};
       if (tour || d.method !== "POST") return;
-      if (/^\/jobs\/?$/.test(d.path)) { setPose("searching", 4000); return; }  // a search was started
+      if (/^\/jobs\/?$/.test(d.path)) {  // a search was started: focus the screen on the results and announce it
+        setFocus(true);
+        setTimeout(() => setFocus(false), 6000);
+        const zone = document.getElementById("lead-zone");
+        zone?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+        setTimeout(() => {
+          const r = zone?.getBoundingClientRect();
+          if (r) fly(r.left - W - 6, Math.max(80, r.top + 20), "pointing", "right");
+          setBubble({ id: Date.now(), text: "Pay attention! Your leads are being generated now!", ttl: 6000 });
+          setPose("excited", 1500);
+        }, reduced ? 0 : 500);
+        setTimeout(() => { const d0 = dockAt(); fly(d0.x, d0.y, "idle", "left"); }, 6500);
+        return;
+      }
       if (/^\/campaigns\/?$/.test(d.path)) {
         setPose("success", 2400);
         if (!progress.tips_off && !open) say({ text: "Campaign created! Next, add creators to it from the Lead Database.", ttl: 12000,
@@ -362,7 +381,7 @@ export function Helper() {
       window.removeEventListener("tubelead:helper", onHelper); window.removeEventListener("tubelead:api", onApi);
       window.removeEventListener("tubelead:paywall", onPaywall);
     };
-  }, [tour, open, progress.tips_off, say, setPose, router]);
+  }, [tour, open, progress.tips_off, say, setPose, router, fly, dockAt, W, reduced]);
 
   // ---------------- dozing off when nobody is around
   useEffect(() => {
@@ -386,6 +405,8 @@ export function Helper() {
       <HelperPanel open={open} onClose={closePanel} page={page} path={path} journey={journey.current} signedIn={signedIn} tipsOff={progress.tips_off}
         onTips={(off) => update((p) => ({ ...p, tips_off: off }))} onTour={startTour} onPose={setPose} reduced={reduced} />
 
+      <AnimatePresence>{focus && <motion.div key="focus" data-helper="" className="pointer-events-none fixed inset-0 z-[40] bg-[#1A0D2E]/45"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: .4 }} />}</AnimatePresence>
       {current && tour && <TourLayer tour={current} step={tour.step} rect={rect} card={card} waiting={waiting} reduced={reduced}
         onPrev={prev} onNext={next} onSkip={() => endTour("skipped")} onExit={() => endTour("exit")} />}
 
@@ -401,7 +422,7 @@ export function Helper() {
           <Astronaut pose={pose} facing={facing} size={size} reduced={reduced} glow={docked} className="helper-art" />
         </motion.div>
         <AnimatePresence>
-          {bubble && docked && (
+          {bubble && (docked || focus) && (
             <motion.div key={bubble.id} role="status" className={"helper-bubble absolute bottom-[58%] w-[min(290px,calc(100vw-120px))] p-3.5 " + (bubbleLeft ? "right-[92%] origin-bottom-right" : "left-[92%] origin-bottom-left")}
               initial={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.85, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.9, y: 6 }}
               transition={{ type: "spring", stiffness: 480, damping: 30 }}>

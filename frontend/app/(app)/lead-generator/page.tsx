@@ -337,7 +337,7 @@ export default function LeadGenerator() {
           )}
         </div>
 
-        <div className="space-y-6 xl:sticky xl:top-24 xl:self-start">
+        <div className={cn("space-y-6 xl:sticky xl:top-24 xl:self-start", jobId && "lead-zone")} id="lead-zone">
           {jobId && <DiscoveryJourney jobId={jobId} othersBusy={othersBusy} multiSource={multiSource} />}
           {live && live.id === jobId && <ResultsCard job={live} />}
           <Panel>

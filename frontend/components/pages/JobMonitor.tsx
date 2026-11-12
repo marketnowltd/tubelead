@@ -29,9 +29,17 @@ export function JobMonitor({ jobId, compact }: { jobId: string; compact?: boolea
   const { data: job, error, mutate } = useApi<Job>(`/jobs/${jobId}`, { refreshInterval: (j) => (isActiveJob(j) ? 1500 : 0) });
   // tell the TubeLead Helper when a search it watched finishes (not for jobs that were already finished when opened)
   const wasActive = useRef(false);
+  const almost = useRef(false);
   useEffect(() => {
     if (!job) return;
-    if (isActiveJob(job)) wasActive.current = true;
+    if (isActiveJob(job)) {
+      wasActive.current = true;
+      const limit = Number(job.params?.limit ?? 0);
+      if (limit && job.qualified >= limit * 0.8 && !almost.current) {  // 80% of the leads found
+        almost.current = true;
+        window.dispatchEvent(new CustomEvent("tubelead:helper", { detail: { type: "almost_done" } }));
+      }
+    }
     else if (wasActive.current && job.status === "completed") {
       wasActive.current = false;
       window.dispatchEvent(new CustomEvent("tubelead:helper", { detail: { type: "search_completed", found: job.qualified, jobId: job.id } }));

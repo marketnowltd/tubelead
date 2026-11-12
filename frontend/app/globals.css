@@ -181,3 +181,8 @@ main .field:focus { border-color: #7A2DFF; box-shadow: 0 0 0 4px rgba(122,45,255
 main button[role="switch"] { cursor: pointer; transition: transform .15s; }
 main button[role="switch"]:hover { transform: scale(1.06); }
 @media (prefers-reduced-motion: reduce) { main [role="radiogroup"] > * { transition: none; animation: none !important; } }
+
+/* Lead Generator: the live results area, framed while a search runs */
+.lead-zone { position: relative; z-index: 41; padding: 18px; border-radius: 28px;
+  background: linear-gradient(160deg, rgba(122,45,255,.12), rgba(232,31,118,.06));
+  border: 2px solid #7A2DFF; box-shadow: 0 0 0 6px rgba(122,45,255,.12), 0 30px 70px -30px rgba(122,45,255,.7); }
