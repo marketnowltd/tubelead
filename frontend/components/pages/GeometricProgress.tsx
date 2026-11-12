@@ -1,6 +1,7 @@
 "use client";
 import { CheckCircle2, Circle, Loader2 } from "lucide-react";
 import type { Job } from "@/lib/types";
+import { ProgressScene } from "./ProgressScene";
 
 /** Live progress for a discovery job: a geometric ring that fills with the percentage, and each step as it completes.
  *  Every number comes from the job record, so the percentage moves only when real work finishes. */
@@ -21,7 +22,7 @@ export function GeometricProgress({ job }: { job: Job }) {
   const pct = jobPercent(job);
   const steps = [
     { label: "Planning searches", done: job.queries_total > 0 },
-    { label: "Searching YouTube", done: job.queries_total > 0 && job.queries_done >= job.queries_total },
+    { label: "Searching YouTube and every connected source", done: job.queries_total > 0 && job.queries_done >= job.queries_total },
     { label: "Removing duplicates and big brands", done: job.unique_found > 0 || job.queries_done >= job.queries_total },
     { label: "Checking channels for public emails", done: job.enrich_total > 0 && job.enriched >= job.enrich_total },
     { label: "Saving unique creators", done: job.status === "completed" },
@@ -31,24 +32,8 @@ export function GeometricProgress({ job }: { job: Job }) {
   const r = 84, c = 2 * Math.PI * r;
   return (
     <div className="flex flex-col items-center gap-5 py-2">
-      <div className="relative h-[210px] w-[210px]" role="img" aria-label={`Discovery ${pct}% complete`}>
-        <svg viewBox="0 0 200 200" className="h-full w-full -rotate-90">
-          <defs>
-            <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stopColor="#7B3FF2" /><stop offset=".55" stopColor="#E0237F" /><stop offset="1" stopColor="#FF9A3D" />
-            </linearGradient>
-          </defs>
-          <circle cx="100" cy="100" r={r} fill="none" stroke="#EFEAFB" strokeWidth="14" />
-          <circle cx="100" cy="100" r={r} fill="none" stroke="url(#ringGrad)" strokeWidth="14" strokeLinecap="round"
-            strokeDasharray={c} strokeDashoffset={c * (1 - pct / 100)} style={{ transition: "stroke-dashoffset .6s ease" }} />
-        </svg>
-        <div className="absolute inset-0 grid place-items-center">
-          <div className="text-center">
-            <p className="data text-[38px] font-semibold leading-none text-ink">{pct}%</p>
-            <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.16em] text-forest">{job.status === "completed" ? "Done" : job.status === "paused" ? "Paused" : "In progress"}</p>
-          </div>
-        </div>
-      </div>
+      <div className="w-full"><ProgressScene pct={pct} done={job.status === "completed"} status={job.status}
+        phase={job.queries_total > 0 && job.queries_done >= job.queries_total ? 2 : job.queries_total > 0 ? 1 : 0} /></div>
       <ol className="w-full max-w-sm space-y-2 text-[13px]" aria-label="Steps">
         {steps.map((s, i) => {
           const active = !s.done && i === current && running;
