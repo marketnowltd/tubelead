@@ -517,3 +517,16 @@ def test_short_youtube_search_is_filled_to_the_exact_count_from_other_sources(mo
     with SessionLocal() as db:
         extra = db.query(Creator).filter(Creator.youtube_channel_id.like("applepodcasts:%")).all()
         assert extra and all(c.contacts and c.contacts[0].kind == "email" for c in extra)
+
+
+def test_fill_keeps_searching_rounds_until_exact_count(monkeypatch):
+    from app.services import discovery, search_everywhere as se
+    monkeypatch.setattr(discovery, "FILL_FROM_SOURCES", True)
+    n = {"i": 0}
+    async def fake(query, limit, time_budget=None, skip_youtube=False):
+        n["i"] += 1  # each round only finds 7 new people
+        return {"leads": [{"creator_name": f"P{n['i']}-{k}", "sources": ["bluesky"], "source_url": f"https://b/{n['i']}/{k}", "snippet": "",
+                           "emails": [{"email": f"p{n['i']}x{k}@ex.example", "source": "Bluesky profile", "source_url": None}]} for k in range(7)]}
+    monkeypatch.setattr(se, "search_everywhere", fake)
+    job, _ = run_job({"keywords": ["tech"], "min_subscribers": 1000, "limit": 50}, [])
+    assert job.qualified == 50 and n["i"] >= 6

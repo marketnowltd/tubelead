@@ -278,20 +278,11 @@ class DiscoveryRun:
             return {"leads": []}
         return await search_everywhere(query, p.limit, time_budget=TOTAL_BUDGET - 5, skip_youtube=True)
 
-    async def _fill(self, owner: str, p: JobParams, need: int, others: "asyncio.Task | None") -> int:
-        """Fills the rest of the request from the other connected sources: only people who publish an email."""
-        if others is None:
-            return 0
-        self._update(current_operation=f"Adding {need} more leads with published emails from the other sources")
-        try:
-            out = await others
-        except Exception as exc:  # noqa: BLE001 - YouTube results stand on their own
-            self._log(f"Other sources unavailable: {type(exc).__name__}")
-            return 0
+    def _save_leads(self, owner: str, p: JobParams, leads: list[dict], need: int) -> int:
         saved = 0
         with self.sf() as db:
             emails = {e.lower() for e in db.scalars(select(ContactRoute.value).where(ContactRoute.owner_id == owner, ContactRoute.kind == "email"))}
-            for l in out["leads"]:
+            for l in leads:
                 if saved >= need:
                     break
                 ems = [e for e in l.get("emails", []) if e["email"].lower() not in emails]
@@ -314,8 +305,37 @@ class DiscoveryRun:
             job.qualified += saved
             job.contact_routes_found += saved
             db.commit()
-        self._log(f"Added {saved} leads with published emails from the other sources")
         return saved
+
+    async def _fill(self, owner: str, p: JobParams, need: int, others: "asyncio.Task | None") -> int:
+        """Fills the rest of the request from the other sources, round after round with wider wording, until the
+        exact number is reached. It only stops early if several rounds in a row find nobody new."""
+        from .search_everywhere import search_everywhere
+        base = " ".join(list(p.keywords) + list(p.niches)).strip()[:250]
+        if len(base) < 3:
+            return 0
+        added, dry = 0, 0
+        words = ["", "contact", "business email", "creator", "podcast", "channel", "blog", "influencer", "official", "agency", "coach",
+                 "community", "news", "review", "uk", "usa", "collab", "sponsor", "media", "studio"]
+        for i, w in enumerate(words):
+            if added >= need or dry >= 4:
+                break
+            await self._check_cancel()
+            self._update(current_operation=f"Finding {need - added} more leads with published emails (round {i + 1})")
+            try:
+                if i == 0 and others is not None:
+                    out = await others
+                else:
+                    out = await search_everywhere(f"{base} {w}".strip(), min(100, (need - added) * 3), time_budget=40, skip_youtube=True)
+            except Exception as exc:  # noqa: BLE001
+                self._log(f"Other sources round {i + 1} failed: {type(exc).__name__}")
+                dry += 1
+                continue
+            got = self._save_leads(owner, p, out.get("leads", []), need - added)
+            added += got
+            dry = 0 if got else dry + 1
+        self._log(f"Added {added} leads with published emails from the other sources")
+        return added
 
     def _finish(self, status: str, op: str, error: str | None = None) -> None:
         self._update(status=status, current_operation=op, error=error, finished_at=datetime.now(timezone.utc),
