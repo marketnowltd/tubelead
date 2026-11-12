@@ -1,3 +1,4 @@
+import { MobileReveal } from "@/components/marketing/MobileReveal";
 import { LeadJourney } from "@/components/marketing/demo/LeadJourney";
 import { ProductDemo } from "@/components/marketing/demo/ProductDemo";
 import { GsapReveal } from "@/components/marketing/GsapReveal";
@@ -10,7 +11,8 @@ import { Recognition, Statistics, TrustedBusinesses } from "@/components/marketi
  * capabilities, reviews, verified statistics, recognition, pricing, FAQ, footer. */
 export default function Landing() {
   return (
-    <>
+    <div className="tl-home">
+      <MobileReveal />
       <Hero />
       <TrustedBusinesses />
       <HowItWorks />
@@ -24,6 +26,6 @@ export default function Landing() {
       <GsapReveal />
       <FAQSection />
       <Footer />
-    </>
+    </div>
   );
 }

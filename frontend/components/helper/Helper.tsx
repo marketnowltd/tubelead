@@ -51,7 +51,7 @@ export function Helper() {
   const reduced = useReducedMotionSafe();
   const vp = useViewport();
   const inApp = !MARKETING.includes(path);
-  const size = vp.w < 640 ? 78 : 100;           // character height in px
+  const size = vp.w < 640 ? 64 : 100;  // smaller on phones so it never covers content           // character height in px
   const W = Math.round(size * 0.86), H = size;  // his box
   const tabBar = inApp && vp.w < 1024;          // the mobile tab bar sits at the bottom of app pages
 
