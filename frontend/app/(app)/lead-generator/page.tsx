@@ -99,6 +99,7 @@ export default function LeadGenerator() {
   const [others, setOthers] = useState<OtherSearch | null>(null);
   const [othersBusy, setOthersBusy] = useState(false);
   const multiSource = !!st?.plan.features?.multi_source;
+  const left = st ? Math.max(0, st.plan.leads - st.plan.leads_used) : null;  // leads the plan still allows
   const sawActive = useRef<string | null>(null);
   const { data: live } = useApi<Job>(jobId ? `/jobs/${jobId}` : null, { refreshInterval: (j) => (isActiveJob(j) ? 1500 : 0) });
   useEffect(() => {
@@ -227,7 +228,7 @@ export default function LeadGenerator() {
                 <Field className="sm:col-span-3" label="Search creators or niche" hint="Press Enter after each. Example: fitness, budget travel"><TagInput label="Search creators or niche" value={f.keywords} onChange={(v) => set("keywords", v)} placeholder="e.g. UK fitness creators" /><Err m={show("keywords")} /></Field>
                 <Field label="How many leads">
                   <select className="field" aria-label="How many leads" value={f.limit} onChange={(e) => set("limit", Number(e.target.value))}>
-                    {[10, 25, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
+                    {[10, 25, 50, 100].map((n) => <option key={n} value={n} disabled={left !== null && n > left}>{left !== null && n > left ? `${n} (your plan allows ${left})` : n}</option>)}
                   </select>
                 </Field>
                 <label className="flex items-center gap-3 pb-2.5 text-[13px] font-semibold">
@@ -239,6 +240,11 @@ export default function LeadGenerator() {
                 </label>
                 <button className="btn-primary w-full sm:w-auto" onClick={submit} disabled={busy}><Rocket size={16} /> {busy ? "Starting…" : "Find Leads"}</button>
               </div>
+              {left !== null && f.limit > left && (
+                <div role="alert" className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#7A2DFF]/30 bg-[#7A2DFF]/[0.07] px-4 py-3 text-[13px]">
+                  <span><strong>Your {st?.plan.label} plan has {left} lead{left === 1 ? "" : "s"} left</strong>, so this search will return {left}, not {f.limit}.</span>
+                  <Link href="/billing" className="btn-primary btn-sm">Upgrade for more</Link>
+                </div>)}
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[12px]">
                 <span className="text-mute">Only creators with a public email are included.</span>
                 <button type="button" onClick={() => setLevel("advanced")} className="font-semibold text-forest hover:underline">Need more control? Advanced search →</button>
