@@ -211,3 +211,15 @@ main button[role="switch"]:hover { transform: scale(1.06); }
   .tl-home h2 { font-size: clamp(26px, 7.6vw, 32px) !important; line-height: 1.1 !important; }
   .tl-home section { scroll-margin-top: 72px; }
 }
+
+/* Phone: fade the hero art on every edge so it sits behind the preview card with no hard lines */
+@media (max-width: 640px) {
+  .tl-home .hero-art-mask {
+    -webkit-mask-image: radial-gradient(ellipse 52% 44% at 50% 52%, #000 30%, transparent 100%);
+    mask-image: radial-gradient(ellipse 52% 44% at 50% 52%, #000 30%, transparent 100%);
+    -webkit-mask-composite: source-over; mask-composite: add;
+    transform: scale(1.15);
+  }
+  .tl-home [aria-label="TubeLead creator discovery preview"] { padding-bottom: 22%;
+  }
+}
