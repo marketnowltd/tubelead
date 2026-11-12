@@ -141,19 +141,36 @@ export function Hero() {
       <section aria-label="Sources TubeLead searches" className="bg-[#f8f4ff] pt-6">
         <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-40px" }} transition={{ duration: 0.7, ease: EASE }}
           className="mx-auto max-w-[1320px] pl-[max(20px,env(safe-area-inset-left,0px))] pr-[max(20px,env(safe-area-inset-right,0px))] sm:px-8">
-          <div className="flex flex-col gap-5 rounded-[26px] border border-white bg-white/80 px-6 py-6 shadow-card lg:flex-row lg:items-center lg:gap-8 lg:px-9">
-            <p className="shrink-0 text-[16px] font-semibold leading-snug text-ink">Searches across the places<br className="hidden lg:block" /> creators publish</p>
-            <span aria-hidden className="hidden h-11 w-px shrink-0 bg-forest/20 lg:block" />
-            <ul className="flex flex-1 flex-wrap items-center gap-x-7 gap-y-3 lg:justify-between">
+          <div className="src-panel relative overflow-hidden rounded-[28px] px-5 py-7 sm:px-9 sm:py-9">
+            <span aria-hidden className="src-glow" />
+            <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[.16em] text-white/80">
+                  <span className="src-dot" aria-hidden /> One search · {SEARCH_SOURCES.length} sources
+                </p>
+                <p className="src-title font-display text-[26px] font-extrabold leading-[1.1] tracking-tight text-white sm:text-[34px]">Searches across the places<br className="hidden sm:block" /> creators <em className="bg-[linear-gradient(90deg,#ff7ab8,#ffb36b)] bg-clip-text italic text-transparent">publish</em></p>
+                <p className="mt-2.5 max-w-[520px] text-[14.5px] leading-relaxed text-white/65">Every search checks them all at once and brings back only people with a published email.</p>
+              </div>
+              <a href="#pricing" className="src-cta group inline-flex shrink-0 items-center gap-2 self-start rounded-full bg-white px-6 py-3.5 text-[14px] font-extrabold text-ink transition duration-300 hover:-translate-y-0.5 lg:self-auto">
+                Unlock every source <ArrowRight size={16} className="transition-transform duration-300 group-hover:translate-x-1" />
+              </a>
+            </div>
+            <ul className="relative mt-7 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
               {SEARCH_SOURCES.map((src, i) => {
                 const logo = SOURCE_LOGOS[src.key];
                 const live = src.status === "live";
                 return (
-                  <motion.li key={src.name} title={src.detail} initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 + i * 0.07, duration: 0.5 }}
-                    className="flex items-center gap-2 text-[15px] font-bold text-ink">
-                    {logo && <svg role="img" aria-label={`${src.name} logo`} viewBox="0 0 24 24" className="h-6 w-6 shrink-0"><path d={logo.path} fill={logo.hex} /></svg>}
-                    {src.name}
-                    {live ? <span className="rounded-full bg-moss/10 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-moss">Live</span> : <span className="rounded-full bg-forest/10 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-forest">Pro</span>}
+                  <motion.li key={src.name} title={src.detail} initial={{ opacity: 0, y: 14 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.08 + i * 0.05, duration: 0.5, ease: EASE }}
+                    className="src-tile flex min-w-0 items-center gap-2.5 rounded-2xl p-2.5 sm:p-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white shadow-[0_6px_16px_-6px_rgba(0,0,0,.5)]">
+                      {logo && <svg role="img" aria-label={`${src.name} logo`} viewBox="0 0 24 24" className="h-5 w-5"><path d={logo.path} fill={logo.hex} /></svg>}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[12.5px] font-bold leading-tight text-white sm:truncate sm:text-[13.5px]">{src.name}</span>
+                      {live
+                        ? <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#5ee6a0]"><span className="src-dot" aria-hidden />Live</span>
+                        : <span className="block text-[10px] font-bold uppercase tracking-wider text-white/45">Pro</span>}
+                    </span>
                   </motion.li>
                 );
               })}
